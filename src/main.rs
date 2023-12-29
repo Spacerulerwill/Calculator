@@ -3,7 +3,7 @@ mod calculator;
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let res: String = args[1..].join(" ");    
-    let tokens = calculator::parse_and_tokenise(res);
+    let tokens = calculator::tokenise(res);
 
     match tokens {
         Ok(_) => {

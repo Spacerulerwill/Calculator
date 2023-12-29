@@ -27,7 +27,7 @@ pub enum Error {
     MismatchedParenthesis,
 }
 
-pub fn parse_and_tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, Error> {
+pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, Error> {
     let expr = expr.as_ref();
     let chars = expr.chars();
     let mut tokens: Vec<Token> = Vec::new();
