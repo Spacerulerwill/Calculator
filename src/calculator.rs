@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, clone};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Operator {
@@ -62,8 +62,7 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, Error> {
             '-' => tokens.push(Token::Op(Operator::Sub)),
             '*' => tokens.push(Token::Op(Operator::Mul)),
             '/' => tokens.push(Token::Op(Operator::Div)),
-            ' ' => {},
-            '\n' => {}
+            ' ' | '\n' => {},
             _ => return Err(Error::BadToken(c))
         }
     }
@@ -83,15 +82,25 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
         match token {
             Token::Number(_) => queue.push_back(token.clone()),
             Token::Op(_) => {
-                while !operation_stack.is_empty() && operation_stack[operation_stack.len() - 1] >= *token && operation_stack[operation_stack.len() - 1] !=  Token::Parenthesis(Parenthesis::OPEN){
-                    queue.push_back(operation_stack.pop().unwrap());
+                while !operation_stack.is_empty() {
+                    let next_op = operation_stack.last().unwrap().clone();
+                    if next_op >= *token && next_op != Token::Parenthesis(Parenthesis::OPEN){
+                        queue.push_back(operation_stack.pop().unwrap());
+                    } else {
+                        break;
+                    }
                 }
                 operation_stack.push(token.clone());
             },
             Token::Parenthesis(Parenthesis::OPEN) => operation_stack.push(token.clone()),
             Token::Parenthesis(Parenthesis::CLOSED) => {
-                while !operation_stack.is_empty() && operation_stack[operation_stack.len() - 1] != Token::Parenthesis(Parenthesis::OPEN) {
-                    queue.push_back(operation_stack.pop().unwrap());
+                while !operation_stack.is_empty() {
+                    let next_op = operation_stack.last().unwrap().clone();
+                    if next_op != Token::Parenthesis(Parenthesis::OPEN) {
+                        queue.push_back(operation_stack.pop().unwrap());
+                    } else {
+                        break;
+                    }
                 }
                 operation_stack.pop();
             },
