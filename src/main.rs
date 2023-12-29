@@ -3,12 +3,12 @@ mod calculator;
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let res: String = args[1..].join(" ");    
-    let tokens = calculator::Calculator::parse(res);
+    let tokens = calculator::parse_and_tokenise(res);
 
     match tokens {
         Ok(_) => {
-            let mut rpn = calculator::Calculator::rpn(&tokens.unwrap());
-            let result = calculator::Calculator::evaluate(&mut rpn);
+            let mut rpn = calculator::infix_to_rpn(&tokens.unwrap());
+            let result = calculator::evaluate_rpn(&mut rpn);
             println!("{}", result);
         },
         Err(e) => {
