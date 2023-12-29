@@ -5,7 +5,7 @@ pub enum Operator {
     Add,
     Sub,
     Mul,
-    Div
+    Div,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -78,7 +78,7 @@ impl Calculator {
         return Ok(tokens);
     }
 
-    pub fn rpn(tokens: Vec<Token>) -> VecDeque<Token> {
+    pub fn rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
         let mut queue: VecDeque<Token> = VecDeque::new();
         let mut operation_stack: Vec<Token> = Vec::new();
         
@@ -86,7 +86,7 @@ impl Calculator {
             match token {
                 Token::Number(_) => queue.push_back(token.clone()),
                 Token::Op(_) => {
-                    while !operation_stack.is_empty() && operation_stack[operation_stack.len() - 1] >= token && operation_stack[operation_stack.len() - 1] !=  Token::Parenthesis(Parenthesis::OPEN){
+                    while !operation_stack.is_empty() && operation_stack[operation_stack.len() - 1] >= *token && operation_stack[operation_stack.len() - 1] !=  Token::Parenthesis(Parenthesis::OPEN){
                         queue.push_back(operation_stack.pop().unwrap());
                     }
                     operation_stack.push(token.clone());
@@ -111,7 +111,7 @@ impl Calculator {
         return queue
     }
 
-    pub fn evaluate(mut rpn: VecDeque<Token>) -> u32 {
+    pub fn evaluate(rpn: &mut VecDeque<Token>) -> u32 {
         let mut stack: Vec<u32> = Vec::new();
         while !rpn.is_empty() {
             let token = rpn.pop_front();
