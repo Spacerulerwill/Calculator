@@ -8,7 +8,8 @@ fn main() {
     match tokens {
         Ok(_) => {
             let rpn = calculator::Calculator::rpn(tokens.unwrap());
-            println!("{:?}", rpn);
+            let result = calculator::Calculator::evaluate(rpn);
+            println!("{}", result);
         },
         Err(e) => {
             match e {

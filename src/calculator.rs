@@ -110,4 +110,34 @@ impl Calculator {
 
         return queue
     }
+
+    pub fn evaluate(mut rpn: VecDeque<Token>) -> u32 {
+        let mut stack: Vec<u32> = Vec::new();
+        while !rpn.is_empty() {
+            let token = rpn.pop_front();
+            match token.unwrap() {
+                Token::Number(num) => stack.push(num),
+                Token::Op(op) => {
+                    let y = stack.pop().unwrap();
+                    let x = stack.pop().unwrap();
+                    match op {
+                        Operator::Add => {
+                            stack.push(x + y);
+                        },
+                        Operator::Sub => {
+                            stack.push(x - y);
+                        },
+                        Operator::Mul => {
+                            stack.push(x * y);
+                        },
+                        Operator::Div => {
+                            stack.push(x / y);
+                        },
+                    }
+                },
+                Token::Parenthesis(_) => panic!("There should be no parenthesis in expression evaluation stage!"),
+            }
+        }
+        return *stack.first().unwrap();
+    }
 }
