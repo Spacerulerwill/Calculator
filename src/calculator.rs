@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, clone};
+use std::collections::VecDeque;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Operator {
