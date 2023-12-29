@@ -1,4 +1,6 @@
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+use std::collections::VecDeque;
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Operator {
     Add,
     Sub,
@@ -6,13 +8,13 @@ pub enum Operator {
     Div
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Parenthesis {
     OPEN,
     CLOSED
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Token {
     Number(u32),
     Op(Operator),
@@ -74,5 +76,38 @@ impl Calculator {
         }
 
         return Ok(tokens);
+    }
+
+    pub fn rpn(tokens: Vec<Token>) -> VecDeque<Token> {
+        let mut queue: VecDeque<Token> = VecDeque::new();
+        let mut operation_stack: Vec<Token> = Vec::new();
+        
+        for token in tokens {
+            match token {
+                Token::Number(_) => queue.push_back(token.clone()),
+                Token::Op(_) => {
+                    while !operation_stack.is_empty() && operation_stack[operation_stack.len() - 1] >= token && operation_stack[operation_stack.len() - 1] !=  Token::Parenthesis(Parenthesis::OPEN){
+                        queue.push_back(operation_stack.pop().unwrap());
+                    }
+                    operation_stack.push(token.clone());
+                },
+                Token::Parenthesis(Parenthesis::OPEN) => operation_stack.push(token.clone()),
+                Token::Parenthesis(Parenthesis::CLOSED) => {
+                    while !operation_stack.is_empty() && operation_stack[operation_stack.len() - 1] != Token::Parenthesis(Parenthesis::OPEN) {
+                        queue.push_back(operation_stack.pop().unwrap());
+                    }
+                    operation_stack.pop();
+                },
+            }
+        }
+
+        while operation_stack.len() > 0 {
+            let op = operation_stack.pop().unwrap();
+            if op != Token::Parenthesis(Parenthesis::OPEN){
+                queue.push_back(op);
+            }
+        }
+
+        return queue
     }
 }

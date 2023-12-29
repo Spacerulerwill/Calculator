@@ -7,7 +7,8 @@ fn main() {
 
     match tokens {
         Ok(_) => {
-            println!("{:?}", tokens.unwrap());
+            let rpn = calculator::Calculator::rpn(tokens.unwrap());
+            println!("{:?}", rpn);
         },
         Err(e) => {
             match e {
