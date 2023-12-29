@@ -3,7 +3,7 @@ Unit tests for the evaluate_rpn function, which takes in tokens in reverse polis
 */
 
 use std::collections::VecDeque;
-use calculator::calculator::{evaluate_rpn, Operator, Token, Parenthesis};
+use calculator::calculator::{evaluate_rpn, Operator, Token};
 
 #[cfg(test)]
 #[test]
