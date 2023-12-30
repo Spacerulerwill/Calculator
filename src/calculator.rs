@@ -6,6 +6,8 @@ pub enum Operator {
     Sub,
     Mul,
     Div,
+    Mod,
+    Exp,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -25,6 +27,14 @@ pub enum Token {
 pub enum Error {
     BadToken(char),
     MismatchedParenthesis,
+}
+
+fn get_operator_precedence(op: Operator) -> i32 {
+    return match op {
+        Operator::Add | Operator::Sub => 0,
+        Operator::Mul | Operator::Div | Operator::Mod => 1,
+        Operator::Exp => 2,
+    }
 }
 
 pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, Error> {
@@ -62,6 +72,8 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, Error> {
             '-' => tokens.push(Token::Op(Operator::Sub)),
             '*' => tokens.push(Token::Op(Operator::Mul)),
             '/' => tokens.push(Token::Op(Operator::Div)),
+            '^' => tokens.push(Token::Op(Operator::Exp)),
+            '%' => tokens.push(Token::Op(Operator::Mod)),
             ' ' | '\n' => {},
             _ => return Err(Error::BadToken(c))
         }
@@ -81,11 +93,17 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
     for token in tokens {
         match token {
             Token::Number(_) => queue.push_back(token.clone()),
-            Token::Op(_) => {
+            Token::Op(op1) => {
+                let op1_precedence = get_operator_precedence(op1.clone());
                 while !operation_stack.is_empty() {
                     let next_op = operation_stack.last().unwrap().clone();
-                    if next_op >= *token && next_op != Token::Parenthesis(Parenthesis::OPEN){
-                        queue.push_back(operation_stack.pop().unwrap());
+                    if let Token::Op(op2) = next_op.clone() {
+                        let op2_precedence = get_operator_precedence(op2);
+                        if op2_precedence >= op1_precedence && next_op != Token::Parenthesis(Parenthesis::OPEN){
+                            queue.push_back(operation_stack.pop().unwrap());
+                        } else {
+                            break;
+                        }
                     } else {
                         break;
                     }
@@ -138,6 +156,12 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> u32 {
                     },
                     Operator::Div => {
                         stack.push(x / y);
+                    },
+                    Operator::Exp => {
+                        stack.push(x.pow(y));
+                    },
+                    Operator::Mod => {
+                        stack.push(x % y);
                     },
                 }
             },
