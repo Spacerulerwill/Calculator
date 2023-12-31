@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Operator {
     Add,
     Sub,
@@ -10,23 +10,28 @@ pub enum Operator {
     Exp,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Parenthesis {
     OPEN,
     CLOSED
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Token {
     Number(u32),
     Op(Operator),
     Parenthesis(Parenthesis)
 }
 
-#[derive(Debug)]
-pub enum Error {
+#[derive(Debug, Clone)]
+pub enum ParserError {
     BadToken(char),
     MismatchedParenthesis,
+}
+
+#[derive(Debug)]
+pub enum CalculatonError {
+    UndefinedOperation(String)
 }
 
 fn get_operator_precedence(op: Operator) -> i32 {
@@ -37,7 +42,7 @@ fn get_operator_precedence(op: Operator) -> i32 {
     }
 }
 
-pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, Error> {
+pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
     let expr = expr.as_ref();
     let chars = expr.chars();
     let mut tokens: Vec<Token> = Vec::new();
@@ -60,10 +65,10 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, Error> {
             ')' => {
                 if let Some(p) = parens.pop() {
                     if p != Parenthesis::OPEN {
-                        return Err(Error::MismatchedParenthesis);
+                        return Err(ParserError::MismatchedParenthesis);
                     }
                 } else {
-                    return Err(Error::MismatchedParenthesis);
+                    return Err(ParserError::MismatchedParenthesis);
                 }
 
                 tokens.push(Token::Parenthesis(Parenthesis::CLOSED));
@@ -74,13 +79,13 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, Error> {
             '/' => tokens.push(Token::Op(Operator::Div)),
             '^' => tokens.push(Token::Op(Operator::Exp)),
             '%' => tokens.push(Token::Op(Operator::Mod)),
-            ' ' | '\n' => {},
-            _ => return Err(Error::BadToken(c))
+            ' ' | '\n' | '\r' => {},
+            _ => return Err(ParserError::BadToken(c))
         }
     }
 
     if parens.len() > 0 {
-        return Err(Error::MismatchedParenthesis);
+        return Err(ParserError::MismatchedParenthesis);
     }
 
     return Ok(tokens);
@@ -135,7 +140,7 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
     return queue
 }
 
-pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> u32 {
+pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<u32, CalculatonError> {
     let mut stack: Vec<u32> = Vec::new();
     while !rpn.is_empty() {
         let token = rpn.pop_front();
@@ -155,18 +160,27 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> u32 {
                         stack.push(x * y);
                     },
                     Operator::Div => {
+                        if y == 0 {
+                            return Err(CalculatonError::UndefinedOperation("Cannot divide by 0".to_string()))
+                        }
                         stack.push(x / y);
                     },
                     Operator::Exp => {
+                        if x == 0 && y == 0 {
+                            return Err(CalculatonError::UndefinedOperation("0^0".to_string()))
+                        }
                         stack.push(x.pow(y));
                     },
                     Operator::Mod => {
+                        if y == 0 {
+                            return Err(CalculatonError::UndefinedOperation("Cannot modulo by 0".to_string()))
+                        }
                         stack.push(x % y);
                     },
                 }
             },
-            Token::Parenthesis(_) => panic!("There should be no parenthesis in expression evaluation stage!"),
+            Token::Parenthesis(_) => panic!("There should be no parenthesis in expression evaluation stage! There must be a bug in the infix to rpn conversion..."),
         }
     }
-    return *stack.first().unwrap();
+    return Ok(*stack.first().unwrap());
 }
