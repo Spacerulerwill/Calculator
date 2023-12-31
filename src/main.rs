@@ -2,10 +2,9 @@ mod calculator;
 use std::io::stdin;
 
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    let res: String = args[1..].join(" ");    
+    let args = std::env::args();
 
-    if res.len() == 0 {
+    if args.len() == 1 {
         loop {
             let mut input: String = String::new();
             stdin().read_line(&mut input).expect("Failed to read user input");
@@ -13,6 +12,8 @@ fn main() {
         }
     }
     else {
+        let collected_args: Vec<String> = args.collect();
+        let res: String = collected_args[1..].join(" ");    
         calculate(res);
     }
 }
