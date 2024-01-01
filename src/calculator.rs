@@ -1,5 +1,7 @@
 use std::collections::VecDeque;
 
+pub type Signed = i128;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Operator {
     Add,
@@ -18,7 +20,7 @@ pub enum Parenthesis {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Token {
-    Number(u32),
+    Number(Signed),
     Op(Operator),
     Parenthesis(Parenthesis)
 }
@@ -34,7 +36,7 @@ pub enum CalculatonError {
     UndefinedOperation(String)
 }
 
-fn get_operator_precedence(op: Operator) -> i32 {
+fn get_operator_precedence(op: Operator) -> Signed {
     return match op {
         Operator::Add | Operator::Sub => 0,
         Operator::Mul | Operator::Div | Operator::Mod => 1,
@@ -51,14 +53,27 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
         match c {
             '0'..='9' => match tokens.last_mut() {
                 Some(Token::Number(n)) => {
-                    *n = *n * 10 + (c as u32 - 48);
+                    *n = *n * 10 + (c as Signed - 48);
                 }
                 _ => {
-                    let digit = c as u32 - 48;
+                    let digit = c as Signed - 48;
                     tokens.push(Token::Number(digit));
                 }
             }
             '(' => {
+                 if let Some(token) = tokens.last().clone() {
+                    match token {
+                        Token::Number(_) => {
+                            tokens.push(Token::Op(Operator::Mul));
+                        },
+                        Token::Op(_) => todo!(),
+                        Token::Parenthesis(p) => {
+                            if p.clone() == Parenthesis::CLOSED {
+                                tokens.push(Token::Op(Operator::Mul));
+                            }
+                        },
+                    }
+                }
                 tokens.push(Token::Parenthesis(Parenthesis::OPEN));
                 parens.push(Parenthesis::OPEN)
             },
@@ -140,8 +155,8 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
     return queue
 }
 
-pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<u32, CalculatonError> {
-    let mut stack: Vec<u32> = Vec::new();
+pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<Signed, CalculatonError> {
+    let mut stack: Vec<Signed> = Vec::new();
     while !rpn.is_empty() {
         let token = rpn.pop_front();
         match token.unwrap() {
@@ -169,7 +184,7 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<u32, CalculatonError> {
                         if x == 0 && y == 0 {
                             return Err(CalculatonError::UndefinedOperation("0^0".to_string()))
                         }
-                        stack.push(x.pow(y));
+                        stack.push(x.pow(y as u32));
                     },
                     Operator::Mod => {
                         if y == 0 {
@@ -183,8 +198,8 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<u32, CalculatonError> {
         }
     }
 
-    if (stack.len() == 0) {
-        return Ok(0);
-    }
+    if stack.len() == 0 {
+        return Ok(0)
+    };
     return Ok(*stack.first().unwrap());
 }

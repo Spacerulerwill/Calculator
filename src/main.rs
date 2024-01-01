@@ -32,7 +32,7 @@ fn calculate(input: String) {
     match tokens {
         Ok(_) => {
             let mut rpn = calculator::infix_to_rpn(&tokens.unwrap());
-            let result: Result<u32, calculator::CalculatonError> = calculator::evaluate_rpn(&mut rpn);
+            let result: Result<calculator::Signed, calculator::CalculatonError> = calculator::evaluate_rpn(&mut rpn);
 
             match result {
                 Ok(_) => println!("Result: {}", result.unwrap()),
