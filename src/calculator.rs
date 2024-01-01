@@ -182,5 +182,9 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<u32, CalculatonError> {
             Token::Parenthesis(_) => panic!("There should be no parenthesis in expression evaluation stage! There must be a bug in the infix to rpn conversion..."),
         }
     }
+
+    if (stack.len() == 0) {
+        return Ok(0);
+    }
     return Ok(*stack.first().unwrap());
 }
