@@ -6,6 +6,7 @@ pub type Signed = i128;
 pub enum Operator {
     Add,
     Sub,
+    UnarySub,
     Mul,
     Div,
     Mod,
@@ -40,7 +41,7 @@ fn get_operator_precedence(op: Operator) -> Signed {
     return match op {
         Operator::Add | Operator::Sub => 0,
         Operator::Mul | Operator::Div | Operator::Mod => 1,
-        Operator::Exp => 2,
+        Operator::Exp | Operator::UnarySub => 2,
     }
 }
 
@@ -66,7 +67,7 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
                         Token::Number(_) => {
                             tokens.push(Token::Op(Operator::Mul));
                         },
-                        Token::Op(_) => todo!(),
+                        Token::Op(_) => {},
                         Token::Parenthesis(p) => {
                             if p.clone() == Parenthesis::CLOSED {
                                 tokens.push(Token::Op(Operator::Mul));
@@ -89,7 +90,23 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
                 tokens.push(Token::Parenthesis(Parenthesis::CLOSED));
             },
             '+' => tokens.push(Token::Op(Operator::Add)),
-            '-' => tokens.push(Token::Op(Operator::Sub)),
+            '-' => {
+                if let Some(token) = tokens.last().clone() {
+                    match token.clone() {
+                        Token::Op(Operator::Add) | Token::Op(Operator::Sub) 
+                        | Token::Op(Operator::Mul) | Token::Op(Operator::Div) 
+                        | Token::Op(Operator::Mod) | Token::Op(Operator::Exp) 
+                        | Token::Parenthesis(Parenthesis::OPEN) => {
+                            tokens.push(Token::Op(Operator::UnarySub))
+                        }
+                        _ => {
+                            tokens.push(Token::Op(Operator::Sub))
+                        }
+                    }
+                } else {
+                    tokens.push(Token::Op(Operator::UnarySub))
+                }
+            },
             '*' => tokens.push(Token::Op(Operator::Mul)),
             '/' => tokens.push(Token::Op(Operator::Div)),
             '^' => tokens.push(Token::Op(Operator::Exp)),
@@ -170,6 +187,9 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<Signed, CalculatonError
                     },
                     Operator::Sub => {
                         stack.push(x - y);
+                    },
+                    Operator::UnarySub => {
+
                     },
                     Operator::Mul => {
                         stack.push(x * y);
