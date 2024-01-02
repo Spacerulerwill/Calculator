@@ -26,7 +26,7 @@ pub enum Token {
     Parenthesis(Parenthesis)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ParserError {
     BadToken(char),
     MismatchedParenthesis,
@@ -34,7 +34,8 @@ pub enum ParserError {
 
 #[derive(Debug)]
 pub enum CalculatonError {
-    UndefinedOperation(String)
+    UndefinedOperation(String),
+    IntegerOverflow
 }
 
 fn get_operator_precedence(op: Operator) -> Signed {
@@ -111,7 +112,7 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
             '/' => tokens.push(Token::Op(Operator::Div)),
             '^' => tokens.push(Token::Op(Operator::Exp)),
             '%' => tokens.push(Token::Op(Operator::Mod)),
-            ' ' | '\n' | '\r' => {},
+            ' ' | '\n' | '\r' | '\t' => {},
             _ => return Err(ParserError::BadToken(c))
         }
     }
@@ -183,34 +184,52 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<Signed, CalculatonError
                 let x = stack.pop().unwrap();
                 match op {
                     Operator::Add => {
-                        stack.push(x + y);
+                        match x.checked_add(y) {
+                            Some(num) => stack.push(num),
+                            None => return Err(CalculatonError::IntegerOverflow),
+                        }
                     },
                     Operator::Sub => {
-                        stack.push(x - y);
+                        match x.checked_sub(y) {
+                            Some(num) => stack.push(num),
+                            None => return Err(CalculatonError::IntegerOverflow)
+                        }
                     },
                     Operator::UnarySub => {
 
                     },
                     Operator::Mul => {
-                        stack.push(x * y);
+                        match x.checked_mul(y) {
+                            Some(num) => stack.push(num),
+                            None => return Err(CalculatonError::IntegerOverflow)
+                        }
                     },
                     Operator::Div => {
                         if y == 0 {
                             return Err(CalculatonError::UndefinedOperation("Cannot divide by 0".to_string()))
                         }
-                        stack.push(x / y);
+                        match x.checked_div(y) {
+                            Some(num) => stack.push(num),
+                            None => return Err(CalculatonError::IntegerOverflow)
+                        }
                     },
                     Operator::Exp => {
                         if x == 0 && y == 0 {
                             return Err(CalculatonError::UndefinedOperation("0^0".to_string()))
                         }
-                        stack.push(x.pow(y as u32));
+                        match x.checked_pow(y as u32) {
+                            Some(num) => stack.push(num),
+                            None => return Err(CalculatonError::IntegerOverflow)
+                        }
                     },
                     Operator::Mod => {
                         if y == 0 {
                             return Err(CalculatonError::UndefinedOperation("Cannot modulo by 0".to_string()))
                         }
-                        stack.push(x % y);
+                        match x.checked_rem(y) {
+                            Some(num) => stack.push(num),
+                            None => return Err(CalculatonError::IntegerOverflow)
+                        }
                     },
                 }
             },
