@@ -1,16 +1,20 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, fmt::Binary};
 
 pub type Signed = i128;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Operator {
+pub enum BinaryOp {
     Add,
     Sub,
-    UnarySub,
     Mul,
     Div,
     Mod,
     Exp,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum UnaryOp {
+    Negate,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -22,7 +26,8 @@ pub enum Parenthesis {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Token {
     Number(Signed),
-    Op(Operator),
+    BinaryOp(BinaryOp),
+    UnaryOp(UnaryOp),
     Parenthesis(Parenthesis)
 }
 
@@ -38,11 +43,11 @@ pub enum CalculatonError {
     IntegerOverflow
 }
 
-fn get_operator_precedence(op: Operator) -> Signed {
+fn get_binary_operator_precedence(op: BinaryOp) -> Signed {
     return match op {
-        Operator::Add | Operator::Sub => 0,
-        Operator::Mul | Operator::Div | Operator::Mod => 1,
-        Operator::Exp | Operator::UnarySub => 2,
+        BinaryOp::Add | BinaryOp::Sub => 0,
+        BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => 1,
+        BinaryOp::Exp  => 2,
     }
 }
 
@@ -55,7 +60,29 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
         match c {
             '0'..='9' => match tokens.last_mut() {
                 Some(Token::Number(n)) => {
-                    *n = *n * 10 + (c as Signed - 48);
+                    if *n < 0 {
+                        *n = *n * 10 - (c as Signed - 48);
+                    } else {
+                        *n = *n * 10 + (c as Signed - 48);
+                    }
+                },
+                Some(Token::UnaryOp(UnaryOp::Negate)) => {
+                    let mut digit = c as Signed - 48;
+
+                    loop {
+                        tokens.pop();
+                        digit *= -1;
+                        
+                        if let Some(last) = tokens.last() {
+                            if last.clone() != Token::UnaryOp(UnaryOp::Negate) {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                    tokens.push(Token::Number(digit));
+
                 }
                 _ => {
                     let digit = c as Signed - 48;
@@ -66,12 +93,13 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
                  if let Some(token) = tokens.last().clone() {
                     match token {
                         Token::Number(_) => {
-                            tokens.push(Token::Op(Operator::Mul));
+                            tokens.push(Token::BinaryOp(BinaryOp::Mul));
                         },
-                        Token::Op(_) => {},
+                        Token::BinaryOp(_) => {},
+                        Token::UnaryOp(_) => {},
                         Token::Parenthesis(p) => {
                             if p.clone() == Parenthesis::CLOSED {
-                                tokens.push(Token::Op(Operator::Mul));
+                                tokens.push(Token::BinaryOp(BinaryOp::Mul));
                             }
                         },
                     }
@@ -90,28 +118,29 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
 
                 tokens.push(Token::Parenthesis(Parenthesis::CLOSED));
             },
-            '+' => tokens.push(Token::Op(Operator::Add)),
+            '+' => tokens.push(Token::BinaryOp(BinaryOp::Add)),
             '-' => {
                 if let Some(token) = tokens.last().clone() {
                     match token.clone() {
-                        Token::Op(Operator::Add) | Token::Op(Operator::Sub) 
-                        | Token::Op(Operator::Mul) | Token::Op(Operator::Div) 
-                        | Token::Op(Operator::Mod) | Token::Op(Operator::Exp) 
+                        Token::BinaryOp(BinaryOp::Add) | Token::BinaryOp(BinaryOp::Sub) 
+                        | Token::BinaryOp(BinaryOp::Mul) | Token::BinaryOp(BinaryOp::Div) 
+                        | Token::BinaryOp(BinaryOp::Mod) | Token::BinaryOp(BinaryOp::Exp) 
+                        | Token::UnaryOp(UnaryOp::Negate)
                         | Token::Parenthesis(Parenthesis::OPEN) => {
-                            tokens.push(Token::Op(Operator::UnarySub))
+                            tokens.push(Token::UnaryOp(UnaryOp::Negate))
                         }
                         _ => {
-                            tokens.push(Token::Op(Operator::Sub))
+                            tokens.push(Token::BinaryOp(BinaryOp::Sub))
                         }
                     }
                 } else {
-                    tokens.push(Token::Op(Operator::UnarySub))
+                    tokens.push(Token::UnaryOp(UnaryOp::Negate))
                 }
             },
-            '*' => tokens.push(Token::Op(Operator::Mul)),
-            '/' => tokens.push(Token::Op(Operator::Div)),
-            '^' => tokens.push(Token::Op(Operator::Exp)),
-            '%' => tokens.push(Token::Op(Operator::Mod)),
+            '*' => tokens.push(Token::BinaryOp(BinaryOp::Mul)),
+            '/' => tokens.push(Token::BinaryOp(BinaryOp::Div)),
+            '^' => tokens.push(Token::BinaryOp(BinaryOp::Exp)),
+            '%' => tokens.push(Token::BinaryOp(BinaryOp::Mod)),
             ' ' | '\n' | '\r' | '\t' => {},
             _ => return Err(ParserError::BadToken(c))
         }
@@ -131,12 +160,12 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
     for token in tokens {
         match token {
             Token::Number(_) => queue.push_back(token.clone()),
-            Token::Op(op1) => {
-                let op1_precedence = get_operator_precedence(op1.clone());
+            Token::BinaryOp(op1) => {
+                let op1_precedence = get_binary_operator_precedence(op1.clone());
                 while !operation_stack.is_empty() {
                     let next_op = operation_stack.last().unwrap().clone();
-                    if let Token::Op(op2) = next_op.clone() {
-                        let op2_precedence = get_operator_precedence(op2);
+                    if let Token::BinaryOp(op2) = next_op.clone() {
+                        let op2_precedence = get_binary_operator_precedence(op2);
                         if op2_precedence >= op1_precedence && next_op != Token::Parenthesis(Parenthesis::OPEN){
                             queue.push_back(operation_stack.pop().unwrap());
                         } else {
@@ -148,6 +177,22 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
                 }
                 operation_stack.push(token.clone());
             },
+            Token::UnaryOp(_) => {
+                while !operation_stack.is_empty() {
+                    let next_op = operation_stack.last().unwrap().clone();
+                    if let Token::UnaryOp(_) = next_op.clone() {
+                        if next_op != Token::Parenthesis(Parenthesis::OPEN){
+                            queue.push_back(operation_stack.pop().unwrap());
+                        } else {
+                            break;
+                        }
+                    }             
+                    else {
+                        break;
+                    }
+                }
+                operation_stack.push(token.clone());
+            }
             Token::Parenthesis(Parenthesis::OPEN) => operation_stack.push(token.clone()),
             Token::Parenthesis(Parenthesis::CLOSED) => {
                 while !operation_stack.is_empty() {
@@ -179,32 +224,29 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<Signed, CalculatonError
         let token = rpn.pop_front();
         match token.unwrap() {
             Token::Number(num) => stack.push(num),
-            Token::Op(op) => {
+            Token::BinaryOp(op) => {
                 let y = stack.pop().unwrap();
                 let x = stack.pop().unwrap();
                 match op {
-                    Operator::Add => {
+                    BinaryOp::Add => {
                         match x.checked_add(y) {
                             Some(num) => stack.push(num),
                             None => return Err(CalculatonError::IntegerOverflow),
                         }
                     },
-                    Operator::Sub => {
+                    BinaryOp::Sub => {
                         match x.checked_sub(y) {
                             Some(num) => stack.push(num),
                             None => return Err(CalculatonError::IntegerOverflow)
                         }
                     },
-                    Operator::UnarySub => {
-
-                    },
-                    Operator::Mul => {
+                    BinaryOp::Mul => {
                         match x.checked_mul(y) {
                             Some(num) => stack.push(num),
                             None => return Err(CalculatonError::IntegerOverflow)
                         }
                     },
-                    Operator::Div => {
+                    BinaryOp::Div => {
                         if y == 0 {
                             return Err(CalculatonError::UndefinedOperation("Cannot divide by 0".to_string()))
                         }
@@ -213,7 +255,7 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<Signed, CalculatonError
                             None => return Err(CalculatonError::IntegerOverflow)
                         }
                     },
-                    Operator::Exp => {
+                    BinaryOp::Exp => {
                         if x == 0 && y == 0 {
                             return Err(CalculatonError::UndefinedOperation("0^0".to_string()))
                         }
@@ -222,7 +264,7 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<Signed, CalculatonError
                             None => return Err(CalculatonError::IntegerOverflow)
                         }
                     },
-                    Operator::Mod => {
+                    BinaryOp::Mod => {
                         if y == 0 {
                             return Err(CalculatonError::UndefinedOperation("Cannot modulo by 0".to_string()))
                         }
@@ -231,6 +273,14 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<Signed, CalculatonError
                             None => return Err(CalculatonError::IntegerOverflow)
                         }
                     },
+                }
+            },
+            Token::UnaryOp(op) =>  {
+                match op {
+                    UnaryOp::Negate => {
+                        let x = stack.pop().unwrap();
+                        stack.push(x * -1);
+                    }
                 }
             },
             Token::Parenthesis(_) => panic!("There should be no parenthesis in expression evaluation stage! There must be a bug in the infix to rpn conversion..."),
