@@ -12,6 +12,8 @@ pub enum BinaryOp {
     Exp,
 }
 
+static OPERATOR_CHARS: [char; 6] = ['+', '-', '*', '/', '%', '^'];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum UnaryOp {
     Negate,
@@ -35,6 +37,8 @@ pub enum Token {
 pub enum ParserError {
     BadToken(char),
     MismatchedParenthesis,
+    InvalidConsecutiveTokens(char, char),
+    InvalidNumberOfOperands(char, i32)
 }
 
 #[derive(Debug)]
@@ -61,6 +65,19 @@ fn get_binary_operator_associativity(op: BinaryOp) -> Associativity {
     return match op {
         BinaryOp::Exp => Associativity::RIGHT,
         _ => Associativity::LEFT 
+    }
+}
+
+fn is_consecutive_tokens_valid(current_token_char: char, all_tokens: &Vec<Token>) -> Result<(), ParserError> {
+    if let Some(op) = all_tokens.last() {
+        match op {
+            Token::BinaryOp(opchar) => {
+                return Err(ParserError::InvalidConsecutiveTokens(OPERATOR_CHARS[*opchar as usize], current_token_char));
+            },
+            _ => {Ok(())}
+        }
+    } else {
+        return Err(ParserError::InvalidNumberOfOperands(current_token_char, 2));
     }
 }
 
@@ -140,10 +157,13 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
                     tokens.push(Token::BinaryOp(BinaryOp::Mul));
                     tokens.push(Token::Number(-1));
                     tokens.push(Token::Parenthesis(Parenthesis::CLOSED));
-
                 }
             },
-            '+' => tokens.push(Token::BinaryOp(BinaryOp::Add)),
+            '+' => {
+                let res = is_consecutive_tokens_valid(c, &tokens);
+                if let Err(err) = res { return Err(err)}
+                tokens.push(Token::BinaryOp(BinaryOp::Add))
+            },
             '-' => {
                 if let Some(token) = tokens.last().clone() {
                     match token.clone() {
@@ -171,10 +191,26 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
                     tokens.push(Token::UnaryOp(UnaryOp::Negate))
                 }
             },
-            '*' => tokens.push(Token::BinaryOp(BinaryOp::Mul)),
-            '/' => tokens.push(Token::BinaryOp(BinaryOp::Div)),
-            '^' => tokens.push(Token::BinaryOp(BinaryOp::Exp)),
-            '%' => tokens.push(Token::BinaryOp(BinaryOp::Mod)),
+            '*' => {
+                let res = is_consecutive_tokens_valid(c, &tokens);
+                if let Err(err) = res { return Err(err)}
+                tokens.push(Token::BinaryOp(BinaryOp::Mul));
+            },
+            '/' => {
+                let res = is_consecutive_tokens_valid(c, &tokens);
+                if let Err(err) = res { return Err(err)}
+                tokens.push(Token::BinaryOp(BinaryOp::Div));
+            },
+            '^' => {
+                let res = is_consecutive_tokens_valid(c, &tokens);
+                if let Err(err) = res { return Err(err)}
+                tokens.push(Token::BinaryOp(BinaryOp::Exp));
+            },
+            '%' => {
+                let res = is_consecutive_tokens_valid(c, &tokens);
+                if let Err(err) = res { return Err(err)}
+                tokens.push(Token::BinaryOp(BinaryOp::Mod));
+            },
             ' ' | '\n' | '\r' | '\t' => {},
             _ => return Err(ParserError::BadToken(c))
         }
@@ -231,12 +267,8 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
                 }
                 operation_stack.push(*token);
             },
-
             Token::UnaryOp(_) => {},
-
-            Token::Parenthesis(Parenthesis::OPEN) => {
-                operation_stack.push(*token);
-            },
+            Token::Parenthesis(Parenthesis::OPEN) => operation_stack.push(*token),
             Token::Parenthesis(Parenthesis::CLOSED) => {
                 while !operation_stack.is_empty() {
                     let next_op = operation_stack.last().unwrap().clone();
@@ -318,14 +350,7 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<Signed, CalculatonError
                     },
                 }
             },
-            Token::UnaryOp(op) =>  {
-                match op {
-                    UnaryOp::Negate => {
-                        let x = stack.pop().unwrap();
-                        stack.push(x * -1);
-                    }
-                }
-            },
+            Token::UnaryOp(_) => panic!("There should be no unary operators in expression evaluation stage! There must be a bug in the infix to rpn conversion..."),
             Token::Parenthesis(_) => panic!("There should be no parenthesis in expression evaluation stage! There must be a bug in the infix to rpn conversion..."),
         }
     }
