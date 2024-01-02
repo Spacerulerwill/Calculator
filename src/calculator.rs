@@ -38,7 +38,8 @@ pub enum ParserError {
     BadToken(char),
     MismatchedParenthesis,
     InvalidConsecutiveTokens(char, char),
-    InvalidNumberOfOperands(char, i32)
+    InvalidNumberOfOperands(char, i32),
+    OperandOverflow
 }
 
 #[derive(Debug)]
@@ -91,10 +92,21 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
         match c {
             '0'..='9' => match tokens.last_mut() {
                 Some(Token::Number(n)) => {
+                    match (*n).checked_mul(10) {
+                        Some(result) => *n = result,
+                        None => return Err(ParserError::OperandOverflow),
+                    }
+
                     if *n < 0 {
-                        *n = *n * 10 - (c as Signed - 48);
+                        match (*n).checked_sub(c as Signed - 48) {
+                            Some(result) => *n = result,
+                            None => return Err(ParserError::OperandOverflow)
+                        }
                     } else {
-                        *n = *n * 10 + (c as Signed - 48);
+                        match (*n).checked_add(c as Signed - 48) {
+                            Some(result) => *n = result,
+                            None => return Err(ParserError::OperandOverflow)
+                        }
                     }
                 },
                 Some(Token::UnaryOp(UnaryOp::Negate)) => {
