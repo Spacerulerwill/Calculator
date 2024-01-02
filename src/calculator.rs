@@ -43,19 +43,18 @@ pub enum CalculatonError {
     IntegerOverflow
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Associativity {
+    LEFT,
+    RIGHT
+}
+
 fn get_binary_operator_precedence(op: BinaryOp) -> Signed {
     return match op {
         BinaryOp::Add | BinaryOp::Sub => 0,
         BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => 1,
         BinaryOp::Exp  => 2,
     }
-}
-
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Associativity {
-    LEFT,
-    RIGHT
 }
 
 fn get_binary_operator_associativity(op: BinaryOp) -> Associativity {
@@ -70,6 +69,7 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
     let chars = expr.chars();
     let mut tokens: Vec<Token> = Vec::new();
     let mut parens: Vec<Parenthesis> = Vec::new();
+    let mut unary_minus = 0;
     for c in chars {
         match c {
             '0'..='9' => match tokens.last_mut() {
@@ -110,7 +110,11 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
                             tokens.push(Token::BinaryOp(BinaryOp::Mul));
                         },
                         Token::BinaryOp(_) => {},
-                        Token::UnaryOp(_) => {},
+                        Token::UnaryOp(UnaryOp::Negate) => {
+                            tokens.pop();
+                            tokens.push(Token::Parenthesis(Parenthesis::OPEN));
+                            unary_minus += 1;
+                        },
                         Token::Parenthesis(p) => {
                             if p.clone() == Parenthesis::CLOSED {
                                 tokens.push(Token::BinaryOp(BinaryOp::Mul));
@@ -119,7 +123,7 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
                     }
                 }
                 tokens.push(Token::Parenthesis(Parenthesis::OPEN));
-                parens.push(Parenthesis::OPEN)
+                parens.push(Parenthesis::OPEN);
             },
             ')' => {
                 if let Some(p) = parens.pop() {
@@ -131,6 +135,13 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
                 }
 
                 tokens.push(Token::Parenthesis(Parenthesis::CLOSED));
+                if unary_minus > 0 {
+                    unary_minus -= 1;
+                    tokens.push(Token::BinaryOp(BinaryOp::Mul));
+                    tokens.push(Token::Number(-1));
+                    tokens.push(Token::Parenthesis(Parenthesis::CLOSED));
+
+                }
             },
             '+' => tokens.push(Token::BinaryOp(BinaryOp::Add)),
             '-' => {
@@ -141,7 +152,16 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
                         | Token::BinaryOp(BinaryOp::Mod) | Token::BinaryOp(BinaryOp::Exp) 
                         | Token::UnaryOp(UnaryOp::Negate)
                         | Token::Parenthesis(Parenthesis::OPEN) => {
-                            tokens.push(Token::UnaryOp(UnaryOp::Negate))
+                            match tokens.last() {
+                                Some(last_token) => {
+                                    if  *last_token == Token::UnaryOp(UnaryOp::Negate) {
+                                        tokens.pop();
+                                    } else {
+                                        tokens.push(Token::UnaryOp(UnaryOp::Negate));
+                                    }
+                                },
+                                None => tokens.push(Token::UnaryOp(UnaryOp::Negate))
+                            }  
                         }
                         _ => {
                             tokens.push(Token::BinaryOp(BinaryOp::Sub))
@@ -159,7 +179,7 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
             _ => return Err(ParserError::BadToken(c))
         }
     }
-
+    
     if parens.len() > 0 {
         return Err(ParserError::MismatchedParenthesis);
     }
@@ -192,7 +212,7 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
                         break 'binaryop;
                     }
                 } else {
-                    panic!("Non operator found in operator stack!");
+                    break 'binaryop;
                 }
 
                 while !operation_stack.is_empty() {
@@ -204,15 +224,16 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
                         } else {
                             break 'binaryop;
                         }
-                    } else {
-                        panic!("Non operator found in operator stack!");
+                    }
+                    else {
+                        break 'binaryop;
                     }
                 }
-                operation_stack.push(token.clone())
+                operation_stack.push(*token);
             },
-            Token::UnaryOp(_) => {
-                queue.push_back(*token);
-            },
+
+            Token::UnaryOp(_) => {},
+
             Token::Parenthesis(Parenthesis::OPEN) => {
                 operation_stack.push(*token);
             },
