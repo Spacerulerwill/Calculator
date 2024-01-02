@@ -4,7 +4,7 @@ pub type Signed = i128;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BinaryOp {
-    Add,
+    Add ,
     Sub,
     Mul,
     Div,
@@ -48,6 +48,20 @@ fn get_binary_operator_precedence(op: BinaryOp) -> Signed {
         BinaryOp::Add | BinaryOp::Sub => 0,
         BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => 1,
         BinaryOp::Exp  => 2,
+    }
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Associativity {
+    LEFT,
+    RIGHT
+}
+
+fn get_binary_operator_associativity(op: BinaryOp) -> Associativity {
+    return match op {
+        BinaryOp::Exp => Associativity::RIGHT,
+        _ => Associativity::LEFT 
     }
 }
 
@@ -159,51 +173,59 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
     
     for token in tokens {
         match token {
-            Token::Number(_) => queue.push_back(token.clone()),
-            Token::BinaryOp(op1) => {
-                let op1_precedence = get_binary_operator_precedence(op1.clone());
+            Token::Number(_) => {
+                queue.push_back(*token);
+            },
+            Token::BinaryOp(op1) => 'binaryop: {
+                if operation_stack.is_empty() || operation_stack.last().unwrap().clone() == Token::Parenthesis(Parenthesis::OPEN) {
+                    operation_stack.push(*token);
+                    break 'binaryop;
+                }
+
+                let op1_precedence = get_binary_operator_precedence(*op1);
+                let op1_associativity = get_binary_operator_associativity(*op1);
+                let mut next_op = operation_stack.last().unwrap();
+                if let Token::BinaryOp(op2) = next_op {
+                    let op2_precedence = get_binary_operator_precedence(*op2);
+                    if op1_precedence > op2_precedence || (op1_precedence == op2_precedence && op1_associativity == Associativity::RIGHT) {
+                        operation_stack.push(*token);
+                        break 'binaryop;
+                    }
+                } else {
+                    panic!("Non operator found in operator stack!");
+                }
+
                 while !operation_stack.is_empty() {
-                    let next_op = operation_stack.last().unwrap().clone();
+                    next_op = operation_stack.last().unwrap();
                     if let Token::BinaryOp(op2) = next_op.clone() {
                         let op2_precedence = get_binary_operator_precedence(op2);
-                        if op2_precedence >= op1_precedence && next_op != Token::Parenthesis(Parenthesis::OPEN){
+                        if op1_precedence < op2_precedence || (op1_precedence == op2_precedence && op1_associativity == Associativity::LEFT) {
                             queue.push_back(operation_stack.pop().unwrap());
                         } else {
-                            break;
+                            break 'binaryop;
                         }
                     } else {
-                        break;
+                        panic!("Non operator found in operator stack!");
                     }
                 }
-                operation_stack.push(token.clone());
+                operation_stack.push(token.clone())
             },
             Token::UnaryOp(_) => {
-                while !operation_stack.is_empty() {
-                    let next_op = operation_stack.last().unwrap().clone();
-                    if let Token::UnaryOp(_) = next_op.clone() {
-                        if next_op != Token::Parenthesis(Parenthesis::OPEN){
-                            queue.push_back(operation_stack.pop().unwrap());
-                        } else {
-                            break;
-                        }
-                    }             
-                    else {
-                        break;
-                    }
-                }
-                operation_stack.push(token.clone());
-            }
-            Token::Parenthesis(Parenthesis::OPEN) => operation_stack.push(token.clone()),
+                queue.push_back(*token);
+            },
+            Token::Parenthesis(Parenthesis::OPEN) => {
+                operation_stack.push(*token);
+            },
             Token::Parenthesis(Parenthesis::CLOSED) => {
                 while !operation_stack.is_empty() {
                     let next_op = operation_stack.last().unwrap().clone();
                     if next_op != Token::Parenthesis(Parenthesis::OPEN) {
                         queue.push_back(operation_stack.pop().unwrap());
                     } else {
-                        break;
+                        operation_stack.pop();
+                        break;     
                     }
                 }
-                operation_stack.pop();
             },
         }
     }
