@@ -17,6 +17,7 @@ static OPERATOR_CHARS: [char; 6] = ['+', '-', '*', '/', '%', '^'];
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum UnaryOp {
     Negate,
+    Factorial
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -54,6 +55,18 @@ pub enum Associativity {
     RIGHT
 }
 
+fn factorial(num: Signed) -> Option<Signed> {
+    let mut result: Signed = 1;
+    for i in 2..=num {
+        if let Some(num) = result.checked_mul(i) {
+            result = num;
+        } else {
+            return None;
+        }
+    }
+    return Some(result);
+}
+
 fn get_binary_operator_precedence(op: BinaryOp) -> Signed {
     return match op {
         BinaryOp::Add | BinaryOp::Sub => 0,
@@ -88,6 +101,7 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
     let mut tokens: Vec<Token> = Vec::new();
     let mut parens: Vec<Parenthesis> = Vec::new();
     let mut unary_minus = 0;
+
     for c in chars {
         match c {
             '0'..='9' => match tokens.last_mut() {
@@ -96,37 +110,11 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
                         Some(result) => *n = result,
                         None => return Err(ParserError::OperandOverflow),
                     }
-
-                    if *n < 0 {
-                        match (*n).checked_sub(c as Signed - 48) {
-                            Some(result) => *n = result,
-                            None => return Err(ParserError::OperandOverflow)
-                        }
-                    } else {
-                        match (*n).checked_add(c as Signed - 48) {
-                            Some(result) => *n = result,
-                            None => return Err(ParserError::OperandOverflow)
-                        }
+                    match (*n).checked_add(c as Signed - 48) {
+                        Some(result) => *n = result,
+                        None => return Err(ParserError::OperandOverflow)
                     }
                 },
-                Some(Token::UnaryOp(UnaryOp::Negate)) => {
-                    let mut digit = c as Signed - 48;
-
-                    loop {
-                        tokens.pop();
-                        digit *= -1;
-                        
-                        if let Some(last) = tokens.last() {
-                            if last.clone() != Token::UnaryOp(UnaryOp::Negate) {
-                                break;
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                    tokens.push(Token::Number(digit));
-
-                }
                 _ => {
                     let digit = c as Signed - 48;
                     tokens.push(Token::Number(digit));
@@ -144,6 +132,9 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
                             tokens.push(Token::Parenthesis(Parenthesis::OPEN));
                             unary_minus += 1;
                         },
+                        Token::UnaryOp(UnaryOp::Factorial) => {
+
+                        }
                         Token::Parenthesis(p) => {
                             if p.clone() == Parenthesis::CLOSED {
                                 tokens.push(Token::BinaryOp(BinaryOp::Mul));
@@ -184,19 +175,10 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
                         | Token::BinaryOp(BinaryOp::Mod) | Token::BinaryOp(BinaryOp::Exp) 
                         | Token::UnaryOp(UnaryOp::Negate)
                         | Token::Parenthesis(Parenthesis::OPEN) => {
-                            match tokens.last() {
-                                Some(last_token) => {
-                                    if  *last_token == Token::UnaryOp(UnaryOp::Negate) {
-                                        tokens.pop();
-                                    } else {
-                                        tokens.push(Token::UnaryOp(UnaryOp::Negate));
-                                    }
-                                },
-                                None => tokens.push(Token::UnaryOp(UnaryOp::Negate))
-                            }  
+                            tokens.push(Token::UnaryOp(UnaryOp::Negate));
                         }
                         _ => {
-                            tokens.push(Token::BinaryOp(BinaryOp::Sub))
+                            tokens.push(Token::BinaryOp(BinaryOp::Sub));
                         }
                     }
                 } else {
@@ -223,6 +205,9 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
                 if let Err(err) = res { return Err(err)}
                 tokens.push(Token::BinaryOp(BinaryOp::Mod));
             },
+            '!' => {
+                tokens.push(Token::UnaryOp(UnaryOp::Factorial));
+            }
             ' ' | '\n' | '\r' | '\t' => {},
             _ => return Err(ParserError::BadToken(c))
         }
@@ -279,6 +264,9 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
                 }
                 operation_stack.push(*token);
             },
+            Token::UnaryOp(UnaryOp::Factorial) => {
+                queue.push_back(*token);
+            }
             Token::UnaryOp(_) => {},
             Token::Parenthesis(Parenthesis::OPEN) => operation_stack.push(*token),
             Token::Parenthesis(Parenthesis::CLOSED) => {
@@ -362,7 +350,20 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<Signed, CalculatonError
                     },
                 }
             },
-            Token::UnaryOp(_) => panic!("There should be no unary operators in expression evaluation stage! There must be a bug in the infix to rpn conversion..."),
+            Token::UnaryOp(op) => {
+                let x = stack.pop().unwrap();
+                match op {
+                    UnaryOp::Factorial => {
+                        match factorial(x) {
+                            Some(result) => {
+                                stack.push(result)
+                            },
+                            None => return Err(CalculatonError::IntegerOverflow),
+                        }
+                    }
+                    UnaryOp::Negate => panic!("There should be no unary minus in expression evaluation stage! There must be a bug in the infix to rpn conversion...")
+                }
+            }
             Token::Parenthesis(_) => panic!("There should be no parenthesis in expression evaluation stage! There must be a bug in the infix to rpn conversion..."),
         }
     }
