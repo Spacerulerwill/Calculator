@@ -28,13 +28,12 @@ fn main() {
 }
 
 fn calculate(input: String) {
-    let tokens = calculator::tokenise(input);
+    let tokens = calculator::tokenise(&input);
     dbg!(&tokens);
     match tokens {
         Ok(_) => {
             let mut rpn = calculator::infix_to_rpn(&tokens.unwrap());
-            dbg!(&rpn);
-            let result: Result<calculator::Signed, calculator::CalculatonError> = calculator::evaluate_rpn(&mut rpn);
+            let result: Result<calculator::FloatType, calculator::CalculatonError> = calculator::evaluate_rpn(&mut rpn);
             match result {
                 Ok(_) => println!("Result: {}", result.unwrap()),
                 Err(e) => {
@@ -44,7 +43,6 @@ fn calculate(input: String) {
                     }
                 },
             }
-
         },
         Err(e) => {
             match e {
@@ -52,7 +50,6 @@ fn calculate(input: String) {
                 calculator::ParserError::MismatchedParenthesis => println!("Mismatched parenthesis found."),
                 calculator::ParserError::InvalidConsecutiveTokens(c1, c2) => println!("Invalid consecutive tokens {} and {}", c1, c2),
                 calculator::ParserError::InvalidNumberOfOperands(c1, count) => println!("Operator {} requires {} operandss", c1, count),
-                calculator::ParserError::OperandOverflow => println!("Operand too large or small for calculation. Max: {}, Min {}", calculator::Signed::MAX, calculator::Signed::MIN),
             }
         } 
     }

@@ -1,8 +1,9 @@
 use std::collections::VecDeque;
 
-pub type Signed = i128;
+pub type FloatType = f64;
+pub type IntType = i128;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum BinaryOp {
     Add ,
     Sub,
@@ -14,21 +15,26 @@ pub enum BinaryOp {
 
 static OPERATOR_CHARS: [char; 6] = ['+', '-', '*', '/', '%', '^'];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum UnaryOp {
     Negate,
-    Factorial
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Parenthesis {
     OPEN,
     CLOSED
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub enum Number {
+    Integer(IntType),
+    Float(FloatType),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Token {
-    Number(Signed),
+    Number(Number),
     BinaryOp(BinaryOp),
     UnaryOp(UnaryOp),
     Parenthesis(Parenthesis)
@@ -40,7 +46,6 @@ pub enum ParserError {
     MismatchedParenthesis,
     InvalidConsecutiveTokens(char, char),
     InvalidNumberOfOperands(char, i32),
-    OperandOverflow
 }
 
 #[derive(Debug)]
@@ -55,19 +60,7 @@ pub enum Associativity {
     RIGHT
 }
 
-fn factorial(num: Signed) -> Option<Signed> {
-    let mut result: Signed = 1;
-    for i in 2..=num {
-        if let Some(num) = result.checked_mul(i) {
-            result = num;
-        } else {
-            return None;
-        }
-    }
-    return Some(result);
-}
-
-fn get_binary_operator_precedence(op: BinaryOp) -> Signed {
+fn get_binary_operator_precedence(op: BinaryOp) -> IntType {
     return match op {
         BinaryOp::Add | BinaryOp::Sub => 0,
         BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => 1,
@@ -95,121 +88,135 @@ fn is_consecutive_tokens_valid(current_token_char: char, all_tokens: &Vec<Token>
     }
 }
 
-pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
-    let expr = expr.as_ref();
-    let chars = expr.chars();
-    let mut tokens: Vec<Token> = Vec::new();
-    let mut parens: Vec<Parenthesis> = Vec::new();
-    let mut unary_minus = 0;
-
-    for c in chars {
-        match c {
-            '0'..='9' => match tokens.last_mut() {
-                Some(Token::Number(n)) => {
-                    match (*n).checked_mul(10) {
-                        Some(result) => *n = result,
-                        None => return Err(ParserError::OperandOverflow),
-                    }
-                    match (*n).checked_add(c as Signed - 48) {
-                        Some(result) => *n = result,
-                        None => return Err(ParserError::OperandOverflow)
-                    }
-                },
-                _ => {
-                    let digit = c as Signed - 48;
-                    tokens.push(Token::Number(digit));
+fn tokenise_operator(c: &char, tokens: &mut Vec<Token>, parens: &mut Vec<Parenthesis>) -> Result<(), ParserError> {
+    match c {
+        '(' => {
+            if let Some(token) = tokens.last().clone() {
+                match token {
+                    Token::Number(Number::Float(_)) | Token::Number(Number::Integer(_))=> {
+                        tokens.push(Token::BinaryOp(BinaryOp::Mul));
+                    },
+                    Token::Parenthesis(p) => {
+                        if p.clone() == Parenthesis::CLOSED {
+                            tokens.push(Token::BinaryOp(BinaryOp::Mul));
+                        }
+                    },
+                    _ => {}
                 }
             }
-            '(' => {
-                 if let Some(token) = tokens.last().clone() {
-                    match token {
-                        Token::Number(_) => {
-                            tokens.push(Token::BinaryOp(BinaryOp::Mul));
-                        },
-                        Token::BinaryOp(_) => {},
-                        Token::UnaryOp(UnaryOp::Negate) => {
-                            tokens.pop();
-                            tokens.push(Token::Parenthesis(Parenthesis::OPEN));
-                            unary_minus += 1;
-                        },
-                        Token::UnaryOp(UnaryOp::Factorial) => {
-
-                        }
-                        Token::Parenthesis(p) => {
-                            if p.clone() == Parenthesis::CLOSED {
-                                tokens.push(Token::BinaryOp(BinaryOp::Mul));
-                            }
-                        },
-                    }
-                }
-                tokens.push(Token::Parenthesis(Parenthesis::OPEN));
-                parens.push(Parenthesis::OPEN);
-            },
-            ')' => {
-                if let Some(p) = parens.pop() {
-                    if p != Parenthesis::OPEN {
-                        return Err(ParserError::MismatchedParenthesis);
-                    }
-                } else {
+        },
+        ')' => {
+            if let Some(p) = parens.pop() {
+                if p != Parenthesis::OPEN {
                     return Err(ParserError::MismatchedParenthesis);
                 }
-
-                tokens.push(Token::Parenthesis(Parenthesis::CLOSED));
-                if unary_minus > 0 {
-                    unary_minus -= 1;
-                    tokens.push(Token::BinaryOp(BinaryOp::Mul));
-                    tokens.push(Token::Number(-1));
-                    tokens.push(Token::Parenthesis(Parenthesis::CLOSED));
+            } else {
+                return Err(ParserError::MismatchedParenthesis);
+            }
+            tokens.push(Token::Parenthesis(Parenthesis::CLOSED));
+        },
+        '+' => {
+            let res = is_consecutive_tokens_valid(*c, &tokens);
+            if let Err(err) = res { return Err(err)}
+            tokens.push(Token::BinaryOp(BinaryOp::Add));
+        },
+        '-' => {
+            if let Some(token) = tokens.last().clone() {
+                match token.clone() {
+                    Token::BinaryOp(BinaryOp::Add) | Token::BinaryOp(BinaryOp::Sub) 
+                    | Token::BinaryOp(BinaryOp::Mul) | Token::BinaryOp(BinaryOp::Div) 
+                    | Token::BinaryOp(BinaryOp::Mod) | Token::BinaryOp(BinaryOp::Exp) 
+                    | Token::UnaryOp(UnaryOp::Negate)
+                    | Token::Parenthesis(Parenthesis::OPEN) => {
+                        tokens.push(Token::UnaryOp(UnaryOp::Negate));
+                    }
+                    _ => {
+                        tokens.push(Token::BinaryOp(BinaryOp::Sub));
+                    }
                 }
-            },
-            '+' => {
-                let res = is_consecutive_tokens_valid(c, &tokens);
-                if let Err(err) = res { return Err(err)}
-                tokens.push(Token::BinaryOp(BinaryOp::Add))
-            },
-            '-' => {
-                if let Some(token) = tokens.last().clone() {
-                    match token.clone() {
-                        Token::BinaryOp(BinaryOp::Add) | Token::BinaryOp(BinaryOp::Sub) 
-                        | Token::BinaryOp(BinaryOp::Mul) | Token::BinaryOp(BinaryOp::Div) 
-                        | Token::BinaryOp(BinaryOp::Mod) | Token::BinaryOp(BinaryOp::Exp) 
-                        | Token::UnaryOp(UnaryOp::Negate)
-                        | Token::Parenthesis(Parenthesis::OPEN) => {
-                            tokens.push(Token::UnaryOp(UnaryOp::Negate));
-                        }
-                        _ => {
-                            tokens.push(Token::BinaryOp(BinaryOp::Sub));
+            } else {
+                tokens.push(Token::UnaryOp(UnaryOp::Negate))
+            }
+        }
+        '*' => {
+            let res = is_consecutive_tokens_valid(*c, &tokens);
+            if let Err(err) = res { return Err(err)}
+            tokens.push(Token::BinaryOp(BinaryOp::Mul));
+        }
+        '/' => {
+            let res = is_consecutive_tokens_valid(*c, &tokens);
+            if let Err(err) = res { return Err(err)}
+            tokens.push(Token::BinaryOp(BinaryOp::Div));
+        }
+        '^' => {
+            let res = is_consecutive_tokens_valid(*c, &tokens);
+            if let Err(err) = res { return Err(err)}
+            tokens.push(Token::BinaryOp(BinaryOp::Exp));
+        }
+        '%' => {
+            let res = is_consecutive_tokens_valid(*c, &tokens);
+            if let Err(err) = res { return Err(err)}
+            tokens.push(Token::BinaryOp(BinaryOp::Mod));
+        }
+        ' ' | '\n' | '\r' | '\t' => {},
+        _ => return Err(ParserError::BadToken(*c))
+    } 
+    Ok(())
+}
+
+pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
+    let mut chars = expr.chars().peekable();
+    let mut tokens: Vec<Token> = Vec::new();
+    let mut parens: Vec<Parenthesis> = Vec::new();
+
+    while let Some(c) = chars.next() {
+        match c {
+            '0'..='9' => {
+                let mut number_string = String::new();
+                let mut terminator_char: char = '\0'; 
+                number_string.push(c);
+                while let Some(d) = chars.next() {
+                    if d.is_digit(10) {
+                        number_string.push(d);
+                    } else {
+                        terminator_char = d;
+                        break;
+                    }
+                };
+
+                if terminator_char == '.' {
+                    number_string.push('.');
+                    while let Some(d) = chars.next() {
+                        if d.is_digit(10) {
+                            number_string.push(d);
+                        } else {
+                            break;
                         }
                     }
+
+                    let float_val: FloatType = match number_string.parse() {
+                        Ok(v) => v,
+                        Err(_) => panic!("Error converting number string to FloatType")
+                    };
+
+                    tokens.push(Token::Number(Number::Float(float_val)));
                 } else {
-                    tokens.push(Token::UnaryOp(UnaryOp::Negate))
+                    let int_val: IntType = match number_string.parse() {
+                        Ok(v) => v,
+                        Err(_) => panic!("Error converting number string to IntType")
+                    };
+                    tokens.push(Token::Number(Number::Integer(int_val)));
+
+                    if let Err(err) = tokenise_operator(&terminator_char, &mut tokens, &mut parens) {
+                        return Err(err);
+                    }
                 }
-            },
-            '*' => {
-                let res = is_consecutive_tokens_valid(c, &tokens);
-                if let Err(err) = res { return Err(err)}
-                tokens.push(Token::BinaryOp(BinaryOp::Mul));
-            },
-            '/' => {
-                let res = is_consecutive_tokens_valid(c, &tokens);
-                if let Err(err) = res { return Err(err)}
-                tokens.push(Token::BinaryOp(BinaryOp::Div));
-            },
-            '^' => {
-                let res = is_consecutive_tokens_valid(c, &tokens);
-                if let Err(err) = res { return Err(err)}
-                tokens.push(Token::BinaryOp(BinaryOp::Exp));
-            },
-            '%' => {
-                let res = is_consecutive_tokens_valid(c, &tokens);
-                if let Err(err) = res { return Err(err)}
-                tokens.push(Token::BinaryOp(BinaryOp::Mod));
-            },
-            '!' => {
-                tokens.push(Token::UnaryOp(UnaryOp::Factorial));
             }
-            ' ' | '\n' | '\r' | '\t' => {},
-            _ => return Err(ParserError::BadToken(c))
+            _ => {
+                if let Err(err) = tokenise_operator(&c, &mut tokens, &mut parens) {
+                    return Err(err);
+                }
+            }
         }
     }
     
@@ -217,18 +224,19 @@ pub fn tokenise<T: AsRef<str>>(expr: T) -> Result<Vec<Token>, ParserError> {
         return Err(ParserError::MismatchedParenthesis);
     }
 
-    return Ok(tokens);
+    Ok(tokens)
 }
 
 pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
     let mut queue: VecDeque<Token> = VecDeque::new();
     let mut operation_stack: Vec<Token> = Vec::new();
-    
+
     for token in tokens {
         match token {
-            Token::Number(_) => {
+            Token::Number(Number::Integer(_)) | Token::Number(Number::Float(_)) => {
                 queue.push_back(*token);
             },
+
             Token::BinaryOp(op1) => 'binaryop: {
                 if operation_stack.is_empty() || operation_stack.last().unwrap().clone() == Token::Parenthesis(Parenthesis::OPEN) {
                     operation_stack.push(*token);
@@ -257,16 +265,13 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
                         } else {
                             break 'binaryop;
                         }
-                    }
+                    }  
                     else {
                         break 'binaryop;
                     }
                 }
                 operation_stack.push(*token);
             },
-            Token::UnaryOp(UnaryOp::Factorial) => {
-                queue.push_back(*token);
-            }
             Token::UnaryOp(_) => {},
             Token::Parenthesis(Parenthesis::OPEN) => operation_stack.push(*token),
             Token::Parenthesis(Parenthesis::CLOSED) => {
@@ -293,8 +298,10 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
     return queue
 }
 
-pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<Signed, CalculatonError> {
-    let mut stack: Vec<Signed> = Vec::new();
+
+pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<FloatType, CalculatonError> {
+    let mut stack: Vec<Number> = Vec::new();
+    
     while !rpn.is_empty() {
         let token = rpn.pop_front();
         match token.unwrap() {
@@ -304,72 +311,102 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<Signed, CalculatonError
                 let x = stack.pop().unwrap();
                 match op {
                     BinaryOp::Add => {
-                        match x.checked_add(y) {
-                            Some(num) => stack.push(num),
-                            None => return Err(CalculatonError::IntegerOverflow),
+                        match (x,y) {
+                            (Number::Integer(i_x), Number::Integer(i_y)) => {
+                                match i_x.checked_add(i_y) {
+                                    Some(num) => stack.push(Number::Integer(num)),
+                                    None => return Err(CalculatonError::IntegerOverflow)
+                                }
+                            },
+                            (Number::Integer(i_x), Number::Float(f_y)) => stack.push(Number::Float((i_x as FloatType) + f_y)),
+                            (Number::Float(f_x), Number::Integer(i_y)) => stack.push(Number::Float(f_x + (i_y as FloatType))),
+                            (Number::Float(f_x), Number::Float(f_y)) => stack.push(Number::Float(f_x + f_y)),
                         }
-                    },
+                    }
                     BinaryOp::Sub => {
-                        match x.checked_sub(y) {
-                            Some(num) => stack.push(num),
-                            None => return Err(CalculatonError::IntegerOverflow)
+                        match (x,y) {
+                            (Number::Integer(i_x), Number::Integer(i_y)) => {
+                                match i_x.checked_sub(i_y) {
+                                    Some(num) => stack.push(Number::Integer(num)),
+                                    None => return Err(CalculatonError::IntegerOverflow)
+                                }
+                            },
+                            (Number::Integer(i_x), Number::Float(f_y)) => stack.push(Number::Float((i_x as FloatType) - f_y)),
+                            (Number::Float(f_x), Number::Integer(i_y)) => stack.push(Number::Float(f_x - (i_y as FloatType))),
+                            (Number::Float(f_x), Number::Float(f_y)) => stack.push(Number::Float(f_x - f_y)),
                         }
-                    },
+                    }
                     BinaryOp::Mul => {
-                        match x.checked_mul(y) {
-                            Some(num) => stack.push(num),
-                            None => return Err(CalculatonError::IntegerOverflow)
+                        match (x,y) {
+                            (Number::Integer(i_x), Number::Integer(i_y)) => {
+                                match i_x.checked_mul(i_y) {
+                                    Some(num) => stack.push(Number::Integer(num)),
+                                    None => return Err(CalculatonError::IntegerOverflow)
+                                }
+                            },
+                            (Number::Integer(i_x), Number::Float(f_y)) => stack.push(Number::Float((i_x as FloatType) * f_y)),
+                            (Number::Float(f_x), Number::Integer(i_y)) => stack.push(Number::Float(f_x * (i_y as FloatType))),
+                            (Number::Float(f_x), Number::Float(f_y)) => stack.push(Number::Float(f_x * f_y)),
                         }
                     },
                     BinaryOp::Div => {
-                        if y == 0 {
-                            return Err(CalculatonError::UndefinedOperation("Cannot divide by 0".to_string()))
+                        match (x,y) {
+                            (Number::Integer(i_x), Number::Integer(i_y)) => {
+                                if i_y == 0 { return Err(CalculatonError::UndefinedOperation("Cannot divide by 0".to_string())); }
+                                match i_x.checked_div(i_y) {
+                                    Some(num) => stack.push(Number::Integer(num)),
+                                    None => return Err(CalculatonError::IntegerOverflow)
+                                }
+                            },
+                            (Number::Integer(i_x), Number::Float(f_y)) => stack.push(Number::Float((i_x as FloatType) / f_y)),
+                            (Number::Float(f_x), Number::Integer(i_y)) => stack.push(Number::Float(f_x / (i_y as FloatType))),
+                            (Number::Float(f_x), Number::Float(f_y)) => stack.push(Number::Float(f_x / f_y)),
                         }
-                        match x.checked_div(y) {
-                            Some(num) => stack.push(num),
-                            None => return Err(CalculatonError::IntegerOverflow)
-                        }
-                    },
+                    }
                     BinaryOp::Exp => {
-                        if x == 0 && y == 0 {
-                            return Err(CalculatonError::UndefinedOperation("0^0".to_string()))
+                        match (x,y) {
+                            (Number::Integer(i_x), Number::Integer(i_y)) => {
+                                match i_x.checked_pow(i_y as u32) {
+                                    Some(num) => stack.push(Number::Integer(num)),
+                                    None => return Err(CalculatonError::IntegerOverflow),
+                                }
+                            },
+                            (Number::Integer(i_x), Number::Float(f_y)) => stack.push(Number::Float((i_x as FloatType).powf(f_y as f64))),
+                            (Number::Float(f_x), Number::Integer(i_y)) => stack.push(Number::Float(f_x.powf(i_y as f64))),
+                            (Number::Float(f_x), Number::Float(f_y)) => stack.push(Number::Float(f_x.powf(f_y as f64))),
                         }
-                        match x.checked_pow(y as u32) {
-                            Some(num) => stack.push(num),
-                            None => return Err(CalculatonError::IntegerOverflow)
-                        }
-                    },
+                    }
                     BinaryOp::Mod => {
-                        if y == 0 {
-                            return Err(CalculatonError::UndefinedOperation("Cannot modulo by 0".to_string()))
-                        }
-                        match x.checked_rem(y) {
-                            Some(num) => stack.push(num),
-                            None => return Err(CalculatonError::IntegerOverflow)
+                        match (x,y) {
+                            (Number::Integer(i_x), Number::Integer(i_y)) => {
+                                if i_y == 0 { return Err(CalculatonError::UndefinedOperation("Cannot mod by 0".to_string())); }
+                                match i_x.checked_rem(i_y){
+                                    Some(num) => stack.push(Number::Integer(num)),
+                                    None => return Err(CalculatonError::IntegerOverflow),
+                                }
+                            },
+                            (Number::Integer(i_x), Number::Float(f_y)) => stack.push(Number::Float((i_x as FloatType) % f_y)),
+                            (Number::Float(f_x), Number::Integer(i_y)) => stack.push(Number::Float(f_x % (i_y as FloatType))),
+                            (Number::Float(f_x), Number::Float(f_y)) => stack.push(Number::Float(f_x % f_y)),
                         }
                     },
                 }
             },
-            Token::UnaryOp(op) => {
-                let x = stack.pop().unwrap();
-                match op {
-                    UnaryOp::Factorial => {
-                        match factorial(x) {
-                            Some(result) => {
-                                stack.push(result)
-                            },
-                            None => return Err(CalculatonError::IntegerOverflow),
-                        }
-                    }
-                    UnaryOp::Negate => panic!("There should be no unary minus in expression evaluation stage! There must be a bug in the infix to rpn conversion...")
-                }
-            }
+            Token::UnaryOp(_) => {},
             Token::Parenthesis(_) => panic!("There should be no parenthesis in expression evaluation stage! There must be a bug in the infix to rpn conversion..."),
         }
     }
 
     if stack.len() == 0 {
-        return Ok(0)
+        return Ok(0.0)
     };
-    return Ok(*stack.first().unwrap());
+
+    return match stack.last().unwrap() {
+        Number::Integer(i) => {
+            Ok(*i as FloatType)
+        },
+        Number::Float(f) => {
+            Ok(*f)
+        },
+    };
 }
