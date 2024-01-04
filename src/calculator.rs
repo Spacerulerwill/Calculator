@@ -1,16 +1,17 @@
-use std::{collections::VecDeque, thread::current, env::current_exe};
+use std::collections::VecDeque;
+use phf::phf_map;
 
 pub type FloatType = f64;
 pub type IntType = i128;
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum BinaryOp {
-    Add ,
-    Sub,
-    Mul,
-    Div,
-    Mod,
-    Exp,
+    ADD ,
+    SUB,
+    MUL,
+    DIV,
+    MOD,
+    EXP,
 }
 
 static OPERATOR_CHARS: [char; 6] = ['+', '-', '*', '/', '%', '^'];
@@ -23,8 +24,23 @@ pub enum Associativity {
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum UnaryOp {
-    Negate,
+    NEGATE,
+    SIN,
+    COS,
+    TAN,
+    ARCSIN,
+    ARCCOS,
+    ARCTAN,
 }
+
+static FUNCTIONS: phf::Map<&'static str, UnaryOp> = phf_map! {
+    "sin" => UnaryOp::SIN,
+    "cos" => UnaryOp::COS,
+    "tan" => UnaryOp::TAN,
+    "asin" => UnaryOp::ARCSIN,
+    "acos" => UnaryOp::ARCCOS,
+    "atan" => UnaryOp::ARCTAN
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Parenthesis {
@@ -52,25 +68,27 @@ pub enum ParserError {
     MismatchedParenthesis,
     InvalidConsecutiveTokens(char, char),
     InvalidNumberOfOperands(char, i32),
+    InvalidFunction(String),
 }
 
 #[derive(Debug)]
 pub enum CalculatonError {
     UndefinedOperation(String),
-    IntegerOverflow
+    IntegerOverflow,
+    InvalidFunctionDomain(String, String)
 }
 
 fn get_binary_operator_precedence(op: BinaryOp) -> IntType {
     return match op {
-        BinaryOp::Add | BinaryOp::Sub => 0,
-        BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => 1,
-        BinaryOp::Exp  => 2,
+        BinaryOp::ADD | BinaryOp::SUB => 0,
+        BinaryOp::MUL | BinaryOp::DIV | BinaryOp::MOD => 1,
+        BinaryOp::EXP  => 2,
     }
 }
 
 fn get_binary_operator_associativity(op: BinaryOp) -> Associativity {
     return match op {
-        BinaryOp::Exp => Associativity::RIGHT,
+        BinaryOp::EXP => Associativity::RIGHT,
         _ => Associativity::LEFT 
     }
 }
@@ -87,84 +105,6 @@ fn is_consecutive_tokens_valid(current_token_char: char, all_tokens: &Vec<Token>
     } else {
         return Err(ParserError::InvalidNumberOfOperands(current_token_char, 2));
     }
-}
-
-fn tokenise_operator(c: &char, tokens: &mut Vec<Token>, parens: &mut Vec<Parenthesis>) -> Result<(), ParserError> {
-    match c {
-        '(' => {
-            if let Some(token) = tokens.last().clone() {
-                match token {
-                    Token::Number(_) => {
-                        tokens.push(Token::BinaryOp(BinaryOp::Mul));
-                    },
-                    Token::Parenthesis(p) => {
-                        if p.clone() == Parenthesis::CLOSED {
-                            tokens.push(Token::BinaryOp(BinaryOp::Mul));
-                        }
-                    },
-                    _ => {}
-                }
-            }
-            tokens.push(Token::Parenthesis(Parenthesis::OPEN));
-            parens.push(Parenthesis::OPEN);
-        },
-        ')' => {
-            if let Some(p) = parens.pop() {
-                if p != Parenthesis::OPEN {
-                    return Err(ParserError::MismatchedParenthesis);
-                }
-            } else {
-                return Err(ParserError::MismatchedParenthesis);
-            }
-            tokens.push(Token::Parenthesis(Parenthesis::CLOSED));
-        },
-        '+' => {
-            let res = is_consecutive_tokens_valid(*c, &tokens);
-            if let Err(err) = res { return Err(err)}
-            tokens.push(Token::BinaryOp(BinaryOp::Add));
-        },
-        '-' => {
-            if let Some(token) = tokens.last().clone() {
-                match token.clone() {
-                    Token::BinaryOp(BinaryOp::Add) | Token::BinaryOp(BinaryOp::Sub) 
-                    | Token::BinaryOp(BinaryOp::Mul) | Token::BinaryOp(BinaryOp::Div) 
-                    | Token::BinaryOp(BinaryOp::Mod) | Token::BinaryOp(BinaryOp::Exp) 
-                    | Token::UnaryOp(UnaryOp::Negate)
-                    | Token::Parenthesis(Parenthesis::OPEN) => {
-                        tokens.push(Token::UnaryOp(UnaryOp::Negate));
-                    }
-                    _ => {
-                        tokens.push(Token::BinaryOp(BinaryOp::Sub));
-                    }
-                }
-            } else {
-                tokens.push(Token::UnaryOp(UnaryOp::Negate))
-            }
-        }
-        '*' => {
-            let res = is_consecutive_tokens_valid(*c, &tokens);
-            if let Err(err) = res { return Err(err)}
-            tokens.push(Token::BinaryOp(BinaryOp::Mul));
-        }
-        '/' => {
-            let res = is_consecutive_tokens_valid(*c, &tokens);
-            if let Err(err) = res { return Err(err)}
-            tokens.push(Token::BinaryOp(BinaryOp::Div));
-        }
-        '^' => {
-            let res = is_consecutive_tokens_valid(*c, &tokens);
-            if let Err(err) = res { return Err(err)}
-            tokens.push(Token::BinaryOp(BinaryOp::Exp));
-        }
-        '%' => {
-            let res = is_consecutive_tokens_valid(*c, &tokens);
-            if let Err(err) = res { return Err(err)}
-            tokens.push(Token::BinaryOp(BinaryOp::Mod));
-        }
-        ' ' | '\n' | '\r' | '\t' => {},
-        _ => return Err(ParserError::BadToken(*c))
-    } 
-    Ok(())
 }
 
 pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
@@ -227,12 +167,98 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
                     tokens.push(Token::Number(Number::Integer(int_val)));
                 }
             }
-            // for any other token (not a number) we process it in a seperate function
-            _ => {
-                if let Err(err) = tokenise_operator(&c, &mut tokens, &mut parens) {
-                    return Err(err);
+            'a'..='z' => {
+                let mut function_string = String::new();
+                function_string.push(c);
+
+                while let Some(d) = chars.peek() {
+                    if d.is_alphabetic() {
+                        function_string.push(*d);
+                        chars.next();
+
+                    } else {
+                        break;
+                    }
+                };
+                
+                match FUNCTIONS.get(&function_string) {
+                    Some(function) => tokens.push(Token::UnaryOp(*function)),
+                    None => return Err(ParserError::InvalidFunction(function_string)),
+                }
+
+            }
+            '(' => {
+                if let Some(token) = tokens.last().clone() {
+                    match token {
+                        Token::Number(_) => {
+                            tokens.push(Token::BinaryOp(BinaryOp::MUL));
+                        },
+                        Token::Parenthesis(p) => {
+                            if p.clone() == Parenthesis::CLOSED {
+                                tokens.push(Token::BinaryOp(BinaryOp::MUL));
+                            }
+                        },
+                        _ => {}
+                    }
+                }
+                tokens.push(Token::Parenthesis(Parenthesis::OPEN));
+                parens.push(Parenthesis::OPEN);
+            }
+            ')' => {
+                if let Some(p) = parens.pop() {
+                    if p != Parenthesis::OPEN {
+                        return Err(ParserError::MismatchedParenthesis);
+                    }
+                } else {
+                    return Err(ParserError::MismatchedParenthesis);
+                }
+                tokens.push(Token::Parenthesis(Parenthesis::CLOSED));
+            }
+            '+' => {
+                let res = is_consecutive_tokens_valid(c, &tokens);
+                if let Err(err) = res { return Err(err)}
+                tokens.push(Token::BinaryOp(BinaryOp::ADD));
+            }
+            '-' => {
+                if let Some(token) = tokens.last().clone() {
+                    match token.clone() {
+                        Token::BinaryOp(BinaryOp::ADD) | Token::BinaryOp(BinaryOp::SUB) 
+                        | Token::BinaryOp(BinaryOp::MUL) | Token::BinaryOp(BinaryOp::DIV) 
+                        | Token::BinaryOp(BinaryOp::MOD) | Token::BinaryOp(BinaryOp::EXP) 
+                        | Token::UnaryOp(UnaryOp::NEGATE)
+                        | Token::Parenthesis(Parenthesis::OPEN) => {
+                            tokens.push(Token::UnaryOp(UnaryOp::NEGATE));
+                        }
+                        _ => {
+                            tokens.push(Token::BinaryOp(BinaryOp::SUB));
+                        }
+                    }
+                } else {
+                    tokens.push(Token::UnaryOp(UnaryOp::NEGATE))
                 }
             }
+            '*' => {
+                let res = is_consecutive_tokens_valid(c, &tokens);
+                if let Err(err) = res { return Err(err)}
+                tokens.push(Token::BinaryOp(BinaryOp::MUL));
+            }
+            '/' => {
+                let res = is_consecutive_tokens_valid(c, &tokens);
+                if let Err(err) = res { return Err(err)}
+                tokens.push(Token::BinaryOp(BinaryOp::DIV));
+            }
+            '^' => {
+                let res = is_consecutive_tokens_valid(c, &tokens);
+                if let Err(err) = res { return Err(err)}
+                tokens.push(Token::BinaryOp(BinaryOp::EXP));
+            }
+            '%' => {
+                let res = is_consecutive_tokens_valid(c, &tokens);
+                if let Err(err) = res { return Err(err)}
+                tokens.push(Token::BinaryOp(BinaryOp::MOD));
+            }
+            ' ' | '\n' | '\r' | '\t' => {},
+            _ => return Err(ParserError::BadToken(c))
         }
     }
     
@@ -291,11 +317,11 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
             },
             Token::UnaryOp(op) => {
                 let mut unary_stack: Vec<Token> = Vec::new();
-                let mut terminator_token = Token::UnaryOp(UnaryOp::Negate); // CANT THINK OF A BETTER DEFAULTs
+                let mut terminator_token = Token::UnaryOp(UnaryOp::NEGATE); // CANT THINK OF A BETTER DEFAULT VALUE
 
                 unary_stack.push(Token::UnaryOp(*op));
                 while let Some(token) = token_iter.peek() {
-                    if let Token::UnaryOp(op) = token {
+                    if let Token::UnaryOp(_) = token {
                         unary_stack.push(**token);
                         token_iter.next();
                     } else {
@@ -367,7 +393,7 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<FloatType, CalculatonEr
                 let y = stack.pop().unwrap();
                 let x = stack.pop().unwrap();
                 match op {
-                    BinaryOp::Add => {
+                    BinaryOp::ADD => {
                         match (x,y) {
                             (Number::Integer(i_x), Number::Integer(i_y)) => {
                                 match i_x.checked_add(i_y) {
@@ -380,7 +406,7 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<FloatType, CalculatonEr
                             (Number::Float(f_x), Number::Float(f_y)) => stack.push(Number::Float(f_x + f_y)),
                         }
                     }
-                    BinaryOp::Sub => {
+                    BinaryOp::SUB => {
                         match (x,y) {
                             (Number::Integer(i_x), Number::Integer(i_y)) => {
                                 match i_x.checked_sub(i_y) {
@@ -393,7 +419,7 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<FloatType, CalculatonEr
                             (Number::Float(f_x), Number::Float(f_y)) => stack.push(Number::Float(f_x - f_y)),
                         }
                     }
-                    BinaryOp::Mul => {
+                    BinaryOp::MUL => {
                         match (x,y) {
                             (Number::Integer(i_x), Number::Integer(i_y)) => {
                                 match i_x.checked_mul(i_y) {
@@ -406,7 +432,7 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<FloatType, CalculatonEr
                             (Number::Float(f_x), Number::Float(f_y)) => stack.push(Number::Float(f_x * f_y)),
                         }
                     },
-                    BinaryOp::Div => {
+                    BinaryOp::DIV => {
                         match (x,y) {
                             (Number::Integer(i_x), Number::Integer(i_y)) => {
                                 if i_y == 0 { return Err(CalculatonError::UndefinedOperation("Cannot divide by 0".to_string())); }
@@ -420,7 +446,7 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<FloatType, CalculatonEr
                             (Number::Float(f_x), Number::Float(f_y)) => stack.push(Number::Float(f_x / f_y)),
                         }
                     }
-                    BinaryOp::Exp => {
+                    BinaryOp::EXP => {
                         match (x,y) {
                             (Number::Integer(i_x), Number::Integer(i_y)) => {
                                 match i_x.checked_pow(i_y as u32) {
@@ -433,7 +459,7 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<FloatType, CalculatonEr
                             (Number::Float(f_x), Number::Float(f_y)) => stack.push(Number::Float(f_x.powf(f_y as f64))),
                         }
                     }
-                    BinaryOp::Mod => {
+                    BinaryOp::MOD => {
                         match (x,y) {
                             (Number::Integer(i_x), Number::Integer(i_y)) => {
                                 if i_y == 0 { return Err(CalculatonError::UndefinedOperation("Cannot mod by 0".to_string())); }
@@ -452,10 +478,64 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<FloatType, CalculatonEr
             Token::UnaryOp(op) => {
                 let x = stack.pop().unwrap();
                 match op {
-                    UnaryOp::Negate => {
+                    UnaryOp::NEGATE => {
                         match x {
-                            Number::Integer(i_x) => stack.push(Number::Integer((i_x * -1))),
+                            Number::Integer(i_x) => stack.push(Number::Integer(i_x * -1)),
                             Number::Float(f_x) => stack.push(Number::Float(f_x * -1.0)),
+                        }
+                    },
+                    UnaryOp::SIN => {
+                        match x {
+                            Number::Integer(i_x) => stack.push(Number::Float((i_x as FloatType).sin())),
+                            Number::Float(f_x) => stack.push(Number::Float(f_x.sin())),
+                        }
+                    },
+                    UnaryOp::COS => {
+                        match x {
+                            Number::Integer(i_x) => stack.push(Number::Float((i_x as FloatType).cos())),
+                            Number::Float(f_x) => stack.push(Number::Float(f_x.cos())),
+                        }
+                    } ,
+                    UnaryOp::TAN => {
+                        match x {
+                            Number::Integer(i_x) => stack.push(Number::Float((i_x as FloatType).tan())),
+                            Number::Float(f_x) => stack.push(Number::Float(f_x.tan())),
+                        }
+                    }
+                    UnaryOp::ARCSIN => {
+                        match x {
+                            Number::Integer(i_x) => {
+                                if i_x > 1 || i_x < -1 { return Err(CalculatonError::InvalidFunctionDomain("asin".to_string(), "-1 <= x <= 1".to_string()))}
+                                stack.push(Number::Float((i_x as FloatType).asin()))
+                            },
+                            Number::Float(f_x) => {
+                                if f_x > 1.0 || f_x < -1.0 { return Err(CalculatonError::InvalidFunctionDomain("asin".to_string(), "-1 <= x <= 1".to_string()))}
+                                stack.push(Number::Float(f_x.tan()))
+                            },
+                        }
+                    }
+                    UnaryOp::ARCCOS => {
+                        match x {
+                            Number::Integer(i_x) => {
+                                if i_x > 1 || i_x < -1 { return Err(CalculatonError::InvalidFunctionDomain("acos".to_string(), "-1 <= x <= 1".to_string()))}
+                                stack.push(Number::Float((i_x as FloatType).acos()))
+                            },
+                            Number::Float(f_x) => {
+                                if f_x > 1.0 || f_x < -1.0 { return Err(CalculatonError::InvalidFunctionDomain("acos".to_string(), "-1 <= x <= 1".to_string()))}
+                                stack.push(Number::Float(f_x.tan()))
+                            },
+                        }
+                    },
+                    UnaryOp::ARCTAN => {
+                        match x {
+                            Number::Integer(i_x) => {
+                                if i_x > 1 || i_x < -1 { return Err(CalculatonError::InvalidFunctionDomain("atan".to_string(), "-1 <= x <= 1".to_string()))}
+                                stack.push(Number::Float((i_x as FloatType).atan()))
+                            },
+                            Number::Float(f_x) => {
+                                if f_x > 1.0 || f_x < -1.0 { return Err(CalculatonError::InvalidFunctionDomain("atan".to_string(), "-1 <= x <= 1".to_string()))}
+                                stack.push(Number::Float(f_x.tan()))
+                            },
                         }
                     },
                 }
