@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, thread::current, env::current_exe};
 
 pub type FloatType = f64;
 pub type IntType = i128;
@@ -168,6 +168,7 @@ fn tokenise_operator(c: &char, tokens: &mut Vec<Token>, parens: &mut Vec<Parenth
 }
 
 pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
+    let expr = expr.trim();
     let mut chars = expr.chars().peekable();
     let mut tokens: Vec<Token> = Vec::new();
     let mut parens: Vec<Parenthesis> = Vec::new();
@@ -179,26 +180,30 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
                 let mut number_string = String::new();
                 let mut terminator_char: char = '\0'; 
                 number_string.push(c);
-                while let Some(d) = chars.next() {
+
+                while let Some(d) = chars.peek() {
                     if d.is_digit(10) {
-                        number_string.push(d);
+                        number_string.push(*d);
+                        chars.next();
+
                     } else {
                         // the character we stopped on
-                        terminator_char = d;
+                        terminator_char = *d;
                         break;
                     }
                 };
-                
+
                 // if the character we stopped on is a decimal point, then the number will be a float
                 if terminator_char == '.' {
                     // once again iterate forwards until we find a non digit character
+                    chars.next();
                     number_string.push('.');
-                    while let Some(d) = chars.next() {
+                    while let Some(d) = chars.peek() {
                         if d.is_digit(10) {
-                            number_string.push(d);
+                            number_string.push(*d);
+                            chars.next();
                         } else {
                             // the character we stopped
-                            terminator_char = d;
                             break;
                         }
                     }
@@ -211,22 +216,15 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
 
                     // push token
                     tokens.push(Token::Number(Number::Float(float_val)));
-                    
-                    // edge case - the character we stopped needs to be tokenised here so we don't skip it
-                    if let Err(err) = tokenise_operator(&terminator_char, &mut tokens, &mut parens) {
-                        return Err(err);
-                    }
                 } else {
+                    // convert string to number integer
                     let int_val: IntType = match number_string.parse() {
                         Ok(v) => v,
                         Err(_) => panic!("Error converting number string to IntType")
                     };
-                    tokens.push(Token::Number(Number::Integer(int_val)));
 
-                    // edge case - the character we stopped needs to be tokenised here so we don't skip it
-                    if let Err(err) = tokenise_operator(&terminator_char, &mut tokens, &mut parens) {
-                        return Err(err);
-                    }
+                    // push token
+                    tokens.push(Token::Number(Number::Integer(int_val)));
                 }
             }
             // for any other token (not a number) we process it in a seperate function
