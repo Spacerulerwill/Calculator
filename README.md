@@ -1,5 +1,9 @@
 # Calculator
-Simple mathematical expression evaluation. Supports doubles and signed integer operators with `+`, `-`, `*`, `/`, `%`, `^`, `(` and `)`
+Capabilities:
+* Able to use both integers and floats
+* Binary operators: `+`, `-`, `*`, `/`, `%`, `^`
+* Unary `-` operator
+* Functions: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`
 
 ## Warning
 * On some consoles (windows) the caret `^` symbol will need to be escaped. This means the expression `2 ^ 3` will need be written as `2 ^^ 3`    
