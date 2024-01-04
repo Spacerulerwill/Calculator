@@ -246,8 +246,10 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
 pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
     let mut queue: VecDeque<Token> = VecDeque::new();
     let mut operation_stack: Vec<Token> = Vec::new();
+    let mut token_iter = tokens.iter().peekable();
+    let mut parenthesis_unary_stacks: Vec<Vec<Token>> = Vec::new();
 
-    for token in tokens {
+    while let Some(token) = token_iter.next() {
         match token {
             Token::Number(Number::Integer(_)) | Token::Number(Number::Float(_)) => {
                 queue.push_back(*token);
@@ -287,7 +289,42 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
                 }
                 operation_stack.push(*token);
             },
-            Token::UnaryOp(_) => {},
+            Token::UnaryOp(op) => {
+                let mut unary_stack: Vec<Token> = Vec::new();
+                let mut terminator_token = Token::UnaryOp(UnaryOp::Negate); // CANT THINK OF A BETTER DEFAULTs
+
+                unary_stack.push(Token::UnaryOp(*op));
+                while let Some(token) = token_iter.peek() {
+                    if let Token::UnaryOp(op) = token {
+                        unary_stack.push(**token);
+                        token_iter.next();
+                    } else {
+                        terminator_token = **token;
+                        break;
+                    }
+                };
+
+                match terminator_token {
+                    Token::Parenthesis(Parenthesis::OPEN) => {
+                        parenthesis_unary_stacks.push(unary_stack);
+                    },
+                    Token::Number(Number::Float(f)) => {
+                        token_iter.next();
+                        queue.push_back(Token::Number(Number::Float(f)));
+                        while !unary_stack.is_empty() {
+                            queue.push_back(unary_stack.pop().unwrap());
+                        }
+                    },
+                    Token::Number(Number::Integer(i)) => {
+                        token_iter.next();
+                        queue.push_back(Token::Number(Number::Integer(i)));
+                        while !unary_stack.is_empty() {
+                            queue.push_back(unary_stack.pop().unwrap());
+                        }
+                    },
+                    _ => panic!("Unary op terminated on a token that was not a number or an open parenthesis. This should never happen! BUG!")
+                }
+            },
             Token::Parenthesis(Parenthesis::OPEN) => operation_stack.push(*token),
             Token::Parenthesis(Parenthesis::CLOSED) => {
                 while !operation_stack.is_empty() {
@@ -297,6 +334,13 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
                     } else {
                         operation_stack.pop();
                         break;     
+                    }
+                }
+
+                if parenthesis_unary_stacks.len() != 0 {
+                    let stack = parenthesis_unary_stacks.pop().unwrap();
+                    for op in stack {
+                        queue.push_back(op);
                     }
                 }
             },
@@ -405,7 +449,17 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<FloatType, CalculatonEr
                     },
                 }
             },
-            Token::UnaryOp(_) => {},
+            Token::UnaryOp(op) => {
+                let x = stack.pop().unwrap();
+                match op {
+                    UnaryOp::Negate => {
+                        match x {
+                            Number::Integer(i_x) => stack.push(Number::Integer((i_x * -1))),
+                            Number::Float(f_x) => stack.push(Number::Float(f_x * -1.0)),
+                        }
+                    },
+                }
+            },
             Token::Parenthesis(_) => panic!("There should be no parenthesis in expression evaluation stage! There must be a bug in the infix to rpn conversion..."),
         }
     }
