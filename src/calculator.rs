@@ -33,13 +33,16 @@ pub enum UnaryOp {
     ARCTAN,
 }
 
-static FUNCTIONS: phf::Map<&'static str, UnaryOp> = phf_map! {
-    "sin" => UnaryOp::SIN,
-    "cos" => UnaryOp::COS,
-    "tan" => UnaryOp::TAN,
-    "asin" => UnaryOp::ARCSIN,
-    "acos" => UnaryOp::ARCCOS,
-    "atan" => UnaryOp::ARCTAN
+static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
+    "sin" => Token::UnaryOp(UnaryOp::SIN),
+    "cos" => Token::UnaryOp(UnaryOp::COS),
+    "tan" => Token::UnaryOp(UnaryOp::TAN),
+    "asin" => Token::UnaryOp(UnaryOp::ARCSIN),
+    "acos" => Token::UnaryOp(UnaryOp::ARCCOS),
+    "atan" => Token::UnaryOp(UnaryOp::ARCTAN),
+    "e" => Token::Number(Number::Float(std::f64::consts::E)),
+    "pi" => Token::Number(Number::Float(std::f64::consts::PI)),
+    "tau" => Token::Number(Number::Float(std::f64::consts::TAU))
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -181,8 +184,8 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
                     }
                 };
                 
-                match FUNCTIONS.get(&function_string) {
-                    Some(function) => tokens.push(Token::UnaryOp(*function)),
+                match KEYWORDS.get(&function_string) {
+                    Some(token) => tokens.push(*token),
                     None => return Err(ParserError::InvalidFunction(function_string)),
                 }
 
