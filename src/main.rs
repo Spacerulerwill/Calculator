@@ -12,10 +12,8 @@ fn main() {
             print!("Input expression: ");
             std::io::stdout().flush().expect("Failed to flush stdout buffer");
             stdin().read_line(&mut input).expect("Failed to read user input");
-            if let Some(c) = input.chars().next() {
-                if c == 'q' {
-                    break;
-                }
+            if input.trim() == "q" {
+                break;
             }
             calculate(input);
         }

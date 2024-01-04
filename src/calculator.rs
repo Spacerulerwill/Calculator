@@ -115,6 +115,10 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
     let mut chars = expr.chars().peekable();
     let mut tokens: Vec<Token> = Vec::new();
     let mut parens: Vec<Parenthesis> = Vec::new();
+    
+    if expr.len() == 0 {
+        return Ok(tokens);
+    }
 
     while let Some(c) = chars.next() {
         match c {
@@ -268,6 +272,14 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
     if parens.len() > 0 {
         return Err(ParserError::MismatchedParenthesis);
     }
+    
+    if let Token::BinaryOp(op) = tokens.last().unwrap() {
+        return Err(ParserError::InvalidNumberOfOperands(OPERATOR_CHARS[*op as usize], 2));
+    } 
+
+    if let Token::UnaryOp(op) = tokens.last().unwrap() {
+        return Err(ParserError::InvalidNumberOfOperands(OPERATOR_CHARS[*op as usize], 1));
+    } 
 
     Ok(tokens)
 }
