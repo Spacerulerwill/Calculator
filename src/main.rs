@@ -33,6 +33,7 @@ fn calculate(input: String) {
     match tokens {
         Ok(_) => {
             let mut rpn = calculator::infix_to_rpn(&tokens.unwrap());
+            dbg!(&rpn);
             let result: Result<calculator::FloatType, calculator::CalculatonError> = calculator::evaluate_rpn(&mut rpn);
             match result {
                 Ok(_) => println!("Result: {}", result.unwrap()),
@@ -41,7 +42,7 @@ fn calculate(input: String) {
                         calculator::CalculatonError::UndefinedOperation(msg) => println!("Undefined operation: {}", msg),
                         calculator::CalculatonError::IntegerOverflow => println!("Overflow occured whilst performing operations"),
                     }
-                },
+                }
             }
         },
         Err(e) => {
@@ -49,7 +50,7 @@ fn calculate(input: String) {
                 calculator::ParserError::BadToken(c) => println!("Bad token: {}", c),
                 calculator::ParserError::MismatchedParenthesis => println!("Mismatched parenthesis found."),
                 calculator::ParserError::InvalidConsecutiveTokens(c1, c2) => println!("Invalid consecutive tokens {} and {}", c1, c2),
-                calculator::ParserError::InvalidNumberOfOperands(c1, count) => println!("Operator {} requires {} operandss", c1, count),
+                calculator::ParserError::InvalidNumberOfOperands(c1, count) => println!("Operator {} requires {} operands", c1, count),
             }
         } 
     }

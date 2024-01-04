@@ -15,6 +15,12 @@ pub enum BinaryOp {
 
 static OPERATOR_CHARS: [char; 6] = ['+', '-', '*', '/', '%', '^'];
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Associativity {
+    LEFT,
+    RIGHT
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum UnaryOp {
     Negate,
@@ -54,12 +60,6 @@ pub enum CalculatonError {
     IntegerOverflow
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Associativity {
-    LEFT,
-    RIGHT
-}
-
 fn get_binary_operator_precedence(op: BinaryOp) -> IntType {
     return match op {
         BinaryOp::Add | BinaryOp::Sub => 0,
@@ -75,6 +75,7 @@ fn get_binary_operator_associativity(op: BinaryOp) -> Associativity {
     }
 }
 
+// determine if the previous operator can be next to the current operator
 fn is_consecutive_tokens_valid(current_token_char: char, all_tokens: &Vec<Token>) -> Result<(), ParserError> {
     if let Some(op) = all_tokens.last() {
         match op {
@@ -93,7 +94,7 @@ fn tokenise_operator(c: &char, tokens: &mut Vec<Token>, parens: &mut Vec<Parenth
         '(' => {
             if let Some(token) = tokens.last().clone() {
                 match token {
-                    Token::Number(Number::Float(_)) | Token::Number(Number::Integer(_))=> {
+                    Token::Number(_) => {
                         tokens.push(Token::BinaryOp(BinaryOp::Mul));
                     },
                     Token::Parenthesis(p) => {
@@ -104,6 +105,8 @@ fn tokenise_operator(c: &char, tokens: &mut Vec<Token>, parens: &mut Vec<Parenth
                     _ => {}
                 }
             }
+            tokens.push(Token::Parenthesis(Parenthesis::OPEN));
+            parens.push(Parenthesis::OPEN);
         },
         ')' => {
             if let Some(p) = parens.pop() {
@@ -172,6 +175,7 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
     while let Some(c) = chars.next() {
         match c {
             '0'..='9' => {
+                // First step, move forwards until we find a non digit character
                 let mut number_string = String::new();
                 let mut terminator_char: char = '\0'; 
                 number_string.push(c);
@@ -179,27 +183,39 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
                     if d.is_digit(10) {
                         number_string.push(d);
                     } else {
+                        // the character we stopped on
                         terminator_char = d;
                         break;
                     }
                 };
-
+                
+                // if the character we stopped on is a decimal point, then the number will be a float
                 if terminator_char == '.' {
+                    // once again iterate forwards until we find a non digit character
                     number_string.push('.');
                     while let Some(d) = chars.next() {
                         if d.is_digit(10) {
                             number_string.push(d);
                         } else {
+                            // the character we stopped
+                            terminator_char = d;
                             break;
                         }
                     }
-
+                    
+                    // conver string to number float
                     let float_val: FloatType = match number_string.parse() {
                         Ok(v) => v,
                         Err(_) => panic!("Error converting number string to FloatType")
                     };
 
+                    // push token
                     tokens.push(Token::Number(Number::Float(float_val)));
+                    
+                    // edge case - the character we stopped needs to be tokenised here so we don't skip it
+                    if let Err(err) = tokenise_operator(&terminator_char, &mut tokens, &mut parens) {
+                        return Err(err);
+                    }
                 } else {
                     let int_val: IntType = match number_string.parse() {
                         Ok(v) => v,
@@ -207,11 +223,13 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
                     };
                     tokens.push(Token::Number(Number::Integer(int_val)));
 
+                    // edge case - the character we stopped needs to be tokenised here so we don't skip it
                     if let Err(err) = tokenise_operator(&terminator_char, &mut tokens, &mut parens) {
                         return Err(err);
                     }
                 }
             }
+            // for any other token (not a number) we process it in a seperate function
             _ => {
                 if let Err(err) = tokenise_operator(&c, &mut tokens, &mut parens) {
                     return Err(err);
@@ -236,7 +254,6 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
             Token::Number(Number::Integer(_)) | Token::Number(Number::Float(_)) => {
                 queue.push_back(*token);
             },
-
             Token::BinaryOp(op1) => 'binaryop: {
                 if operation_stack.is_empty() || operation_stack.last().unwrap().clone() == Token::Parenthesis(Parenthesis::OPEN) {
                     operation_stack.push(*token);
@@ -298,10 +315,8 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
     return queue
 }
 
-
 pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<FloatType, CalculatonError> {
     let mut stack: Vec<Number> = Vec::new();
-    
     while !rpn.is_empty() {
         let token = rpn.pop_front();
         match token.unwrap() {
