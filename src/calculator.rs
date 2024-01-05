@@ -31,6 +31,15 @@ pub enum UnaryOp {
     ARCSIN,
     ARCCOS,
     ARCTAN,
+    COSEC,
+    SEC,
+    COT,
+    SINH,
+    COSH,
+    TANH,
+    ARSINH,
+    ARCOSH,
+    ARTANH
 }
 
 static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
@@ -40,6 +49,15 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "asin" => Token::UnaryOp(UnaryOp::ARCSIN),
     "acos" => Token::UnaryOp(UnaryOp::ARCCOS),
     "atan" => Token::UnaryOp(UnaryOp::ARCTAN),
+    "cosec" => Token::UnaryOp(UnaryOp::COSEC),
+    "sec" => Token::UnaryOp(UnaryOp::SEC),
+    "cot" => Token::UnaryOp(UnaryOp::COT),
+    "sinh" => Token::UnaryOp(UnaryOp::SINH),
+    "cosh" => Token::UnaryOp(UnaryOp::COSH),
+    "tanh" => Token::UnaryOp(UnaryOp::TANH),
+    "asinh" => Token::UnaryOp(UnaryOp::ARSINH),
+    "acosh" => Token::UnaryOp(UnaryOp::ARCOSH),
+    "atanh" => Token::UnaryOp(UnaryOp::ARTANH),
     "e" => Token::Number(Number::Float(std::f64::consts::E)),
     "pi" => Token::Number(Number::Float(std::f64::consts::PI)),
     "tau" => Token::Number(Number::Float(std::f64::consts::TAU))
@@ -551,6 +569,72 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<FloatType, CalculatonEr
                                 if f_x > 1.0 || f_x < -1.0 { return Err(CalculatonError::InvalidFunctionDomain("atan".to_string(), "-1 <= x <= 1".to_string()))}
                                 stack.push(Number::Float(f_x.tan()))
                             },
+                        }
+                    },
+                    UnaryOp::COSEC => {
+                        match x {
+                            Number::Integer(i_x) => stack.push(Number::Float(1.0 / ((i_x as FloatType)).sin())),
+                            Number::Float(f_x) => stack.push(Number::Float(1.0 / f_x.sin())),
+                        }
+                    },
+                    UnaryOp::SEC => {
+                        match x {
+                            Number::Integer(i_x) => stack.push(Number::Float(1.0 / ((i_x as FloatType)).cos())),
+                            Number::Float(f_x) => stack.push(Number::Float(1.0 / f_x.cos())),
+                        }
+                    },
+                    UnaryOp::COT => {
+                        match x {
+                            Number::Integer(i_x) => stack.push(Number::Float(1.0 / ((i_x as FloatType)).tan())),
+                            Number::Float(f_x) => stack.push(Number::Float(1.0 / f_x.tan())),
+                        }
+                    },
+                    UnaryOp::SINH => {
+                        match x {
+                            Number::Integer(i_x) => stack.push(Number::Float((i_x as FloatType).sinh())),
+                            Number::Float(f_x) => stack.push(Number::Float(f_x.sinh())),
+                        }
+                    },
+                    UnaryOp::COSH => {
+                        match x {
+                            Number::Integer(i_x) => stack.push(Number::Float((i_x as FloatType).cosh())),
+                            Number::Float(f_x) => stack.push(Number::Float(f_x.cosh())),
+                        }
+                    },
+                    UnaryOp::TANH => {
+                        match x {
+                            Number::Integer(i_x) => stack.push(Number::Float((i_x as FloatType).tanh())),
+                            Number::Float(f_x) => stack.push(Number::Float(f_x.tanh())),
+                        }
+                    },
+                    UnaryOp::ARSINH => {
+                        match x {
+                            Number::Integer(i_x) => stack.push(Number::Float((i_x as FloatType).asinh())),
+                            Number::Float(f_x) => stack.push(Number::Float(f_x.asinh())),
+                        }
+                    },
+                    UnaryOp::ARCOSH => {
+                        match x {
+                            Number::Integer(i_x) => {
+                                if i_x < 0 { return Err(CalculatonError::InvalidFunctionDomain("arcosh".to_string(), "x >= 0".to_string()))}
+                                stack.push(Number::Float((i_x as FloatType).acosh()));
+                            },
+                            Number::Float(f_x) => {
+                                if f_x < 0.0 { return Err(CalculatonError::InvalidFunctionDomain("artanh".to_string(), "x >= 0".to_string()))}
+                                stack.push(Number::Float(f_x.acosh()));
+                            }
+                        }
+                    },
+                    UnaryOp::ARTANH => {
+                        match x {
+                            Number::Integer(i_x) => {
+                                if i_x < - 1 || i_x > 1 { return Err(CalculatonError::InvalidFunctionDomain("artanh".to_string(), "-1 <= x <= 1".to_string()))}
+                                stack.push(Number::Float((i_x as FloatType).atanh()));
+                            },
+                            Number::Float(f_x) => {
+                                if f_x < - 1.0 || f_x > 1.0 { return Err(CalculatonError::InvalidFunctionDomain("artanh".to_string(), "-1 <= x <= 1".to_string()))}
+                                stack.push(Number::Float(f_x.atanh()));
+                            }
                         }
                     },
                 }
