@@ -27,7 +27,6 @@ fn main() {
 
 fn calculate(input: String) {
     let tokens = calculator::tokenise(&input);
-    dbg!(&tokens);
     match tokens {
         Ok(_) => {
             let mut rpn = calculator::infix_to_rpn(&tokens.unwrap());
