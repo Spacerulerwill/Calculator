@@ -253,9 +253,7 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
             '-' => {
                 if let Some(token) = tokens.last().clone() {
                     match token.clone() {
-                        Token::BinaryOp(BinaryOp::ADD) | Token::BinaryOp(BinaryOp::SUB) 
-                        | Token::BinaryOp(BinaryOp::MUL) | Token::BinaryOp(BinaryOp::DIV) 
-                        | Token::BinaryOp(BinaryOp::MOD) | Token::BinaryOp(BinaryOp::EXP) 
+                        | Token::BinaryOp(_)
                         | Token::UnaryOp(_)
                         | Token::Parenthesis(Parenthesis::OPEN) => {
                             tokens.push(Token::UnaryOp(UnaryOp::NEGATE));
