@@ -25,6 +25,7 @@ pub enum Associativity {
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum UnaryOp {
     NEGATE,
+    ABS,
     SIN,
     COS,
     TAN,
@@ -39,10 +40,13 @@ pub enum UnaryOp {
     TANH,
     ARSINH,
     ARCOSH,
-    ARTANH
+    ARTANH,
+    RAD,
+    DEG
 }
 
 static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
+    "abs" => Token::UnaryOp(UnaryOp::ABS),
     "sin" => Token::UnaryOp(UnaryOp::SIN),
     "cos" => Token::UnaryOp(UnaryOp::COS),
     "tan" => Token::UnaryOp(UnaryOp::TAN),
@@ -58,6 +62,8 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "asinh" => Token::UnaryOp(UnaryOp::ARSINH),
     "acosh" => Token::UnaryOp(UnaryOp::ARCOSH),
     "atanh" => Token::UnaryOp(UnaryOp::ARTANH),
+    "rad" => Token::UnaryOp(UnaryOp::RAD),
+    "deg" => Token::UnaryOp(UnaryOp::DEG),
     "e" => Token::Number(Number::Float(std::f64::consts::E)),
     "pi" => Token::Number(Number::Float(std::f64::consts::PI)),
     "tau" => Token::Number(Number::Float(std::f64::consts::TAU))
@@ -250,7 +256,7 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
                         Token::BinaryOp(BinaryOp::ADD) | Token::BinaryOp(BinaryOp::SUB) 
                         | Token::BinaryOp(BinaryOp::MUL) | Token::BinaryOp(BinaryOp::DIV) 
                         | Token::BinaryOp(BinaryOp::MOD) | Token::BinaryOp(BinaryOp::EXP) 
-                        | Token::UnaryOp(UnaryOp::NEGATE)
+                        | Token::UnaryOp(_)
                         | Token::Parenthesis(Parenthesis::OPEN) => {
                             tokens.push(Token::UnaryOp(UnaryOp::NEGATE));
                         }
@@ -517,6 +523,12 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<FloatType, CalculatonEr
                             Number::Float(f_x) => stack.push(Number::Float(f_x * -1.0)),
                         }
                     },
+                    UnaryOp::ABS => {
+                        match x {
+                            Number::Integer(i_x) => stack.push(Number::Integer(i_x.abs())),
+                            Number::Float(f_x) => stack.push(Number::Float(f_x.abs())),
+                        }
+                    },
                     UnaryOp::SIN => {
                         match x {
                             Number::Integer(i_x) => stack.push(Number::Float((i_x as FloatType).sin())),
@@ -635,6 +647,18 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<FloatType, CalculatonEr
                                 if f_x < - 1.0 || f_x > 1.0 { return Err(CalculatonError::InvalidFunctionDomain("artanh".to_string(), "-1 <= x <= 1".to_string()))}
                                 stack.push(Number::Float(f_x.atanh()));
                             }
+                        }
+                    },
+                    UnaryOp::RAD => {
+                        match x {
+                            Number::Integer(i_x) => stack.push(Number::Float((i_x as FloatType).to_radians())),
+                            Number::Float(f_x) => stack.push(Number::Float(f_x.to_radians())),
+                        }
+                    },
+                    UnaryOp::DEG => {
+                        match x {
+                            Number::Integer(i_x) => stack.push(Number::Float((i_x as FloatType).to_degrees())),
+                            Number::Float(f_x) => stack.push(Number::Float(f_x.to_degrees())),
                         }
                     },
                 }
