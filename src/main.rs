@@ -25,8 +25,9 @@ fn main() {
     }
 }
 
-fn calculate(input: String) {
-    let tokens = calculator::tokenise(&input);
+fn calculate(mut input: String) {
+    let tokens = calculator::tokenise(&mut input);
+    dbg!(&tokens);
     match tokens {
         Ok(_) => {
             let mut rpn = calculator::infix_to_rpn(&tokens.unwrap());
@@ -48,7 +49,7 @@ fn calculate(input: String) {
                 calculator::ParserError::MismatchedParenthesis => println!("Mismatched parenthesis found."),
                 calculator::ParserError::InvalidConsecutiveTokens(c1, c2) => println!("Invalid consecutive tokens {} and {}", c1, c2),
                 calculator::ParserError::InvalidNumberOfOperands(c1, count) => println!("Operator {} requires {} operands", c1, count),
-                calculator::ParserError::InvalidFunction(function) => println!("Function \"{}\" does not exist!", function),
+                calculator::ParserError::InvalidFunctionOrConstant(function) => println!("The function or constant \"{}\" does not exist!", function),
             }
         } 
     }

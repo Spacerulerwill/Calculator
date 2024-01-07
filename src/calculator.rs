@@ -64,9 +64,9 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf_map! {
     "atanh" => Token::UnaryOp(UnaryOp::ARTANH),
     "rad" => Token::UnaryOp(UnaryOp::RAD),
     "deg" => Token::UnaryOp(UnaryOp::DEG),
-    "e" => Token::Number(Number::Float(std::f64::consts::E)),
-    "pi" => Token::Number(Number::Float(std::f64::consts::PI)),
-    "tau" => Token::Number(Number::Float(std::f64::consts::TAU))
+    "e" => Token::Constant(Number::Float(std::f64::consts::E)),
+    "pi" => Token::Constant(Number::Float(std::f64::consts::PI)),
+    "tau" => Token::Constant(Number::Float(std::f64::consts::TAU))
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -84,6 +84,7 @@ pub enum Number {
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Token {
     Number(Number),
+    Constant(Number),
     BinaryOp(BinaryOp),
     UnaryOp(UnaryOp),
     Parenthesis(Parenthesis)
@@ -95,7 +96,7 @@ pub enum ParserError {
     MismatchedParenthesis,
     InvalidConsecutiveTokens(char, char),
     InvalidNumberOfOperands(char, i32),
-    InvalidFunction(String),
+    InvalidFunctionOrConstant(String),
 }
 
 #[derive(Debug)]
@@ -199,12 +200,12 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
                 }
             }
             'a'..='z' => {
-                let mut function_string = String::new();
-                function_string.push(c);
+                let mut keyword = String::new();
+                keyword.push(c);
 
                 while let Some(d) = chars.peek() {
                     if d.is_alphabetic() {
-                        function_string.push(*d);
+                        keyword.push(*d);
                         chars.next();
 
                     } else {
@@ -212,16 +213,32 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
                     }
                 };
                 
-                match KEYWORDS.get(&function_string) {
-                    Some(token) => tokens.push(*token),
-                    None => return Err(ParserError::InvalidFunction(function_string)),
+                match KEYWORDS.get(&keyword) {
+                    Some(token) => {
+                        match token {
+                            Token::Constant(_) => {
+                                if let Some(c) = tokens.last().clone() {
+                                    match c {
+                                        Token::Constant(_) | Token::Number(_) | Token::Parenthesis(Parenthesis::CLOSED) => {
+                                            tokens.push(Token::BinaryOp(BinaryOp::MUL));
+                                        },
+                                        _ => {}
+
+                                    }
+                                }
+                            },
+                            _ =>{}
+                        }
+                        tokens.push(*token);
+                    },
+                    None => return Err(ParserError::InvalidFunctionOrConstant(keyword)),
                 }
 
             }
             '(' => {
                 if let Some(token) = tokens.last().clone() {
                     match token {
-                        Token::Number(_) => {
+                        Token::Number(_) | Token::Constant(_) => {
                             tokens.push(Token::BinaryOp(BinaryOp::MUL));
                         },
                         Token::Parenthesis(p) => {
@@ -314,7 +331,7 @@ pub fn infix_to_rpn(tokens: &Vec<Token>) -> VecDeque<Token> {
 
     while let Some(token) = token_iter.next() {
         match token {
-            Token::Number(Number::Integer(_)) | Token::Number(Number::Float(_)) => {
+            Token::Number(_) | Token::Constant(_) => {
                 queue.push_back(*token);
             },
             Token::BinaryOp(op1) => 'binaryop: {
@@ -425,7 +442,7 @@ pub fn evaluate_rpn(rpn: &mut VecDeque<Token>) -> Result<FloatType, CalculatonEr
     while !rpn.is_empty() {
         let token = rpn.pop_front();
         match token.unwrap() {
-            Token::Number(num) => stack.push(num),
+            Token::Number(num) | Token::Constant(num) => stack.push(num),
             Token::BinaryOp(op) => {
                 let y = stack.pop().unwrap();
                 let x = stack.pop().unwrap();
