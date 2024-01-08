@@ -306,6 +306,7 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
                     match first_token {
                         Token::BinaryOp(first_token) => return Err(ParserError::InvalidConsecutiveTokens(BINARY_OPERATOR_STR[*first_token as usize].to_string(),")".to_string())),
                         Token::UnaryOp(first_token) => return Err(ParserError::InvalidConsecutiveTokens(UNARY_OPEARTOR_STR[*first_token as usize].to_string(),")".to_string())),
+                        Token::Parenthesis(Parenthesis::OPEN) => return Err(ParserError::InvalidConsecutiveTokens("(".to_string(), ")".to_string())),
                         _ => {}
                     }
                 },
