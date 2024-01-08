@@ -14,7 +14,8 @@ pub enum BinaryOp {
     EXP,
 }
 
-static OPERATOR_CHARS: [char; 6] = ['+', '-', '*', '/', '%', '^'];
+const BINARY_OPERATOR_STR: &'static [&'static str] = &["+", "-", "*", "/", "%", "^"];
+const UNARY_OPEARTOR_STR: &'static [&'static str] = &["-", "abs", "sin", "cos", "tan", "asin", "acos", "atan", "cosec", "sec", "cot", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "rad", "deg"]; 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Associativity {
@@ -81,6 +82,13 @@ pub enum Number {
     Float(FloatType),
 }
 
+fn num_to_string(num: Number) -> String {
+    match num {
+        Number::Integer(num) => return num.to_string(),
+        Number::Float(num) => return num.to_string(),
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Token {
     Number(Number),
@@ -94,8 +102,8 @@ pub enum Token {
 pub enum ParserError {
     BadToken(char),
     MismatchedParenthesis,
-    InvalidConsecutiveTokens(char, char),
-    InvalidNumberOfOperands(char, i32),
+    InvalidConsecutiveTokens(String, String),
+    InvalidNumberOfOperands(String, i32),
     InvalidFunctionOrConstant(String),
 }
 
@@ -121,20 +129,6 @@ fn get_binary_operator_associativity(op: BinaryOp) -> Associativity {
     }
 }
 
-// determine if the previous operator can be next to the current operator
-fn is_consecutive_tokens_valid(current_token_char: char, all_tokens: &Vec<Token>) -> Result<(), ParserError> {
-    if let Some(op) = all_tokens.last() {
-        match op {
-            Token::BinaryOp(opchar) => {
-                return Err(ParserError::InvalidConsecutiveTokens(OPERATOR_CHARS[*opchar as usize], current_token_char));
-            },
-            _ => {Ok(())}
-        }
-    } else {
-        return Err(ParserError::InvalidNumberOfOperands(current_token_char, 2));
-    }
-}
-
 pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
     let expr = expr.trim();
     let mut chars = expr.chars().peekable();
@@ -145,6 +139,7 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
         return Ok(tokens);
     }
 
+    // get tokens
     while let Some(c) = chars.next() {
         match c {
             '0'..='9' => {
@@ -215,20 +210,15 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
                 
                 match KEYWORDS.get(&keyword) {
                     Some(token) => {
-                        match token {
-                            Token::Constant(_) => {
-                                if let Some(c) = tokens.last().clone() {
-                                    match c {
-                                        Token::Constant(_) | Token::Number(_) | Token::Parenthesis(Parenthesis::CLOSED) => {
-                                            tokens.push(Token::BinaryOp(BinaryOp::MUL));
-                                        },
-                                        _ => {}
+                        if let Some(c) = tokens.last().clone() {
+                            match c {
+                                Token::Constant(_) | Token::Number(_) | Token::Parenthesis(Parenthesis::CLOSED) => {
+                                    tokens.push(Token::BinaryOp(BinaryOp::MUL));
+                                },
+                                _ => {}
 
-                                    }
-                                }
-                            },
-                            _ =>{}
-                        }
+                            }
+                        }                  
                         tokens.push(*token);
                     },
                     None => return Err(ParserError::InvalidFunctionOrConstant(keyword)),
@@ -262,11 +252,7 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
                 }
                 tokens.push(Token::Parenthesis(Parenthesis::CLOSED));
             }
-            '+' => {
-                let res = is_consecutive_tokens_valid(c, &tokens);
-                if let Err(err) = res { return Err(err)}
-                tokens.push(Token::BinaryOp(BinaryOp::ADD));
-            }
+            '+' => tokens.push(Token::BinaryOp(BinaryOp::ADD)),
             '-' => {
                 if let Some(token) = tokens.last().clone() {
                     match token.clone() {
@@ -283,26 +269,10 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
                     tokens.push(Token::UnaryOp(UnaryOp::NEGATE))
                 }
             }
-            '*' => {
-                let res = is_consecutive_tokens_valid(c, &tokens);
-                if let Err(err) = res { return Err(err)}
-                tokens.push(Token::BinaryOp(BinaryOp::MUL));
-            }
-            '/' => {
-                let res = is_consecutive_tokens_valid(c, &tokens);
-                if let Err(err) = res { return Err(err)}
-                tokens.push(Token::BinaryOp(BinaryOp::DIV));
-            }
-            '^' => {
-                let res = is_consecutive_tokens_valid(c, &tokens);
-                if let Err(err) = res { return Err(err)}
-                tokens.push(Token::BinaryOp(BinaryOp::EXP));
-            }
-            '%' => {
-                let res = is_consecutive_tokens_valid(c, &tokens);
-                if let Err(err) = res { return Err(err)}
-                tokens.push(Token::BinaryOp(BinaryOp::MOD));
-            }
+            '*' => tokens.push(Token::BinaryOp(BinaryOp::MUL)),
+            '/' => tokens.push(Token::BinaryOp(BinaryOp::DIV)),
+            '^' => tokens.push(Token::BinaryOp(BinaryOp::EXP)),
+            '%' => tokens.push(Token::BinaryOp(BinaryOp::MOD)),
             ' ' | '\n' | '\r' | '\t' => {},
             _ => return Err(ParserError::BadToken(c))
         }
@@ -311,14 +281,66 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
     if parens.len() > 0 {
         return Err(ParserError::MismatchedParenthesis);
     }
-    
-    if let Token::BinaryOp(op) = tokens.last().unwrap() {
-        return Err(ParserError::InvalidNumberOfOperands(OPERATOR_CHARS[*op as usize], 2));
+
+    // iterate through tokens checking consecutive tokens are in a valid order
+    let mut iter = tokens.iter().rev().peekable();
+    while let Some(second_token) = iter.next() {
+        if let Some(first_token) = iter.peek() {
+            match second_token {
+                Token::Number(second_num) | Token::Constant(second_num) => {
+                    match first_token {
+                        Token::Number(first_num) | Token::Constant(first_num) => return Err(ParserError::InvalidConsecutiveTokens(num_to_string(*first_num), num_to_string(*second_num))),
+                        _ => {}
+                    }
+                },
+                Token::BinaryOp(second_token) => {
+                    match first_token {
+                        Token::BinaryOp(first_token) => return Err(ParserError::InvalidConsecutiveTokens(BINARY_OPERATOR_STR[*first_token as usize].to_string(), BINARY_OPERATOR_STR[*second_token as usize].to_string())),
+                        Token::UnaryOp(first_token) => return Err(ParserError::InvalidConsecutiveTokens(UNARY_OPEARTOR_STR[*first_token as usize].to_string(), BINARY_OPERATOR_STR[*second_token as usize].to_string())),
+                        Token::Parenthesis(Parenthesis::OPEN) => return Err(ParserError::InvalidConsecutiveTokens("(".to_string(), BINARY_OPERATOR_STR[*second_token as usize].to_string())),
+                        _ => {}
+                    }
+                },
+                Token::Parenthesis(Parenthesis::CLOSED) => {
+                    match first_token {
+                        Token::BinaryOp(first_token) => return Err(ParserError::InvalidConsecutiveTokens(BINARY_OPERATOR_STR[*first_token as usize].to_string(),")".to_string())),
+                        Token::UnaryOp(first_token) => return Err(ParserError::InvalidConsecutiveTokens(UNARY_OPEARTOR_STR[*first_token as usize].to_string(),")".to_string())),
+                        _ => {}
+                    }
+                },
+                _ => {}
+            }
+        }
+    }  
+
+    // check first token 
+    match tokens.first() {
+        Some(token) => {
+            match token {
+                Token::BinaryOp(binary_op) => {
+                    return Err(ParserError::InvalidNumberOfOperands(BINARY_OPERATOR_STR[*binary_op as usize].to_string(), 2))
+                }
+                _ => {}
+            }
+        },
+        None => {},
     } 
 
-    if let Token::UnaryOp(op) = tokens.last().unwrap() {
-        return Err(ParserError::InvalidNumberOfOperands(OPERATOR_CHARS[*op as usize], 1));
-    } 
+    // check last
+    match tokens.last() {
+        Some(token) => {
+            match token {
+                Token::BinaryOp(binary_op) => {
+                    return Err(ParserError::InvalidNumberOfOperands(BINARY_OPERATOR_STR[*binary_op as usize].to_string(), 2))
+                }
+                Token::UnaryOp(unary_op) => {
+                    return Err(ParserError::InvalidNumberOfOperands(UNARY_OPEARTOR_STR[*unary_op as usize].to_string(), 1))
+                },
+                _ => {}
+            }
+        },
+        None => {},
+    }
 
     Ok(tokens)
 }
