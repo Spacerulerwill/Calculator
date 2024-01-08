@@ -290,6 +290,7 @@ pub fn tokenise(expr: &String) -> Result<Vec<Token>, ParserError> {
                 Token::Number(second_num) | Token::Constant(second_num) => {
                     match first_token {
                         Token::Number(first_num) | Token::Constant(first_num) => return Err(ParserError::InvalidConsecutiveTokens(num_to_string(*first_num), num_to_string(*second_num))),
+                        Token::Parenthesis(Parenthesis::CLOSED) => return Err(ParserError::InvalidConsecutiveTokens(")".to_string(), num_to_string(*second_num))),
                         _ => {}
                     }
                 },
