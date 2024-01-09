@@ -3,7 +3,7 @@ Capabilities:
 * Able to use both integers and floats
 * Binary operators: `+`, `-`, `*`, `/`, `%`, `^`
 * Unary `-` operator
-* Functions: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`
+* Functions: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `sinh`, `cosh`, `tanh`, `cosech`, `sech`, `coth`, `asinh`, `acosh`, `atanh`
 * Constants: `pi`, `tau`, `e`
 
 ## Warning
