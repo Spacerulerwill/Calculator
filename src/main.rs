@@ -1,4 +1,7 @@
 mod calculator;
+use calculator::tokeniser::{tokenise, TokeniserError};
+use calculator::rpn::infix_to_rpn;
+use calculator::evaluate::{evaluate_rpn, EvaluationError};
 use std::io::stdin;
 use std::io::Write;
 
@@ -26,29 +29,29 @@ fn main() {
 }
 
 fn calculate(mut input: String) {
-    let tokens = calculator::tokenise(&mut input);
+    let tokens = tokenise(&mut input);
     match tokens {
         Ok(_) => {
-            let mut rpn = calculator::infix_to_rpn(&tokens.unwrap());
-            let result: Result<calculator::FloatType, calculator::CalculatonError> = calculator::evaluate_rpn(&mut rpn);
+            let mut rpn = infix_to_rpn(&tokens.unwrap());
+            let result = evaluate_rpn(&mut rpn);
             match result {
                 Ok(_) => println!("Result: {}", result.unwrap()),
                 Err(e) => {
                     match e {
-                        calculator::CalculatonError::UndefinedOperation(msg) => println!("Undefined operation: {}", msg),
-                        calculator::CalculatonError::IntegerOverflow => println!("Overflow occured whilst performing operations"),
-                        calculator::CalculatonError::InvalidFunctionDomain(function, domain) => println!("The domain for the function \"{}\" is {}", function, domain),
+                        EvaluationError::UndefinedOperation(msg) => println!("Undefined operation: {}", msg),
+                        EvaluationError::IntegerOverflow => println!("Overflow occured whilst performing operations"),
+                        EvaluationError::InvalidFunctionDomain(function, domain) => println!("The domain for the function \"{}\" is {}", function, domain),
                     }
                 }
             }
         },
         Err(e) => {
             match e {
-                calculator::ParserError::BadToken(c) => println!("Bad token: {}", c),
-                calculator::ParserError::MismatchedParenthesis => println!("Mismatched parenthesis found."),
-                calculator::ParserError::InvalidConsecutiveTokens(c1, c2) => println!("Invalid consecutive tokens {} and {}", c1, c2),
-                calculator::ParserError::InvalidNumberOfOperands(c1, count) => println!("Operator {} requires {} operands", c1, count),
-                calculator::ParserError::InvalidFunctionOrConstant(function) => println!("The function or constant \"{}\" does not exist!", function),
+                TokeniserError::BadToken(c) => println!("Bad token: {}", c),
+                TokeniserError::MismatchedParenthesis => println!("Mismatched parenthesis found."),
+                TokeniserError::InvalidConsecutiveTokens(c1, c2) => println!("Invalid consecutive tokens {} and {}", c1, c2),
+                TokeniserError::InvalidNumberOfOperands(c1, count) => println!("Operator {} requires {} operands", c1, count),
+                TokeniserError::InvalidFunctionOrConstant(function) => println!("The function or constant \"{}\" does not exist!", function),
             }
         } 
     }
