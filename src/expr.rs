@@ -16,6 +16,9 @@ pub enum Expr {
     Grouping {
         expr: Box<Expr>,
     },
+    Absolute {
+        expr: Box<Expr>,
+    },
     Number {
         number: Float,
     },
@@ -52,6 +55,7 @@ impl Expr {
                 kind => panic!("Invalid token kind for unary operation: {:?}", kind),
             },
             Expr::Grouping { expr } => expr.evaluate(precision),
+            Expr::Absolute { expr } => expr.evaluate(precision).abs(),
             Expr::Number { number } => number,
         }
     }

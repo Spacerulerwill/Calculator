@@ -12,6 +12,7 @@ pub enum TokenKind {
     Star,
     Caret,
     Bang,
+    Pipe,
     Number(Float),
 }
 
@@ -26,6 +27,7 @@ impl TokenKind {
             TokenKind::Star => String::from("*"),
             TokenKind::Caret => String::from("^"),
             TokenKind::Bang => String::from("!"),
+            TokenKind::Pipe => String::from("|"),
             TokenKind::Number(number) => number.to_string(),
         }
     }
@@ -80,6 +82,7 @@ impl<'a> Tokenizer<'a> {
                 '*' => self.add_single_char_token(TokenKind::Star),
                 '^' => self.add_single_char_token(TokenKind::Caret),
                 '!' => self.add_single_char_token(TokenKind::Bang),
+                '|' => self.add_single_char_token(TokenKind::Pipe),
                 '0'..='9' => self.tokenize_number(),
                 _ => return Err(TokenizerError::BadChar(ch, self.current_col)),
             }

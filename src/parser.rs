@@ -5,7 +5,7 @@ factor → exponent ( ( "/" | "*" ) exponent )* ;
 exponent → unary ( "^" unary )* ;
 unary → ( "-" | "+" ) unary | factorial ;
 factorial → primary "!" | primary ;
-primary → NUMBER | "(" expression ")" ;
+primary → NUMBER | "(" expression ")" | "|" expression "|";
 */
 
 use std::{iter::Peekable, slice::Iter};
@@ -155,7 +155,7 @@ impl<'a> Parser<'a> {
             });
         }
 
-        // Left parenthesis - parse expression and consume a right parenthesis
+        // Left parenthesis is a start of grouping - parse expression and consume a right parenthesis
         if let Some(Token {
             kind: TokenKind::LeftParen,
             ..
@@ -167,6 +167,18 @@ impl<'a> Parser<'a> {
             return Ok(Expr::Grouping {
                 expr: Box::new(expr),
             });
+        }
+
+        // Pipe is start of absolute grouping - parse expression and another pipe
+        if let Some(Token {
+            kind: TokenKind::Pipe,
+            ..
+        }) = self.iter.peek()
+        {
+            self.iter.next();
+            let expr = self.expression()?;
+            self.consume(TokenKind::Pipe)?;
+            return Ok(Expr::Absolute { expr: Box::new(expr) })
         }
 
         // We expected an expression, but did not find one
