@@ -1,0 +1,8 @@
+[package]
+name = "calculator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bigdecimal = "0.4.5"
+rug = "1.25.0"
