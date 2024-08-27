@@ -46,7 +46,7 @@ impl Expr {
                     let value = right.evaluate(precision);
                     if value.is_integer() {
                         let integer_val = value.to_integer().unwrap();
-                        Expr::factorial_int(integer_val)
+                        Expr::factorial_int(integer_val, precision)
                     } else {
                         let f = Float::with_val(precision, value + 1.0);
                         Float::gamma(f)
@@ -60,12 +60,12 @@ impl Expr {
         }
     }
 
-    fn factorial_int(n: Integer) -> Float {
-        let mut result = Float::with_val(53, 1);
+    fn factorial_int(n: Integer, precision: u32) -> Float {
+        let mut result = Float::with_val(precision, 1);
         let mut i = Integer::from(1);
 
         while i <= n {
-            result *= Float::with_val(53, i.clone());
+            result *= Float::with_val(precision, i.clone());
             i += 1;
         }
 
