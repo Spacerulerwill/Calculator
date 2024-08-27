@@ -46,15 +46,19 @@ pub struct Tokenizer<'a> {
     prev_col: usize,
     current_col: usize,
     pub tokens: Vec<Token>,
+    tabsize: u8,
+    precision: u32,
 }
 
 impl<'a> Tokenizer<'a> {
-    pub fn tokenize(input: &'a str) -> Result<Self, TokenizerError> {
+    pub fn tokenize(input: &'a str, tabsize: u8, precision: u32) -> Result<Self, TokenizerError> {
         let mut tokenizer = Tokenizer {
             iter: input.chars().peekable(),
             prev_col: 1,
             current_col: 1,
             tokens: Vec::new(),
+            tabsize: tabsize,
+            precision: precision
         };
         tokenizer.tokenize_internal()?;
         Ok(tokenizer)
@@ -63,8 +67,8 @@ impl<'a> Tokenizer<'a> {
     pub fn tokenize_internal(&mut self) -> Result<(), TokenizerError> {
         while let Some(&ch) = self.iter.peek() {
             match ch {
-                ' ' => {
-                    self.iter.next();
+                ' ' | '\t' => {
+                    self.next();
                 }
                 '(' => self.add_single_char_token(TokenKind::LeftParen),
                 ')' => self.add_single_char_token(TokenKind::RightParen),
@@ -114,7 +118,7 @@ impl<'a> Tokenizer<'a> {
                 number_string.push_str(post_dot_digit.as_str());
             }
         }
-        let mut num = Float::new(64);
+        let mut num = Float::new(self.precision);
         num.assign(Float::parse_radix(&number_string, 10).unwrap());
         self.add_token(TokenKind::Number(num));
     }
@@ -129,7 +133,10 @@ impl<'a> Tokenizer<'a> {
 
     fn next(&mut self) -> Option<char> {
         if let Some(ch) = self.iter.next() {
-            self.current_col += 1;
+            match ch {
+                '\t' => self.current_col += self.tabsize as usize,
+                _ => self.current_col += 1
+            }
             return Some(ch);
         }
         return None;

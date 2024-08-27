@@ -3,17 +3,31 @@ mod parser;
 mod tokenizer;
 
 use parser::{Parser, ParserError};
-use std::env;
+use clap::Parser as ClapParser;
 use tokenizer::{Tokenizer, TokenizerError};
 
+
+const DEFAULT_TAB_SIZE: u8 = 4;
+pub const DEFAULT_PRECISION: u32 = 64;
+
+#[derive(ClapParser)]
+#[command(name = "calculator")]
+#[command(version = "0.0")]
+#[command(about = "Evaluate a mathematical expression", long_about = None)]
+struct Args {
+    #[arg()]
+    expression: String,
+
+    #[arg(short, long, default_value_t = DEFAULT_TAB_SIZE)]
+    tabsize: u8,
+
+    #[arg(short, long, default_value_t = DEFAULT_PRECISION)]
+    precision: u32
+}
+
 fn main() {
-    let args: Vec<String> = env::args().skip(1).collect();
-    if args.len() == 0 {
-        eprintln!("Calculator requires expression argument");
-        return;
-    }
-    let expression = args.join("");
-    let tokens = match Tokenizer::tokenize(&expression) {
+    let args = Args::parse();
+    let tokens = match Tokenizer::tokenize(&args.expression, args.tabsize, args.precision) {
         Ok(tokenizer) => tokenizer.tokens,
         Err(err) => {
             match err {
@@ -56,5 +70,5 @@ fn main() {
             return;
         }
     };
-    println!("{} = {}", expression, result);
+    println!("{} = {}", &args.expression, result);
 }
