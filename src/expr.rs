@@ -46,7 +46,7 @@ impl Expr {
                         if left.imag().is_zero() && right.imag().is_zero() {
                             return Ok(Complex::with_val(precision, left.real() % right.real()));
                         } else {
-                            Err("Modulus operation not supported for imaginary numbers".into())
+                            Err("Modulus operation is only supported for real numbers".into())
                         }
                     }
                     kind => panic!("Invalid token kind for binary operation: {:?}", kind),
