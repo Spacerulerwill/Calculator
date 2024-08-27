@@ -16,7 +16,7 @@ pub const DEFAULT_PRECISION: u32 = 64;
 #[command(about = "Evaluate a mathematical expression", long_about = None)]
 struct Args {
     #[arg()]
-    expression: String,
+    expression: Option<String>,
 
     #[arg(short, long, default_value_t = DEFAULT_TAB_SIZE)]
     tabsize: u8,
@@ -25,14 +25,25 @@ struct Args {
     precision: u32
 }
 
+use std::io::{self, Write};
+
 fn main() {
     let args = Args::parse();
-    let tokens = match Tokenizer::tokenize(&args.expression, args.tabsize, args.precision) {
+    
+    if let Some(expression) = args.expression {
+        process_expression(&expression.trim(), args.tabsize, args.precision);
+    } else {
+        start_repl(args.tabsize, args.precision);
+    }
+}
+
+fn process_expression(expression: &str, tabsize: u8, precision: u32) {
+    let tokens = match Tokenizer::tokenize(expression, tabsize, precision) {
         Ok(tokenizer) => tokenizer.tokens,
         Err(err) => {
             match err {
                 TokenizerError::BadChar(char, char_pos) => {
-                    eprintln!("Position {char_pos} :: Invalid character '{char}'")
+                    eprintln!("Position {char_pos} :: Invalid character '{char}'");
                 }
             }
             return;
@@ -49,9 +60,9 @@ fn main() {
                             "Position {} :: Expected expression but found '{}'",
                             found.col,
                             found.kind.get_lexeme()
-                        )
+                        );
                     } else {
-                        eprintln!("Expected expression but found EOF")
+                        eprintln!("Expected expression but found EOF");
                     }
                 }
                 ParserError::ExpectedToken { expected, found } => {
@@ -61,14 +72,38 @@ fn main() {
                             found.col,
                             expected,
                             found.kind.get_lexeme()
-                        )
+                        );
                     } else {
-                        eprintln!("Expected {} but found EOF", expected.get_lexeme())
+                        eprintln!("Expected {} but found EOF", expected.get_lexeme());
                     }
                 }
             }
             return;
         }
     };
-    println!("{} = {}", &args.expression, result);
+    println!("{} = {}", expression, result);
+}
+
+fn start_repl(tabsize: u8, precision: u32) {
+    let mut input = String::new();
+    
+    println!("Enter mathematical expressions to evaluate. Type 'exit' to quit.");
+
+    loop {
+        print!("> ");
+        io::stdout().flush().expect("Failed to flush stdout");
+
+        input.clear();
+        if io::stdin().read_line(&mut input).is_err() {
+            eprintln!("Failed to read input");
+            continue;
+        }
+
+        let trimmed_input = input.trim();
+        if trimmed_input.eq_ignore_ascii_case("exit") {
+            break;
+        }
+
+        process_expression(trimmed_input, tabsize, precision);
+    }
 }
