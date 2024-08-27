@@ -11,6 +11,7 @@ pub enum TokenKind {
     Slash,
     Star,
     Caret,
+    Bang,
     Number(Float),
 }
 
@@ -24,6 +25,7 @@ impl TokenKind {
             TokenKind::Slash => String::from("/"),
             TokenKind::Star => String::from("*"),
             TokenKind::Caret => String::from("^"),
+            TokenKind::Bang => String::from("!"),
             TokenKind::Number(number) => number.to_string(),
         }
     }
@@ -58,7 +60,7 @@ impl<'a> Tokenizer<'a> {
             current_col: 1,
             tokens: Vec::new(),
             tabsize: tabsize,
-            precision: precision
+            precision: precision,
         };
         tokenizer.tokenize_internal()?;
         Ok(tokenizer)
@@ -77,6 +79,7 @@ impl<'a> Tokenizer<'a> {
                 '/' => self.add_single_char_token(TokenKind::Slash),
                 '*' => self.add_single_char_token(TokenKind::Star),
                 '^' => self.add_single_char_token(TokenKind::Caret),
+                '!' => self.add_single_char_token(TokenKind::Bang),
                 '0'..='9' => self.tokenize_number(),
                 _ => return Err(TokenizerError::BadChar(ch, self.current_col)),
             }
@@ -135,7 +138,7 @@ impl<'a> Tokenizer<'a> {
         if let Some(ch) = self.iter.next() {
             match ch {
                 '\t' => self.current_col += self.tabsize as usize,
-                _ => self.current_col += 1
+                _ => self.current_col += 1,
             }
             return Some(ch);
         }

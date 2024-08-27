@@ -2,10 +2,10 @@ mod expr;
 mod parser;
 mod tokenizer;
 
-use parser::{Parser, ParserError};
 use clap::Parser as ClapParser;
+use parser::{Parser, ParserError};
+use std::io::{self, Write};
 use tokenizer::{Tokenizer, TokenizerError};
-
 
 const DEFAULT_TAB_SIZE: u8 = 4;
 pub const DEFAULT_PRECISION: u32 = 64;
@@ -22,14 +22,12 @@ struct Args {
     tabsize: u8,
 
     #[arg(short, long, default_value_t = DEFAULT_PRECISION)]
-    precision: u32
+    precision: u32,
 }
-
-use std::io::{self, Write};
 
 fn main() {
     let args = Args::parse();
-    
+
     if let Some(expression) = args.expression {
         process_expression(&expression.trim(), args.tabsize, args.precision);
     } else {
@@ -51,7 +49,7 @@ fn process_expression(expression: &str, tabsize: u8, precision: u32) {
     };
 
     let result = match Parser::parse(tokens) {
-        Ok(expr) => expr.evaluate(),
+        Ok(expr) => expr.evaluate(precision),
         Err(err) => {
             match err {
                 ParserError::ExpectedExpression { found } => {
@@ -86,7 +84,7 @@ fn process_expression(expression: &str, tabsize: u8, precision: u32) {
 
 fn start_repl(tabsize: u8, precision: u32) {
     let mut input = String::new();
-    
+
     println!("Enter mathematical expressions to evaluate. Type 'exit' to quit.");
 
     loop {

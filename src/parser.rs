@@ -3,7 +3,8 @@ expression → term ";" ;
 term → factor ( ( "-" | "+" ) factor )* ;
 factor → exponent ( ( "/" | "*" ) exponent )* ;
 exponent → unary ( "^" unary )* ;
-unary → ( "-" ) unary | primary ;
+unary → ( "-" | "+" ) unary | factorial ;
+factorial → primary "!" | primary ;
 primary → NUMBER | "(" expression ")" ;
 */
 
@@ -120,7 +121,25 @@ impl<'a> Parser<'a> {
                 _ => {}
             }
         }
-        self.primary()
+        self.factorial()
+    }
+
+    fn factorial(&mut self) -> Result<Expr, ParserError> {
+        let mut expr = self.primary()?;
+
+        while let Some(&token) = self.iter.peek() {
+            if token.kind == TokenKind::Bang {
+                self.iter.next();
+                expr = Expr::Unary {
+                    operator: TokenKind::Bang,
+                    right: Box::new(expr),
+                };
+            } else {
+                break;
+            }
+        }
+
+        Ok(expr)
     }
 
     fn primary(&mut self) -> Result<Expr, ParserError> {
