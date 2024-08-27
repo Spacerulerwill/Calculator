@@ -1,7 +1,7 @@
 /*
 expression → term ";" ;
 term → factor ( ( "-" | "+" ) factor )* ;
-factor → exponent ( ( "/" | "*" ) exponent )* ;
+factor → exponent ( ( "/" | "*" | "%" ) exponent )* ;
 exponent → unary ( "^" unary )* ;
 unary → ( "-" | "+" ) unary | factorial ;
 factorial → primary "!" | primary ;
@@ -70,7 +70,7 @@ impl<'a> Parser<'a> {
         let mut expr = self.exponent()?;
         while let Some(&token) = self.iter.peek() {
             match token.kind {
-                TokenKind::Star | TokenKind::Slash => {
+                TokenKind::Star | TokenKind::Slash | TokenKind::Percent => {
                     self.iter.next();
                     let operator: TokenKind = token.kind.clone();
                     let right = self.exponent()?;

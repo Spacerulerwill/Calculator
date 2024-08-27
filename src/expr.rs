@@ -37,6 +37,7 @@ impl Expr {
                 TokenKind::Star => left.evaluate(precision) * right.evaluate(precision),
                 TokenKind::Slash => left.evaluate(precision) / right.evaluate(precision),
                 TokenKind::Caret => left.evaluate(precision).pow(right.evaluate(precision)),
+                TokenKind::Percent => return left.evaluate(precision) % right.evaluate(precision),
                 kind => panic!("Invalid token kind for binary operation: {:?}", kind),
             },
             Expr::Unary { operator, right } => match operator {
