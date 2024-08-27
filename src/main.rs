@@ -4,6 +4,7 @@ mod tokenizer;
 
 use clap::Parser as ClapParser;
 use parser::{Parser, ParserError};
+use rug::Complex;
 use std::io::{self, Write};
 use tokenizer::{Tokenizer, TokenizerError};
 
@@ -48,8 +49,8 @@ fn process_expression(expression: &str, tabsize: u8, precision: u32) {
         }
     };
 
-    let result = match Parser::parse(tokens) {
-        Ok(expr) => expr.evaluate(precision),
+    let expr = match Parser::parse(tokens, precision) {
+        Ok(expr) => expr,
         Err(err) => {
             match err {
                 ParserError::ExpectedExpression { found } => {
@@ -79,7 +80,20 @@ fn process_expression(expression: &str, tabsize: u8, precision: u32) {
             return;
         }
     };
-    println!("{} = {}", expression, result);
+
+    let result = match expr.evaluate(precision) {
+        Ok(result) => result,
+        Err(err) => {
+            eprintln!("{}", err);
+            return;
+        }
+    };
+
+    if Complex::imag(&result).is_zero() {
+        println!("{} = {}", expression, &result.real());
+    } else {
+        println!("{} = {} + {}i", expression, &result.real(), &result.imag());
+    }
 }
 
 fn start_repl(tabsize: u8, precision: u32) {

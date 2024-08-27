@@ -1,4 +1,6 @@
-use rug::{ops::Pow, Float, Integer};
+use std::error::Error;
+
+use rug::{ops::Pow, Complex, Float, Integer};
 
 use crate::tokenizer::TokenKind;
 
@@ -20,44 +22,64 @@ pub enum Expr {
         expr: Box<Expr>,
     },
     Number {
-        number: Float,
+        number: Complex,
     },
 }
 
 impl Expr {
-    pub fn evaluate(self, precision: u32) -> Float {
+    pub fn evaluate(self, precision: u32) -> Result<Complex, Box<dyn Error>> {
         match self {
             Expr::Binary {
                 left,
                 operator,
                 right,
-            } => match operator {
-                TokenKind::Plus => left.evaluate(precision) + right.evaluate(precision),
-                TokenKind::Minus => left.evaluate(precision) - right.evaluate(precision),
-                TokenKind::Star => left.evaluate(precision) * right.evaluate(precision),
-                TokenKind::Slash => left.evaluate(precision) / right.evaluate(precision),
-                TokenKind::Caret => left.evaluate(precision).pow(right.evaluate(precision)),
-                TokenKind::Percent => return left.evaluate(precision) % right.evaluate(precision),
-                kind => panic!("Invalid token kind for binary operation: {:?}", kind),
-            },
-            Expr::Unary { operator, right } => match operator {
-                TokenKind::Minus => right.evaluate(precision) * -1,
-                TokenKind::Plus => right.evaluate(precision),
-                TokenKind::Bang => {
-                    let value = right.evaluate(precision);
-                    if value.is_integer() {
-                        let integer_val = value.to_integer().unwrap();
-                        Expr::factorial_int(integer_val, precision)
-                    } else {
-                        let f = Float::with_val(precision, value + 1.0);
-                        Float::gamma(f)
+            } => {
+                let left = left.evaluate(precision)?;
+                let right = right.evaluate(precision)?;
+                match operator {
+                    TokenKind::Plus => Ok(left + right),
+                    TokenKind::Minus => Ok(left - right),
+                    TokenKind::Star => Ok(left * right),
+                    TokenKind::Slash => Ok(left / right),
+                    TokenKind::Caret => Ok(left.pow(right)),
+                    TokenKind::Percent => {
+                        if left.imag().is_zero() && right.imag().is_zero() {
+                            return Ok(Complex::with_val(precision, left.real() % right.real()));
+                        } else {
+                            Err("Modulus operation not supported for imaginary numbers".into())
+                        }
                     }
+                    kind => panic!("Invalid token kind for binary operation: {:?}", kind),
                 }
-                kind => panic!("Invalid token kind for unary operation: {:?}", kind),
-            },
-            Expr::Grouping { expr } => expr.evaluate(precision),
-            Expr::Absolute { expr } => expr.evaluate(precision).abs(),
-            Expr::Number { number } => number,
+            }
+            Expr::Unary { operator, right } => {
+                let right = right.evaluate(precision)?;
+                match operator {
+                    TokenKind::Minus => Ok(right * -1),
+                    TokenKind::Plus => Ok(right),
+                    TokenKind::Bang => {
+                        if right.imag().is_zero() {
+                            let value = right.real();
+                            if value.is_integer() {
+                                let integer_val = value.to_integer().unwrap();
+                                Ok(Complex::with_val(
+                                    precision,
+                                    (Expr::factorial_int(integer_val, precision), 0),
+                                ))
+                            } else {
+                                let f = Float::with_val(precision, value + 1.0);
+                                Ok(Complex::with_val(precision, (Float::gamma(f), 0)))
+                            }
+                        } else {
+                            Err("Gamma function not supported for imaginary numbers".into())
+                        }
+                    }
+                    kind => panic!("Invalid token kind for unary operation: {:?}", kind),
+                }
+            }
+            Expr::Grouping { expr } => Ok(expr.evaluate(precision)?),
+            Expr::Absolute { expr } => Ok(expr.evaluate(precision)?.abs()),
+            Expr::Number { number } => Ok(number),
         }
     }
 

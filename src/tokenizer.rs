@@ -1,6 +1,6 @@
 use std::{iter::Peekable, str::Chars};
 
-use rug::{Assign, Float};
+use rug::{Assign, Complex};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
@@ -14,7 +14,8 @@ pub enum TokenKind {
     Bang,
     Pipe,
     Percent,
-    Number(Float),
+    ImaginaryUnit,
+    Number(Complex),
 }
 
 impl TokenKind {
@@ -30,6 +31,7 @@ impl TokenKind {
             TokenKind::Bang => String::from("!"),
             TokenKind::Pipe => String::from("|"),
             TokenKind::Percent => String::from("%"),
+            TokenKind::ImaginaryUnit => String::from("i"),
             TokenKind::Number(number) => number.to_string(),
         }
     }
@@ -86,6 +88,7 @@ impl<'a> Tokenizer<'a> {
                 '!' => self.add_single_char_token(TokenKind::Bang),
                 '|' => self.add_single_char_token(TokenKind::Pipe),
                 '%' => self.add_single_char_token(TokenKind::Percent),
+                'i' => self.add_single_char_token(TokenKind::ImaginaryUnit),
                 '0'..='9' => self.tokenize_number(),
                 _ => return Err(TokenizerError::BadChar(ch, self.current_col)),
             }
@@ -127,8 +130,8 @@ impl<'a> Tokenizer<'a> {
                 number_string.push_str(post_dot_digit.as_str());
             }
         }
-        let mut num = Float::new(self.precision);
-        num.assign(Float::parse_radix(&number_string, 10).unwrap());
+        let mut num = Complex::new(self.precision);
+        num.assign(Complex::parse_radix(&number_string, 10).unwrap());
         self.add_token(TokenKind::Number(num));
     }
 

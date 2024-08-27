@@ -5,15 +5,14 @@ factor → exponent ( ( "/" | "*" | "%" ) exponent )* ;
 exponent → unary ( "^" unary )* ;
 unary → ( "-" | "+" ) unary | factorial ;
 factorial → primary "!" | primary ;
-primary → NUMBER | "(" expression ")" | "|" expression "|";
-*/
-
-use std::{iter::Peekable, slice::Iter};
+primary → NUMBER | "i" | NUMBER "i" | "(" expression ")" | "|" expression "|" ;*/
 
 use crate::{
     expr::Expr,
     tokenizer::{Token, TokenKind},
 };
+use rug::Complex;
+use std::{iter::Peekable, slice::Iter};
 
 #[derive(Debug)]
 pub enum ParserError {
@@ -29,12 +28,14 @@ pub enum ParserError {
 #[derive(Debug)]
 pub struct Parser<'a> {
     iter: Peekable<Iter<'a, Token>>,
+    precision: u32,
 }
 
 impl<'a> Parser<'a> {
-    pub fn parse(tokens: Vec<Token>) -> Result<Expr, ParserError> {
+    pub fn parse(tokens: Vec<Token>, precision: u32) -> Result<Expr, ParserError> {
         let mut parser = Parser {
             iter: tokens.iter().peekable(),
+            precision: precision,
         };
 
         parser.expression()
@@ -88,7 +89,6 @@ impl<'a> Parser<'a> {
 
     fn exponent(&mut self) -> Result<Expr, ParserError> {
         let mut expr = self.unary()?;
-
         while let Some(&token) = self.iter.peek() {
             if token.kind == TokenKind::Caret {
                 self.iter.next();
@@ -102,7 +102,6 @@ impl<'a> Parser<'a> {
                 break;
             }
         }
-
         Ok(expr)
     }
 
@@ -150,8 +149,32 @@ impl<'a> Parser<'a> {
         }) = self.iter.peek()
         {
             self.iter.next();
+            // Is there an ImaginryUnit following?
+            if let Some(Token {
+                kind: TokenKind::ImaginaryUnit,
+                ..
+            }) = self.iter.peek()
+            {
+                self.iter.next();
+                return Ok(Expr::Number {
+                    number: num.clone() * Complex::with_val(self.precision, (0, 1)),
+                });
+            } else {
+                return Ok(Expr::Number {
+                    number: num.clone(),
+                });
+            }
+        }
+
+        // Is it the imaginary unit?
+        if let Some(Token {
+            kind: TokenKind::ImaginaryUnit,
+            ..
+        }) = self.iter.peek()
+        {
+            self.iter.next();
             return Ok(Expr::Number {
-                number: num.clone(),
+                number: Complex::with_val(self.precision, (0, 1)),
             });
         }
 
@@ -178,7 +201,9 @@ impl<'a> Parser<'a> {
             self.iter.next();
             let expr = self.expression()?;
             self.consume(TokenKind::Pipe)?;
-            return Ok(Expr::Absolute { expr: Box::new(expr) })
+            return Ok(Expr::Absolute {
+                expr: Box::new(expr),
+            });
         }
 
         // We expected an expression, but did not find one
