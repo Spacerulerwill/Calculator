@@ -3,7 +3,7 @@ expression → term ";" ;
 term → factor ( ( "-" | "+" ) factor )* ;
 factor → exponent ( ( "/" | "*" | "%" ) exponent )* ;
 exponent → unary ( "^" unary )* ;
-unary → ( "-" | "+" ) unary | factorial ;
+unary →  "-" unary | factorial ;
 factorial → primary "!" | primary ;
 primary → NUMBER | "i" | NUMBER "i" | IDENTIFIER | "(" expression ")" | "|" expression "|" ;*/
 
@@ -107,7 +107,7 @@ impl Parser {
     fn unary(&mut self) -> Result<Expr, ParserError> {
         if let Some(token) = self.iter.peek() {
             match token.kind {
-                TokenKind::Plus | TokenKind::Minus => {
+                TokenKind::Minus => {
                     let token = self.iter.next().unwrap();
                     let right = self.unary()?;
                     return Ok(Expr::Unary {
