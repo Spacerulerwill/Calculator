@@ -160,7 +160,7 @@ impl Parser {
                     }
                 },
                 TokenKind::ImaginaryUnit => return Ok(Expr::Number { number: Complex::with_val(self.precision, (0, 1)) }),
-                TokenKind::Identifier(identifier) => return Ok(Expr::Identifier { name: identifier }),
+                TokenKind::Identifier(_) => return Ok(Expr::Identifier { name: token }),
                 TokenKind::LeftParen => {
                     let expr = self.expression()?;
                     self.consume(TokenKind::RightParen)?;

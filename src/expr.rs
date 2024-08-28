@@ -23,7 +23,7 @@ pub enum Expr {
         number: Complex,
     },
     Identifier {
-        name: String,
+        name: Token,
     }
 }
 
