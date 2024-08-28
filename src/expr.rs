@@ -1,18 +1,16 @@
-use std::error::Error;
-
 use rug::{ops::Pow, Complex, Float, Integer};
 
-use crate::tokenizer::TokenKind;
+use crate::tokenizer::{Token, TokenKind};
 
 #[derive(Debug)]
 pub enum Expr {
     Binary {
         left: Box<Expr>,
-        operator: TokenKind,
+        operator: Token,
         right: Box<Expr>,
     },
     Unary {
-        operator: TokenKind,
+        operator: Token,
         right: Box<Expr>,
     },
     Grouping {
@@ -29,8 +27,14 @@ pub enum Expr {
     }
 }
 
+#[derive(Debug)]
+pub struct EvaluationError {
+    pub col: usize,
+    pub message: String
+}
+
 impl Expr {
-    pub fn evaluate(self, precision: u32) -> Result<Complex, Box<dyn Error>> {
+    pub fn evaluate(self, precision: u32) -> Result<Complex, EvaluationError> {
         match self {
             Expr::Binary {
                 left,
@@ -39,7 +43,7 @@ impl Expr {
             } => {
                 let left = left.evaluate(precision)?;
                 let right = right.evaluate(precision)?;
-                match operator {
+                match operator.kind {
                     TokenKind::Plus => Ok(left + right),
                     TokenKind::Minus => Ok(left - right),
                     TokenKind::Star => Ok(left * right),
@@ -49,7 +53,7 @@ impl Expr {
                         if left.imag().is_zero() && right.imag().is_zero() {
                             return Ok(Complex::with_val(precision, left.real() % right.real()));
                         } else {
-                            Err("Modulus operation is only supported for real numbers".into())
+                            Err(EvaluationError { col: operator.col, message: String::from("Modulus operation is only supported for real numbers") })
                         }
                     }
                     kind => panic!("Invalid token kind for binary operation: {:?}", kind),
@@ -57,7 +61,7 @@ impl Expr {
             }
             Expr::Unary { operator, right } => {
                 let right = right.evaluate(precision)?;
-                match operator {
+                match operator.kind {
                     TokenKind::Minus => Ok(right * -1),
                     TokenKind::Plus => Ok(right),
                     TokenKind::Bang => {
@@ -74,7 +78,7 @@ impl Expr {
                                 Ok(Complex::with_val(precision, (Float::gamma(f), 0)))
                             }
                         } else {
-                            Err("Gamma function not supported for imaginary numbers".into())
+                            Err(EvaluationError { col: operator.col, message: String::from("Gamma function not supported for imaginary numbers") })
                         }
                     }
                     kind => panic!("Invalid token kind for unary operation: {:?}", kind),

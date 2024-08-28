@@ -114,7 +114,7 @@ impl<'a> Tokenizer<'a> {
                 break;
             }
             string.push(ch);
-            self.iter.next();
+            self.next();
         }
         string
     }

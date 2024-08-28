@@ -56,7 +56,7 @@ impl Parser {
                     let right = self.factor()?;
                     expr = Expr::Binary {
                         left: Box::new(expr),
-                        operator: token.kind,
+                        operator: token,
                         right: Box::new(right),
                     };
                 }
@@ -76,7 +76,7 @@ impl Parser {
                     let right = self.exponent()?;
                     expr = Expr::Binary {
                         left: Box::new(expr),
-                        operator: token.kind,
+                        operator: token,
                         right: Box::new(right),
                     };
                 }
@@ -94,7 +94,7 @@ impl Parser {
                 let right = self.exponent()?;
                 expr = Expr::Binary {
                     left: Box::new(expr),
-                    operator: token.kind,
+                    operator: token,
                     right: Box::new(right),
                 };
             } else {
@@ -111,7 +111,7 @@ impl Parser {
                     let token = self.iter.next().unwrap();
                     let right = self.unary()?;
                     return Ok(Expr::Unary {
-                        operator: token.kind,
+                        operator: token,
                         right: Box::new(right),
                     });
                 }
@@ -128,7 +128,7 @@ impl Parser {
             if token.kind == TokenKind::Bang {
                 let token = self.iter.next().unwrap();
                 expr = Expr::Unary {
-                    operator: token.kind,
+                    operator: token,
                     right: Box::new(expr),
                 };
             } else {

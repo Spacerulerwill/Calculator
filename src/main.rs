@@ -55,18 +55,18 @@ fn process_expression(expression: &str, tabsize: u8, precision: u32) {
                 ParserError::ExpectedExpression { found } => {
                     if let Some(found) = found {
                         eprintln!(
-                            "Position {} :: Expected expression but found '{}'",
+                            "Position {} :: Expected expression next but found '{}'",
                             found.col,
                             found.kind.get_lexeme()
                         );
                     } else {
-                        eprintln!("Expected expression but found EOF");
+                        eprintln!("Expected expression next but found EOF");
                     }
                 }
                 ParserError::ExpectedToken { expected, found } => {
                     if let Some(found) = found {
                         eprintln!(
-                            "Position {} :: Expected {:?} but found '{}'",
+                            "Column {} :: Expected {:?} but found '{}'",
                             found.col,
                             expected,
                             found.kind.get_lexeme()
@@ -83,7 +83,7 @@ fn process_expression(expression: &str, tabsize: u8, precision: u32) {
     let result = match expr.evaluate(precision) {
         Ok(result) => result,
         Err(err) => {
-            eprintln!("{}", err);
+            eprintln!("Column {} :: {}", err.col, err.message);
             return;
         }
     };
