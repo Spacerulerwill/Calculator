@@ -15,6 +15,7 @@ pub enum TokenKind {
     Pipe,
     Percent,
     ImaginaryUnit,
+    Identifier(String),
     Number(Complex),
 }
 
@@ -32,6 +33,7 @@ impl TokenKind {
             TokenKind::Pipe => String::from("|"),
             TokenKind::Percent => String::from("%"),
             TokenKind::ImaginaryUnit => String::from("i"),
+            TokenKind::Identifier(indentifier) => indentifier.clone(),
             TokenKind::Number(number) => number.to_string(),
         }
     }
@@ -89,6 +91,7 @@ impl<'a> Tokenizer<'a> {
                 '|' => self.add_single_char_token(TokenKind::Pipe),
                 '%' => self.add_single_char_token(TokenKind::Percent),
                 'i' => self.add_single_char_token(TokenKind::ImaginaryUnit),
+                'a'..='z' | 'A'..='Z'| '_' => self.tokenize_identifier(),
                 '0'..='9' => self.tokenize_number(),
                 _ => return Err(TokenizerError::BadChar(ch, self.current_col)),
             }
@@ -101,27 +104,30 @@ impl<'a> Tokenizer<'a> {
         self.add_token(kind);
     }
 
-    fn consume_digits(&mut self) -> String {
+    fn consume_while<F>(&mut self, condition: F) -> String
+    where
+        F: Fn(char) -> bool,
+    {
         let mut string = String::new();
         while let Some(&ch) = self.iter.peek() {
-            if !ch.is_digit(10) {
+            if !condition(ch) {
                 break;
             }
             string.push(ch);
-            self.next();
+            self.iter.next();
         }
         string
     }
 
     fn tokenize_number(&mut self) {
         // Consume digits before decimal point
-        let mut number_string = self.consume_digits();
+        let mut number_string = self.consume_while(|ch| ch.is_digit(10));
         // Consume decimal point if exists,
         let iter_save = self.iter.clone();
         let current_col_save = self.current_col.clone();
         if self.iter.peek() == Some(&'.') {
             self.next();
-            let post_dot_digit = self.consume_digits();
+            let post_dot_digit = self.consume_while(|ch| ch.is_digit(10));
             if post_dot_digit.is_empty() {
                 self.iter = iter_save;
                 self.current_col = current_col_save;
@@ -133,6 +139,11 @@ impl<'a> Tokenizer<'a> {
         let mut num = Complex::new(self.precision);
         num.assign(Complex::parse_radix(&number_string, 10).unwrap());
         self.add_token(TokenKind::Number(num));
+    }
+
+    fn tokenize_identifier(&mut self) {
+        let identifier = self.consume_while(|ch| ch.is_alphanumeric() || ch == '_');
+        self.add_token(TokenKind::Identifier(identifier));
     }
 
     fn add_token(&mut self, kind: TokenKind) {

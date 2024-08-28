@@ -24,6 +24,9 @@ pub enum Expr {
     Number {
         number: Complex,
     },
+    Identifier {
+        name: String,
+    }
 }
 
 impl Expr {
@@ -80,6 +83,7 @@ impl Expr {
             Expr::Grouping { expr } => Ok(expr.evaluate(precision)?),
             Expr::Absolute { expr } => Ok(expr.evaluate(precision)?.abs()),
             Expr::Number { number } => Ok(number),
+            Expr::Identifier { name } => Ok(Complex::with_val(precision, (0, 0)))
         }
     }
 

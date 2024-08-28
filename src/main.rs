@@ -4,7 +4,6 @@ mod tokenizer;
 
 use clap::Parser as ClapParser;
 use parser::{Parser, ParserError};
-use rug::Complex;
 use std::io::{self, Write};
 use tokenizer::{Tokenizer, TokenizerError};
 
@@ -89,7 +88,7 @@ fn process_expression(expression: &str, tabsize: u8, precision: u32) {
         }
     };
 
-    if Complex::imag(&result).is_zero() {
+    if result.imag().is_zero() {
         println!("{} = {}", expression, &result.real());
     } else {
         println!("{} = {} + {}i", expression, &result.real(), &result.imag());
