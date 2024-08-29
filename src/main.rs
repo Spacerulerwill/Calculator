@@ -1,11 +1,14 @@
 mod expr;
 mod parser;
 mod tokenizer;
+mod variable;
 
 use clap::Parser as ClapParser;
 use parser::{Parser, ParserError};
-use std::io::{self, Write};
+use variable::Variable;
+use std::{collections::HashMap, io::{self, Write}};
 use tokenizer::{Tokenizer, TokenizerError};
+use rug::Complex;
 
 const DEFAULT_TAB_SIZE: u8 = 4;
 pub const DEFAULT_PRECISION: u32 = 64;
@@ -28,20 +31,24 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
+    let variables = HashMap::from([
+        ("e", Variable {constant: true, value: Complex::exp(Complex::with_val(args.precision, (1, 0)))}),
+    ]); 
+
     if let Some(expression) = args.expression {
-        process_expression(&expression.trim(), args.tabsize, args.precision);
+        process_expression(&expression.trim(), &variables, args.tabsize, args.precision);
     } else {
-        start_repl(args.tabsize, args.precision);
+        start_repl(args.tabsize, args.precision, &variables);
     }
 }
 
-fn process_expression(expression: &str, tabsize: u8, precision: u32) {
+fn process_expression(expression: &str, variables: &HashMap<&str, Variable>, tabsize: u8, precision: u32) {
     let tokens = match Tokenizer::tokenize(expression, tabsize, precision) {
         Ok(tokenizer) => tokenizer.tokens,
         Err(err) => {
             match err {
                 TokenizerError::BadChar(char, char_pos) => {
-                    eprintln!("Position {char_pos} :: Invalid character '{char}'");
+                    eprintln!("Position {char_pos} :: Unexpected or invalid character '{char}'");
                 }
             }
             return;
@@ -80,7 +87,7 @@ fn process_expression(expression: &str, tabsize: u8, precision: u32) {
         }
     };
 
-    let result = match expr.evaluate(precision) {
+    let result = match expr.evaluate(variables, precision) {
         Ok(result) => result,
         Err(err) => {
             eprintln!("Column {} :: {}", err.col, err.message);
@@ -95,7 +102,7 @@ fn process_expression(expression: &str, tabsize: u8, precision: u32) {
     }
 }
 
-fn start_repl(tabsize: u8, precision: u32) {
+fn start_repl(tabsize: u8, precision: u32, variables: &HashMap<&str, Variable>) {
     let mut input = String::new();
 
     println!("Enter mathematical expressions to evaluate. Type 'exit' to quit.");
@@ -115,6 +122,6 @@ fn start_repl(tabsize: u8, precision: u32) {
             break;
         }
 
-        process_expression(trimmed_input, tabsize, precision);
+        process_expression(trimmed_input, variables, tabsize, precision);
     }
 }

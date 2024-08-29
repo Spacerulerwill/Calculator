@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use rug::{ops::Pow, Complex, Float, Integer};
 
-use crate::tokenizer::{Token, TokenKind};
+use crate::{tokenizer::{Token, TokenKind}, variable::Variable};
 
 #[derive(Debug)]
 pub enum Expr {
@@ -34,15 +36,15 @@ pub struct EvaluationError {
 }
 
 impl Expr {
-    pub fn evaluate(self, precision: u32) -> Result<Complex, EvaluationError> {
+    pub fn evaluate(self, variables: &HashMap<&str, Variable>, precision: u32) -> Result<Complex, EvaluationError> {
         match self {
             Expr::Binary {
                 left,
                 operator,
                 right,
             } => {
-                let left = left.evaluate(precision)?;
-                let right = right.evaluate(precision)?;
+                let left = left.evaluate(variables, precision)?;
+                let right = right.evaluate(variables, precision)?;
                 match operator.kind {
                     TokenKind::Plus => Ok(left + right),
                     TokenKind::Minus => Ok(left - right),
@@ -60,7 +62,7 @@ impl Expr {
                 }
             }
             Expr::Unary { operator, right } => {
-                let right = right.evaluate(precision)?;
+                let right = right.evaluate(variables, precision)?;
                 match operator.kind {
                     TokenKind::Minus => Ok(right * -1),
                     TokenKind::Plus => Ok(right),
@@ -84,10 +86,16 @@ impl Expr {
                     kind => panic!("Invalid token kind for unary operation: {:?}", kind),
                 }
             }
-            Expr::Grouping { expr } => Ok(expr.evaluate(precision)?),
-            Expr::Absolute { expr } => Ok(expr.evaluate(precision)?.abs()),
+            Expr::Grouping { expr } => Ok(expr.evaluate(variables, precision)?),
+            Expr::Absolute { expr } => Ok(expr.evaluate(variables, precision)?.abs()),
             Expr::Number { number } => Ok(number),
-            Expr::Identifier { name } => Ok(Complex::with_val(precision, (0, 0)))
+            Expr::Identifier { name } => { 
+                if let Some(variable) = variables.get(name.kind.get_lexeme().as_str()) {
+                    Ok(variable.value.clone())
+                } else {
+                    Ok(Complex::with_val(precision, (0, 0)))
+                }
+            }
         }
     }
 
