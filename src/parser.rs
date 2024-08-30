@@ -9,11 +9,12 @@ primary → NUMBER | "i" | NUMBER "i" | IDENTIFIER | "(" expression ")" | "|" ex
 
 use std::{iter::Peekable, vec::IntoIter};
 
+use num_complex::Complex64;
+
 use crate::{
     expr::Expr,
     tokenizer::{Token, TokenKind},
 };
-use rug::Complex;
 
 #[derive(Debug)]
 pub enum ParserError {
@@ -29,14 +30,12 @@ pub enum ParserError {
 #[derive(Debug)]
 pub struct Parser {
     iter: Peekable<IntoIter<Token>>,
-    precision: u32,
 }
 
 impl Parser {
-    pub fn parse(tokens: Vec<Token>, precision: u32) -> Result<Expr, ParserError> {
+    pub fn parse(tokens: Vec<Token>) -> Result<Expr, ParserError> {
         let mut parser = Parser {
-            iter: tokens.into_iter().peekable(),
-            precision: precision,
+            iter: tokens.into_iter().peekable()
         };
 
         parser.expression()
@@ -151,7 +150,7 @@ impl Parser {
                     {
                         self.iter.next();
                         return Ok(Expr::Number {
-                            number: num * Complex::with_val(self.precision, (0, 1)),
+                            number: num * Complex64::new(0.0, 1.0)
                         });
                     } else {
                         return Ok(Expr::Number {
@@ -159,7 +158,7 @@ impl Parser {
                         });
                     }
                 },
-                TokenKind::ImaginaryUnit => return Ok(Expr::Number { number: Complex::with_val(self.precision, (0, 1)) }),
+                TokenKind::ImaginaryUnit => return Ok(Expr::Number { number:  Complex64::new(0.0, 1.0) }),
                 TokenKind::Identifier(_) => return Ok(Expr::Identifier { name: token }),
                 TokenKind::LeftParen => {
                     let expr = self.expression()?;

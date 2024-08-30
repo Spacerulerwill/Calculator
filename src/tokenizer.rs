@@ -1,6 +1,5 @@
-use std::{iter::Peekable, str::Chars};
-
-use rug::{Assign, Complex};
+use std::{iter::Peekable, str::{Chars, FromStr}};
+use num_complex::{Complex, Complex64};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
@@ -16,7 +15,7 @@ pub enum TokenKind {
     Percent,
     ImaginaryUnit,
     Identifier(String),
-    Number(Complex),
+    Number(Complex64),
 }
 
 impl TokenKind {
@@ -57,18 +56,16 @@ pub struct Tokenizer<'a> {
     current_col: usize,
     pub tokens: Vec<Token>,
     tabsize: u8,
-    precision: u32,
 }
 
 impl<'a> Tokenizer<'a> {
-    pub fn tokenize(input: &'a str, tabsize: u8, precision: u32) -> Result<Self, TokenizerError> {
+    pub fn tokenize(input: &'a str, tabsize: u8) -> Result<Self, TokenizerError> {
         let mut tokenizer = Tokenizer {
             iter: input.chars().peekable(),
             prev_col: 1,
             current_col: 1,
             tokens: Vec::new(),
             tabsize: tabsize,
-            precision: precision,
         };
         tokenizer.tokenize_internal()?;
         Ok(tokenizer)
@@ -136,8 +133,7 @@ impl<'a> Tokenizer<'a> {
                 number_string.push_str(post_dot_digit.as_str());
             }
         }
-        let mut num = Complex::new(self.precision);
-        num.assign(Complex::parse_radix(&number_string, 10).unwrap());
+        let num = Complex::new(f64::from_str(&number_string).unwrap(), 0.0);
         self.add_token(TokenKind::Number(num));
     }
 
