@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 
-use num_complex::Complex64;
-use crate::{tokenizer::{Token, TokenKind}, variable::Variable};
+use crate::{
+    tokenizer::{Token, TokenKind},
+    value::Value,
+    variable::Variable,
+};
+use num_complex::{Complex64, ComplexFloat};
 
 #[derive(Debug)]
 pub enum Expr {
@@ -25,17 +29,22 @@ pub enum Expr {
     },
     Identifier {
         name: Token,
-    }
+    },
+    Call {
+        callee: Box<Expr>,
+        paren: Token,
+        arguments: Vec<Expr>,
+    },
 }
 
 #[derive(Debug)]
 pub struct EvaluationError {
     pub col: usize,
-    pub message: String
+    pub message: String,
 }
 
 impl Expr {
-    pub fn evaluate(self, variables: &HashMap<&str, Variable>) -> Result<Complex64, EvaluationError> {
+    pub fn evaluate(self, variables: &HashMap<&str, Variable>) -> Result<Value, EvaluationError> {
         match self {
             Expr::Binary {
                 left,
@@ -45,45 +54,93 @@ impl Expr {
                 let left = left.evaluate(variables)?;
                 let right = right.evaluate(variables)?;
                 match operator.kind {
-                    TokenKind::Plus => Ok(left + right),
-                    TokenKind::Minus => Ok(left - right),
-                    TokenKind::Star => Ok(left * right),
-                    TokenKind::Slash => Ok(left / right),
-                    TokenKind::Caret => Ok(left.powc(right)),
-                    TokenKind::Percent => Ok(left % right),
+                    TokenKind::Plus => match (left, right) {
+                        (Value::Number(left), Value::Number(right)) => {
+                            Ok(Value::Number(left + right))
+                        }
+                        _ => todo!(),
+                    },
+                    TokenKind::Minus => match (left, right) {
+                        (Value::Number(left), Value::Number(right)) => {
+                            Ok(Value::Number(left - right))
+                        }
+                        _ => todo!(),
+                    },
+                    TokenKind::Star => match (left, right) {
+                        (Value::Number(left), Value::Number(right)) => {
+                            Ok(Value::Number(left * right))
+                        }
+                        _ => todo!(),
+                    },
+                    TokenKind::Slash => match (left, right) {
+                        (Value::Number(left), Value::Number(right)) => {
+                            Ok(Value::Number(left / right))
+                        }
+                        _ => todo!(),
+                    },
+                    TokenKind::Caret => match (left, right) {
+                        (Value::Number(left), Value::Number(right)) => {
+                            Ok(Value::Number(left.powc(right)))
+                        }
+                        _ => todo!(),
+                    },
+                    TokenKind::Percent => match (left, right) {
+                        (Value::Number(left), Value::Number(right)) => {
+                            Ok(Value::Number(left % right))
+                        }
+                        _ => todo!(),
+                    },
                     kind => panic!("Invalid token kind for binary operation: {:?}", kind),
                 }
             }
             Expr::Unary { operator, right } => {
                 let right = right.evaluate(variables)?;
                 match operator.kind {
-                    TokenKind::Minus => Ok(right * Complex64::new(-1.0, 0.0)),
-                    TokenKind::Plus => Ok(right),
-                    TokenKind::Bang => {
-                        let real_part = right.re;
-                        if right.im == 0.0 {
-                            if real_part.fract() == 0.0 && real_part >= 0.0 {
-                                Ok(factorial(real_part as u64).into())
-                            } else {
-                                Err(EvaluationError { col: operator.col, message: String::from("Factorial only defined for non-negative real integers") })
-                            }
-                        } else {
-                            Err(EvaluationError { col: operator.col, message: String::from("Factorial only defined for non-negative real integers") })
+                    TokenKind::Minus => match right {
+                        Value::Number(right) => {
+                            Ok(Value::Number(right * Complex64::new(-1.0, 0.0)))
                         }
-                    }
+                        _ => todo!(),
+                    },
+                    TokenKind::Bang => match right {
+                        Value::Number(right) => {
+                            let real_part = right.re;
+                            if right.im == 0.0 {
+                                if real_part.fract() == 0.0 && real_part >= 0.0 {
+                                    Ok(Value::Number(factorial(real_part as u64).into()))
+                                } else {
+                                    todo!()
+                                }
+                            } else {
+                                todo!()
+                            }
+                        }
+                        _ => todo!(),
+                    },
                     kind => panic!("Invalid token kind for unary operation: {:?}", kind),
                 }
             }
             Expr::Grouping { expr } => Ok(expr.evaluate(variables)?),
-            Expr::Absolute { expr } => Ok(expr.evaluate(variables)?.norm_sqr().into()),
-            Expr::Number { number } => Ok(number),
-            Expr::Identifier { name } => { 
+            Expr::Absolute { expr } => {
+                let result = expr.evaluate(variables)?;
+                match result {
+                    Value::Number(result) => Ok(Value::Number(result.norm_sqr().into())),
+                    _ => todo!(),
+                }
+            }
+            Expr::Number { number } => Ok(Value::Number(number)),
+            Expr::Identifier { name } => {
                 if let Some(variable) = variables.get(name.kind.get_lexeme().as_str()) {
                     Ok(variable.value.clone())
                 } else {
-                    Ok(Complex64::from(0.0))
+                    Ok(Value::Number(Complex64::from(0.0)))
                 }
             }
+            Expr::Call {
+                callee,
+                paren,
+                arguments,
+            } => todo!(),
         }
     }
 }

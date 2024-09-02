@@ -1,14 +1,22 @@
 mod expr;
+mod function;
 mod parser;
 mod tokenizer;
+mod value;
 mod variable;
 
 use clap::Parser as ClapParser;
-use num_complex::{Complex, Complex64};
+use function::BUILTIN_SIN;
+use num_complex::Complex64;
 use parser::{Parser, ParserError};
-use variable::Variable;
-use std::{collections::HashMap, f64::consts::{E, PI}, io::{self, Write}};
+use std::{
+    collections::HashMap,
+    f64::consts::{E, PI, TAU},
+    io::{self, Write},
+};
 use tokenizer::{Tokenizer, TokenizerError};
+use value::Value;
+use variable::Variable;
 
 const DEFAULT_TAB_SIZE: u8 = 4;
 
@@ -21,16 +29,49 @@ struct Args {
     expression: Option<String>,
 
     #[arg(short, long, default_value_t = DEFAULT_TAB_SIZE)]
-    tabsize: u8
+    tabsize: u8,
 }
 
 fn main() {
     let args = Args::parse();
 
     let variables = HashMap::from([
-        ("e", Variable {constant: true, value: Complex64::new(E, 0.0)}),
-        ("pi", Variable {constant: true, value: Complex::new(PI, 0.0)})
-    ]); 
+        (
+            "i",
+            Variable {
+                constant: true,
+                value: Value::Number(Complex64::new(0.0, 1.0)),
+            },
+        ),
+        (
+            "e",
+            Variable {
+                constant: true,
+                value: Value::Number(Complex64::from(E)),
+            },
+        ),
+        (
+            "pi",
+            Variable {
+                constant: true,
+                value: Value::Number(Complex64::from(PI)),
+            },
+        ),
+        (
+            "tau",
+            Variable {
+                constant: true,
+                value: Value::Number(Complex64::from(TAU)),
+            },
+        ),
+        (
+            "sin",
+            Variable {
+                constant: true,
+                value: BUILTIN_SIN,
+            },
+        ),
+    ]);
 
     if let Some(expression) = args.expression {
         process_expression(&expression.trim(), &variables, args.tabsize);
@@ -45,7 +86,7 @@ fn process_expression(expression: &str, variables: &HashMap<&str, Variable>, tab
         Err(err) => {
             match err {
                 TokenizerError::BadChar(char, char_pos) => {
-                    eprintln!("Position {char_pos} :: Unexpected or invalid character '{char}'");
+                    eprintln!("Position {char_pos} :: Unexpected or invalid character: '{char}'");
                 }
             }
             return;
@@ -92,14 +133,7 @@ fn process_expression(expression: &str, variables: &HashMap<&str, Variable>, tab
         }
     };
 
-    if result.im == 0.0 {
-        println!("{} = {}", expression, &result.re);
-    } else if result.re == 0.0 {
-        println!("{} = {}i", expression, &result.im);
-    }
-    else {
-        println!("{} = {} + {}i", expression, &result.re, &result.im);
-    }
+    dbg!(&result);
 }
 
 fn start_repl(tabsize: u8, variables: &HashMap<&str, Variable>) {

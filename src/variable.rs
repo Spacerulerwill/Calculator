@@ -1,7 +1,7 @@
-use num_complex::Complex64;
+use crate::value::Value;
 
 #[derive(Debug)]
 pub struct Variable {
     pub constant: bool,
-    pub value: Complex64
+    pub value: Value,
 }

@@ -1,15 +1,22 @@
 /*
-expression → term ";" ;
-term → factor ( ( "-" | "+" ) factor )* ;
-factor → exponent ( ( "/" | "*" | "%" ) exponent )* ;
-exponent → unary ( "^" unary )* ;
-unary →  "-" unary | factorial ;
-factorial → primary "!" | primary ;
-primary → NUMBER | "i" | NUMBER "i" | IDENTIFIER | "(" expression ")" | "|" expression "|" ;*/
+<expression> ::= <term>
+
+<term> ::= <factor> ( ( "-" | "+" ) <factor> )*
+
+<factor> ::= <implicit_factor> ( ( "/" | "*" | "%" ) <implicit_factor> )*
+
+<implicit_factor> ::= <exponent> ( "(" <expression> ")" | <IDENTIFIER> )?
+
+<exponent> ::= <unary> ( "^" <unary> )*
+
+<unary> ::= "-" <unary> | <factorial>
+
+<factorial> ::= <primary> ( "!" )*
+
+<primary> ::= <NUMBER> | <IDENTIFIER> | "(" <expression> ")" | "|" <expression> "|"
+*/
 
 use std::{iter::Peekable, vec::IntoIter};
-
-use num_complex::Complex64;
 
 use crate::{
     expr::Expr,
@@ -35,7 +42,7 @@ pub struct Parser {
 impl Parser {
     pub fn parse(tokens: Vec<Token>) -> Result<Expr, ParserError> {
         let mut parser = Parser {
-            iter: tokens.into_iter().peekable()
+            iter: tokens.into_iter().peekable(),
         };
 
         parser.expression()
@@ -67,12 +74,12 @@ impl Parser {
     }
 
     fn factor(&mut self) -> Result<Expr, ParserError> {
-        let mut expr = self.exponent()?;
+        let mut expr = self.implied_factor()?;
         while let Some(token) = self.iter.peek() {
             match token.kind {
                 TokenKind::Star | TokenKind::Slash | TokenKind::Percent => {
                     let token = self.iter.next().unwrap();
-                    let right = self.exponent()?;
+                    let right = self.implied_factor()?;
                     expr = Expr::Binary {
                         left: Box::new(expr),
                         operator: token,
@@ -80,6 +87,40 @@ impl Parser {
                     };
                 }
                 _ => break,
+            }
+        }
+        Ok(expr)
+    }
+
+    fn implied_factor(&mut self) -> Result<Expr, ParserError> {
+        let mut expr = self.exponent()?;
+        if let Some(token) = self.iter.peek() {
+            match &token.kind {
+                TokenKind::LeftParen => {
+                    let token = self.iter.next().unwrap();
+                    let expression = self.expression()?;
+                    self.consume(TokenKind::RightParen)?;
+                    expr = Expr::Binary {
+                        left: Box::new(expr),
+                        operator: Token {
+                            kind: TokenKind::Star,
+                            col: token.col,
+                        },
+                        right: Box::new(expression),
+                    }
+                }
+                TokenKind::Identifier(_) => {
+                    let token = self.iter.next().unwrap();
+                    expr = Expr::Binary {
+                        left: Box::new(expr),
+                        operator: Token {
+                            kind: TokenKind::Star,
+                            col: token.col,
+                        },
+                        right: Box::new(Expr::Identifier { name: token }),
+                    }
+                }
+                _ => {}
             }
         }
         Ok(expr)
@@ -141,40 +182,23 @@ impl Parser {
     fn primary(&mut self) -> Result<Expr, ParserError> {
         if let Some(token) = self.iter.next() {
             match token.kind {
-                TokenKind::Number(num) => {
-                    // Is there an ImaginryUnit following?
-                    if let Some(Token {
-                        kind: TokenKind::ImaginaryUnit,
-                        ..
-                    }) = self.iter.peek()
-                    {
-                        self.iter.next();
-                        return Ok(Expr::Number {
-                            number: num * Complex64::new(0.0, 1.0)
-                        });
-                    } else {
-                        return Ok(Expr::Number {
-                            number: num,
-                        });
-                    }
-                },
-                TokenKind::ImaginaryUnit => return Ok(Expr::Number { number:  Complex64::new(0.0, 1.0) }),
+                TokenKind::Number(num) => return Ok(Expr::Number { number: num }),
                 TokenKind::Identifier(_) => return Ok(Expr::Identifier { name: token }),
                 TokenKind::LeftParen => {
                     let expr = self.expression()?;
                     self.consume(TokenKind::RightParen)?;
                     return Ok(Expr::Grouping {
                         expr: Box::new(expr),
-                    })
-                },
+                    });
+                }
                 TokenKind::Pipe => {
                     let expr = self.expression()?;
                     self.consume(TokenKind::Pipe)?;
                     return Ok(Expr::Absolute {
                         expr: Box::new(expr),
                     });
-                },
-                _ => return Err(ParserError::ExpectedExpression { found: Some(token)}),
+                }
+                _ => return Err(ParserError::ExpectedExpression { found: Some(token) }),
             }
         } else {
             return Err(ParserError::ExpectedExpression { found: None });
@@ -182,13 +206,14 @@ impl Parser {
     }
 
     fn consume(&mut self, expected_kind: TokenKind) -> Result<Token, ParserError> {
-        if let Some(token) = self.iter.next() {
+        if let Some(token) = self.iter.peek() {
             if token.kind == expected_kind {
+                let token = self.iter.next().unwrap();
                 Ok(token)
             } else {
                 Err(ParserError::ExpectedToken {
                     expected: expected_kind,
-                    found: Some(token),
+                    found: Some(token.clone()),
                 })
             }
         } else {

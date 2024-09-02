@@ -1,5 +1,8 @@
-use std::{iter::Peekable, str::{Chars, FromStr}};
 use num_complex::{Complex, Complex64};
+use std::{
+    iter::Peekable,
+    str::{Chars, FromStr},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
@@ -13,7 +16,6 @@ pub enum TokenKind {
     Bang,
     Pipe,
     Percent,
-    ImaginaryUnit,
     Identifier(String),
     Number(Complex64),
 }
@@ -31,7 +33,6 @@ impl TokenKind {
             TokenKind::Bang => String::from("!"),
             TokenKind::Pipe => String::from("|"),
             TokenKind::Percent => String::from("%"),
-            TokenKind::ImaginaryUnit => String::from("i"),
             TokenKind::Identifier(indentifier) => indentifier.clone(),
             TokenKind::Number(number) => number.to_string(),
         }
@@ -87,8 +88,7 @@ impl<'a> Tokenizer<'a> {
                 '!' => self.add_single_char_token(TokenKind::Bang),
                 '|' => self.add_single_char_token(TokenKind::Pipe),
                 '%' => self.add_single_char_token(TokenKind::Percent),
-                'i' => self.add_single_char_token(TokenKind::ImaginaryUnit),
-                'a'..='z' | 'A'..='Z'| '_' => self.tokenize_identifier(),
+                'a'..='z' | 'A'..='Z' | '_' => self.tokenize_identifier(),
                 '0'..='9' => self.tokenize_number(),
                 _ => return Err(TokenizerError::BadChar(ch, self.current_col)),
             }
