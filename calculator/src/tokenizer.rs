@@ -1,4 +1,4 @@
-use num_complex::{Complex, Complex64};
+use common::num_complex::{Complex, Complex64};
 use std::{
     iter::Peekable,
     str::{Chars, FromStr},
@@ -90,6 +90,7 @@ impl<'a> Tokenizer<'a> {
                 '!' => self.add_single_char_token(TokenKind::Bang),
                 '|' => self.add_single_char_token(TokenKind::Pipe),
                 '%' => self.add_single_char_token(TokenKind::Percent),
+                ',' => self.add_single_char_token(TokenKind::Comma),
                 'a'..='z' | 'A'..='Z' | '_' => self.tokenize_identifier(),
                 '0'..='9' => self.tokenize_number(),
                 _ => return Err(TokenizerError::BadChar(ch, self.current_col)),

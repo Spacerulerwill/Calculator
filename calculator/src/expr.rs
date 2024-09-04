@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use crate::{
     tokenizer::{Token, TokenKind},
-    value::Value,
     variable::Variable,
 };
-use num_complex::{Complex64, ComplexFloat};
+use common::num_complex::Complex64;
+use common::value::Value;
 
 #[derive(Debug)]
 pub enum Expr {
@@ -154,7 +154,7 @@ impl Expr {
                 } else {
                     todo!()
                 }
-            },
+            }
         }
     }
 }

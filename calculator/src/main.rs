@@ -1,13 +1,12 @@
+mod builtin_math;
 mod expr;
-mod function;
 mod parser;
 mod tokenizer;
-mod value;
 mod variable;
 
+use builtin_math::{cos, sin, tan};
 use clap::Parser as ClapParser;
-use function::BUILTIN_SIN;
-use num_complex::Complex64;
+use common::{num_complex::Complex64, value::Value};
 use parser::{Parser, ParserError};
 use std::{
     collections::HashMap,
@@ -15,7 +14,6 @@ use std::{
     io::{self, Write},
 };
 use tokenizer::{Tokenizer, TokenizerError};
-use value::Value;
 use variable::Variable;
 
 const DEFAULT_TAB_SIZE: u8 = 4;
@@ -68,7 +66,21 @@ fn main() {
             "sin",
             Variable {
                 constant: true,
-                value: BUILTIN_SIN,
+                value: sin,
+            },
+        ),
+        (
+            "cos",
+            Variable {
+                constant: true,
+                value: cos,
+            },
+        ),
+        (
+            "tan",
+            Variable {
+                constant: true,
+                value: tan,
             },
         ),
     ]);

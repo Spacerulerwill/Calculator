@@ -11,12 +11,12 @@
 
 <factorial> ::= <call> ( "!" )*
 
-<call> ::= <primary> ( "(" <arguments>? ")" )* 
+<call> ::= <primary> ( "(" <arguments>? ")" )*
 
 <primary> ::= <NUMBER> | <IDENTIFIER> | "(" <expression> ")" | "|" <expression> "|"
 
 // helper rules
-<argument>s ::= <expression> ( "," <expression> )* 
+<argument>s ::= <expression> ( "," <expression> )*
 */
 
 use std::{iter::Peekable, vec::IntoIter};
@@ -231,7 +231,7 @@ impl Parser {
     fn check(&mut self, expected_kind: TokenKind) -> bool {
         match self.iter.peek() {
             Some(token) => token.kind == expected_kind,
-            None => false
+            None => false,
         }
     }
 }
