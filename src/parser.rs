@@ -30,6 +30,9 @@ pub enum ParserError {
         expected: TokenKind,
         found: Option<Token>,
     },
+    ExpectedEOF {
+        found: Token,
+    },
 }
 
 #[derive(Debug)]
@@ -42,8 +45,11 @@ impl Parser {
         let mut parser = Parser {
             iter: tokens.into_iter().peekable(),
         };
-
-        parser.expression()
+        let expr = parser.expression()?;
+        if let Some(token) = parser.iter.next() {
+            return Err(ParserError::ExpectedEOF { found: token });
+        }
+        Ok(expr)
     }
 
     fn expression(&mut self) -> Result<Expr, ParserError> {

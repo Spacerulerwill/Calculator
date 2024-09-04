@@ -120,6 +120,9 @@ fn process_expression(expression: &str, variables: &HashMap<&str, Variable>, tab
                         eprintln!("Expected {} but found EOF", expected.get_lexeme());
                     }
                 }
+                ParserError::ExpectedEOF { found } => {
+                    eprintln!("Expected EOF but found '{}'", found.kind.get_lexeme())
+                }
             }
             return;
         }
