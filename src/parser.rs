@@ -3,9 +3,7 @@
 
 <term> ::= <factor> ( ( "-" | "+" ) <factor> )*
 
-<factor> ::= <implicit_factor> ( ( "/" | "*" | "%" ) <implicit_factor> )*
-
-<implicit_factor> ::= <exponent> ( "(" <expression> ")" | <IDENTIFIER> )?
+<factor> ::= <exponent> ( ( "/" | "*" | "%" ) <exponent> )*
 
 <exponent> ::= <unary> ( "^" <unary> )*
 
@@ -74,12 +72,12 @@ impl Parser {
     }
 
     fn factor(&mut self) -> Result<Expr, ParserError> {
-        let mut expr = self.implied_factor()?;
+        let mut expr = self.exponent()?;
         while let Some(token) = self.iter.peek() {
             match token.kind {
                 TokenKind::Star | TokenKind::Slash | TokenKind::Percent => {
                     let token = self.iter.next().unwrap();
-                    let right = self.implied_factor()?;
+                    let right = self.exponent()?;
                     expr = Expr::Binary {
                         left: Box::new(expr),
                         operator: token,
@@ -87,40 +85,6 @@ impl Parser {
                     };
                 }
                 _ => break,
-            }
-        }
-        Ok(expr)
-    }
-
-    fn implied_factor(&mut self) -> Result<Expr, ParserError> {
-        let mut expr = self.exponent()?;
-        if let Some(token) = self.iter.peek() {
-            match &token.kind {
-                TokenKind::LeftParen => {
-                    let token = self.iter.next().unwrap();
-                    let expression = self.expression()?;
-                    self.consume(TokenKind::RightParen)?;
-                    expr = Expr::Binary {
-                        left: Box::new(expr),
-                        operator: Token {
-                            kind: TokenKind::Star,
-                            col: token.col,
-                        },
-                        right: Box::new(expression),
-                    }
-                }
-                TokenKind::Identifier(_) => {
-                    let token = self.iter.next().unwrap();
-                    expr = Expr::Binary {
-                        left: Box::new(expr),
-                        operator: Token {
-                            kind: TokenKind::Star,
-                            col: token.col,
-                        },
-                        right: Box::new(Expr::Identifier { name: token }),
-                    }
-                }
-                _ => {}
             }
         }
         Ok(expr)

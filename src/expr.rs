@@ -124,7 +124,7 @@ impl Expr {
             Expr::Absolute { expr } => {
                 let result = expr.evaluate(variables)?;
                 match result {
-                    Value::Number(result) => Ok(Value::Number(result.norm_sqr().into())),
+                    Value::Number(result) => Ok(Value::Number(result.norm().into())),
                     _ => todo!(),
                 }
             }
