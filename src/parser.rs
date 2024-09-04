@@ -9,9 +9,14 @@
 
 <unary> ::= "-" <unary> | <factorial>
 
-<factorial> ::= <primary> ( "!" )*
+<factorial> ::= <call> ( "!" )*
+
+<call> ::= <primary> ( "(" <arguments>? ")" )* 
 
 <primary> ::= <NUMBER> | <IDENTIFIER> | "(" <expression> ")" | "|" <expression> "|"
+
+// helper rules
+<argument>s ::= <expression> ( "," <expression> )* 
 */
 
 use std::{iter::Peekable, vec::IntoIter};
@@ -132,7 +137,7 @@ impl Parser {
     }
 
     fn factorial(&mut self) -> Result<Expr, ParserError> {
-        let mut expr = self.primary()?;
+        let mut expr = self.call()?;
 
         while let Some(token) = self.iter.peek() {
             if token.kind == TokenKind::Bang {
@@ -147,6 +152,35 @@ impl Parser {
         }
 
         Ok(expr)
+    }
+
+    fn call(&mut self) -> Result<Expr, ParserError> {
+        let mut expr = self.primary()?;
+        while self.check(TokenKind::LeftParen) {
+            let token = self.iter.next().unwrap();
+            expr = self.finish_call(expr, token)?;
+        }
+        Ok(expr)
+    }
+
+    fn finish_call(&mut self, callee: Expr, left_paren: Token) -> Result<Expr, ParserError> {
+        let mut arguments = Vec::new();
+        if !self.check(TokenKind::RightParen) {
+            loop {
+                arguments.push(self.expression()?);
+                if self.check(TokenKind::Comma) {
+                    self.iter.next();
+                } else {
+                    break;
+                }
+            }
+        }
+        self.consume(TokenKind::RightParen)?;
+        Ok(Expr::Call {
+            callee: Box::new(callee),
+            paren: left_paren,
+            arguments: arguments,
+        })
     }
 
     fn primary(&mut self) -> Result<Expr, ParserError> {
@@ -191,6 +225,13 @@ impl Parser {
                 expected: expected_kind,
                 found: None,
             })
+        }
+    }
+
+    fn check(&mut self, expected_kind: TokenKind) -> bool {
+        match self.iter.peek() {
+            Some(token) => token.kind == expected_kind,
+            None => false
         }
     }
 }

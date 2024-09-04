@@ -1,16 +1,27 @@
-use num_complex::Complex64;
+use std::fmt;
 
 use crate::value::Value;
 
 #[derive(Debug, Clone)]
 pub struct Function {
-    pub function: fn(Vec<Complex64>) -> Complex64,
+    pub function: fn(Vec<Value>) -> Value,
     pub arity: usize,
 }
 
-fn internal_builtin_sin(args: Vec<Complex64>) -> Complex64 {
-    let input = args.get(0).unwrap();
-    input.sin()
+impl fmt::Display for Function {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Define how to display a Function here
+        write!(f, "function <{:?}>", self.function)  // Example placeholder
+    }
+}
+
+
+fn internal_builtin_sin(args: Vec<Value>) -> Value {
+    if let Value::Number(num) = args.get(0).unwrap() {
+        Value::Number(num.sin())
+    } else {
+        todo!()
+    }
 }
 
 pub const BUILTIN_SIN: Value = Value::Function(Function {

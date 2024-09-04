@@ -136,7 +136,7 @@ fn process_expression(expression: &str, variables: &HashMap<&str, Variable>, tab
         }
     };
 
-    dbg!(&result);
+    println!("{}", &result);
 }
 
 fn start_repl(tabsize: u8, variables: &HashMap<&str, Variable>) {

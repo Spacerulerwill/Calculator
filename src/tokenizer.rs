@@ -16,6 +16,7 @@ pub enum TokenKind {
     Bang,
     Pipe,
     Percent,
+    Comma,
     Identifier(String),
     Number(Complex64),
 }
@@ -33,6 +34,7 @@ impl TokenKind {
             TokenKind::Bang => String::from("!"),
             TokenKind::Pipe => String::from("|"),
             TokenKind::Percent => String::from("%"),
+            TokenKind::Comma => String::from(","),
             TokenKind::Identifier(indentifier) => indentifier.clone(),
             TokenKind::Number(number) => number.to_string(),
         }

@@ -140,7 +140,21 @@ impl Expr {
                 callee,
                 paren,
                 arguments,
-            } => todo!(),
+            } => {
+                let callee = callee.evaluate(variables)?;
+                if let Value::Function(function) = callee {
+                    if function.arity != arguments.len() {
+                        todo!()
+                    }
+                    let mut evaluated_arguments = Vec::with_capacity(arguments.len());
+                    for argument in arguments {
+                        evaluated_arguments.push(argument.evaluate(variables)?);
+                    }
+                    Ok((function.function)(evaluated_arguments))
+                } else {
+                    todo!()
+                }
+            },
         }
     }
 }
