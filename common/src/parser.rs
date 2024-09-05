@@ -199,6 +199,7 @@ impl Parser {
                     let expr = self.expression()?;
                     self.consume(TokenKind::Pipe)?;
                     return Ok(Expr::Absolute {
+                        pipe: token,
                         expr: Box::new(expr),
                     });
                 }

@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use crate::{
     tokenizer::{Token, TokenKind},
     variable::Variable,
+    value::Value,
+    function::Function,
+    num_complex::Complex64
 };
-use common::num_complex::Complex64;
-use common::value::Value;
 
 #[derive(Debug)]
 pub enum Expr {
@@ -22,6 +23,7 @@ pub enum Expr {
         expr: Box<Expr>,
     },
     Absolute {
+        pipe: Token,
         expr: Box<Expr>,
     },
     Number {
@@ -38,13 +40,47 @@ pub enum Expr {
 }
 
 #[derive(Debug)]
-pub struct EvaluationError {
-    pub col: usize,
-    pub message: String,
+pub enum EvaluationError<'a> {
+    DivisionByZero {
+        operator: Token,
+    },
+    IncorrectFunctionArgumentCount {
+        paren: Token,
+        function: Function<'a>,
+        received: usize,
+    },
+    IncorrectFunctionArgumentType {
+        function_name: &'a str,
+        function_col: usize,
+        idx: usize,
+        name: &'a str,
+        value: Value<'a>,
+        expected_type: &'a str,
+    },
+    UnsupportedBinaryOperator {
+        left: Value<'a>,
+        operator: Token,
+        right: Value<'a>,
+    },
+    UnsupportedUnaryOperator {
+        value: Value<'a>,
+        operator: Token,
+    },
+    UnsupportedAbsoluteOperand {
+        pipe: Token,
+        value: Value<'a>
+    },
+    InvalidCallable {
+        callee: Value<'a>,
+        paren: Token
+    }
 }
 
-impl Expr {
-    pub fn evaluate(self, variables: &HashMap<&str, Variable>) -> Result<Value, EvaluationError> {
+impl<'a> Expr {
+    pub fn evaluate(
+        self,
+        variables: &HashMap<&str, Variable<'a>>,
+    ) -> Result<Value<'a>, EvaluationError<'a>> {
         match self {
             Expr::Binary {
                 left,
@@ -54,78 +90,88 @@ impl Expr {
                 let left = left.evaluate(variables)?;
                 let right = right.evaluate(variables)?;
                 match operator.kind {
-                    TokenKind::Plus => match (left, right) {
+                    TokenKind::Plus => match (&left, &right) {
                         (Value::Number(left), Value::Number(right)) => {
-                            Ok(Value::Number(left + right))
+                            return Ok(Value::Number(left + right))
                         }
-                        _ => todo!(),
+                        _ => {}
                     },
-                    TokenKind::Minus => match (left, right) {
+                    TokenKind::Minus => match (&left, &right) {
                         (Value::Number(left), Value::Number(right)) => {
-                            Ok(Value::Number(left - right))
+                            return Ok(Value::Number(left - right))
                         }
-                        _ => todo!(),
+                        _ => {},
                     },
-                    TokenKind::Star => match (left, right) {
+                    TokenKind::Star => match (&left, &right) {
                         (Value::Number(left), Value::Number(right)) => {
-                            Ok(Value::Number(left * right))
+                            return Ok(Value::Number(left * right))
                         }
-                        _ => todo!(),
+                        _ => {},
                     },
-                    TokenKind::Slash => match (left, right) {
+                    TokenKind::Slash => match (&left, &right) {
                         (Value::Number(left), Value::Number(right)) => {
-                            Ok(Value::Number(left / right))
+                            if right.norm() == 0.0 {
+                                return Err(EvaluationError::DivisionByZero { operator: operator });
+                            }
+                            return Ok(Value::Number(left / right))
                         }
-                        _ => todo!(),
+                        _ => {},
                     },
-                    TokenKind::Caret => match (left, right) {
+                    TokenKind::Caret => match (&left, &right) {
                         (Value::Number(left), Value::Number(right)) => {
-                            Ok(Value::Number(left.powc(right)))
+                            return Ok(Value::Number(left.powc(*right)))
                         }
-                        _ => todo!(),
+                        _ => {},
                     },
-                    TokenKind::Percent => match (left, right) {
+                    TokenKind::Percent => match (&left, &right) {
                         (Value::Number(left), Value::Number(right)) => {
-                            Ok(Value::Number(left % right))
+                            if right.norm() == 0.0 {
+                                return Err(EvaluationError::DivisionByZero { operator: operator });
+                            }
+                            return Ok(Value::Number(left % right))
                         }
-                        _ => todo!(),
+                        _ => {},
                     },
                     kind => panic!("Invalid token kind for binary operation: {:?}", kind),
                 }
+                // None were matched, unsupported
+                Err(EvaluationError::UnsupportedBinaryOperator {
+                    left,
+                    operator,
+                    right,
+                })
             }
             Expr::Unary { operator, right } => {
                 let right = right.evaluate(variables)?;
                 match operator.kind {
-                    TokenKind::Minus => match right {
+                    TokenKind::Minus => match &right {
                         Value::Number(right) => {
-                            Ok(Value::Number(right * Complex64::new(-1.0, 0.0)))
+                            return Ok(Value::Number(right * Complex64::new(-1.0, 0.0)));
                         }
-                        _ => todo!(),
+                        _ => {},
                     },
                     TokenKind::Bang => match right {
                         Value::Number(right) => {
                             let real_part = right.re;
                             if right.im == 0.0 {
                                 if real_part.fract() == 0.0 && real_part >= 0.0 {
-                                    Ok(Value::Number(factorial(real_part as u64).into()))
-                                } else {
-                                    todo!()
+                                    return Ok(Value::Number(factorial(real_part as u64).into()))
                                 }
-                            } else {
-                                todo!()
                             }
                         }
-                        _ => todo!(),
+                        _ => {},
                     },
                     kind => panic!("Invalid token kind for unary operation: {:?}", kind),
                 }
+                // None were matched, unsupported
+                Err(EvaluationError::UnsupportedUnaryOperator { value: right, operator: operator })
             }
             Expr::Grouping { expr } => Ok(expr.evaluate(variables)?),
-            Expr::Absolute { expr } => {
+            Expr::Absolute { pipe, expr } => {
                 let result = expr.evaluate(variables)?;
                 match result {
                     Value::Number(result) => Ok(Value::Number(result.norm().into())),
-                    _ => todo!(),
+                    _ => Err(EvaluationError::UnsupportedAbsoluteOperand { pipe: pipe, value: result }),
                 }
             }
             Expr::Number { number } => Ok(Value::Number(number)),
@@ -144,15 +190,19 @@ impl Expr {
                 let callee = callee.evaluate(variables)?;
                 if let Value::Function(function) = callee {
                     if function.arity != arguments.len() {
-                        todo!()
+                        return Err(EvaluationError::IncorrectFunctionArgumentCount {
+                            paren: paren,
+                            function: function,
+                            received: arguments.len(),
+                        });
                     }
                     let mut evaluated_arguments = Vec::with_capacity(arguments.len());
                     for argument in arguments {
                         evaluated_arguments.push(argument.evaluate(variables)?);
                     }
-                    Ok((function.function)(evaluated_arguments))
+                    Ok((function.function)(paren.col, evaluated_arguments)?)
                 } else {
-                    todo!()
+                    Err(EvaluationError::InvalidCallable { callee: callee, paren: paren })
                 }
             }
         }

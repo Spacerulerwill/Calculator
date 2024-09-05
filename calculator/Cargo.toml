@@ -5,6 +5,5 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.16", features = ["derive"] }
-paste = "1.0"
 proc_macros = { path = "../proc_macros" }
 common = { path = "../common" }

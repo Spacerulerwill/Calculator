@@ -1,4 +1,4 @@
-use common::num_complex::{Complex, Complex64};
+use crate::num_complex::{Complex, Complex64};
 use std::{
     iter::Peekable,
     str::{Chars, FromStr},

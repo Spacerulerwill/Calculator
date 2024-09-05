@@ -63,7 +63,6 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "common",
- "paste",
  "proc_macros",
 ]
 

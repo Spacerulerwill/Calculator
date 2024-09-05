@@ -1,20 +1,19 @@
 mod builtin_math;
-mod expr;
-mod parser;
-mod tokenizer;
-mod variable;
 
-use builtin_math::{cos, sin, tan};
+use builtin_math::{cos, log, sin, tan};
 use clap::Parser as ClapParser;
+use common::{
+    expr::EvaluationError,
+    parser::{Parser, ParserError},
+    tokenizer::{Tokenizer, TokenizerError},
+    variable::Variable,
+};
 use common::{num_complex::Complex64, value::Value};
-use parser::{Parser, ParserError};
 use std::{
     collections::HashMap,
     f64::consts::{E, PI, TAU},
     io::{self, Write},
 };
-use tokenizer::{Tokenizer, TokenizerError};
-use variable::Variable;
 
 const DEFAULT_TAB_SIZE: u8 = 4;
 
@@ -83,6 +82,13 @@ fn main() {
                 value: tan,
             },
         ),
+        (
+            "log",
+            Variable {
+                constant: true,
+                value: log,
+            },
+        ),
     ]);
 
     if let Some(expression) = args.expression {
@@ -143,7 +149,64 @@ fn process_expression(expression: &str, variables: &HashMap<&str, Variable>, tab
     let result = match expr.evaluate(variables) {
         Ok(result) => result,
         Err(err) => {
-            eprintln!("Column {} :: {}", err.col, err.message);
+            match err {
+                EvaluationError::DivisionByZero { operator } => eprintln!(
+                    "Column {} :: Divison by zero on right side of '{}'",
+                    operator.col,
+                    &operator.kind.get_lexeme()
+                ),
+                EvaluationError::IncorrectFunctionArgumentCount {
+                    paren,
+                    function,
+                    received,
+                } => eprintln!(
+                    "Column {} :: Function '{}' requires {} argument(s) but received {}",
+                    paren.col, function.name, function.arity, received,
+                ),
+                EvaluationError::UnsupportedBinaryOperator {
+                    left,
+                    operator,
+                    right,
+                } => eprintln!(
+                    "Column {} :: Unsupported binary operator '{}' for types '{}' and '{}'",
+                    operator.col,
+                    &operator.kind.get_lexeme(),
+                    left.get_type_string(),
+                    right.get_type_string()
+                ),
+                EvaluationError::UnsupportedUnaryOperator { value, operator } => eprintln!(
+                    "Column {} :: Unsupported unary operator '{}' for type '{}'",
+                    operator.col,
+                    &operator.kind.get_lexeme(),
+                    value.get_type_string()
+                ),
+                EvaluationError::InvalidCallable { callee, paren } => eprintln!(
+                    "Column {} :: Type '{}' is not callable",
+                    paren.col,
+                    callee.get_type_string()
+                ),
+                EvaluationError::UnsupportedAbsoluteOperand { pipe, value } => eprintln!(
+                    "Column {} :: Type '{}' is not supported for absolute grouping",
+                    pipe.col,
+                    value.get_type_string()
+                ),
+                EvaluationError::IncorrectFunctionArgumentType {
+                    function_name,
+                    function_col,
+                    idx,
+                    name,
+                    value,
+                    expected_type,
+                } => eprintln!(
+                    "Column {} :: Function '{}' expects argument {} ({}) to be of type '{}' but found type '{}'",
+                    function_col,
+                    function_name,
+                    idx,
+                    name,
+                    expected_type,
+                    value.get_type_string()
+                ),
+            }
             return;
         }
     };
