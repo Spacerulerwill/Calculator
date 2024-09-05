@@ -1,6 +1,6 @@
 mod builtin_math;
 
-use builtin_math::{cos, log, sin, tan};
+use builtin_math::get_starting_variables;
 use clap::Parser as ClapParser;
 use common::{
     expr::EvaluationError,
@@ -8,10 +8,8 @@ use common::{
     tokenizer::{Tokenizer, TokenizerError},
     variable::Variable,
 };
-use common::{num_complex::Complex64, value::Value};
 use std::{
     collections::HashMap,
-    f64::consts::{E, PI, TAU},
     io::{self, Write},
 };
 
@@ -31,66 +29,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-
-    let variables = HashMap::from([
-        (
-            "i",
-            Variable {
-                constant: true,
-                value: Value::Number(Complex64::new(0.0, 1.0)),
-            },
-        ),
-        (
-            "e",
-            Variable {
-                constant: true,
-                value: Value::Number(Complex64::from(E)),
-            },
-        ),
-        (
-            "pi",
-            Variable {
-                constant: true,
-                value: Value::Number(Complex64::from(PI)),
-            },
-        ),
-        (
-            "tau",
-            Variable {
-                constant: true,
-                value: Value::Number(Complex64::from(TAU)),
-            },
-        ),
-        (
-            "sin",
-            Variable {
-                constant: true,
-                value: sin,
-            },
-        ),
-        (
-            "cos",
-            Variable {
-                constant: true,
-                value: cos,
-            },
-        ),
-        (
-            "tan",
-            Variable {
-                constant: true,
-                value: tan,
-            },
-        ),
-        (
-            "log",
-            Variable {
-                constant: true,
-                value: log,
-            },
-        ),
-    ]);
-
+    let variables = get_starting_variables();
     if let Some(expression) = args.expression {
         process_expression(&expression.trim(), &variables, args.tabsize);
     } else {
@@ -145,6 +84,8 @@ fn process_expression(expression: &str, variables: &HashMap<&str, Variable>, tab
             return;
         }
     };
+
+    println!("{}", &expr);
 
     let result = match expr.evaluate(variables) {
         Ok(result) => result,

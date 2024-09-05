@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 
 use crate::{
     tokenizer::{Token, TokenKind},
@@ -205,6 +205,24 @@ impl<'a> Expr {
                     Err(EvaluationError::InvalidCallable { callee: callee, paren: paren })
                 }
             }
+        }
+    }
+}
+
+impl fmt::Display for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Expr::Binary { left, operator, right } => write!(f, "{left}{}{right}", &operator.kind.get_lexeme()),
+            Expr::Unary { operator, right } => write!(f, "{}{right}", &operator.kind.get_lexeme()),
+            Expr::Grouping { expr } => write!(f, "({expr})"),
+            Expr::Absolute { pipe: _, expr } => write!(f, "|{expr}|"),
+            Expr::Number { number } => write!(f, "{number}"),
+            Expr::Identifier { name } => write!(f, "{}", name.kind.get_lexeme()),
+            Expr::Call { callee, paren: _, arguments } => {
+                let args: Vec<String> = arguments.iter().map(|arg| format!("{}", arg)).collect();
+                let args_str = args.join(", ");
+                write!(f, "{}({})", callee, args_str)
+            },
         }
     }
 }
