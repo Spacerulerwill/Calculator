@@ -15,84 +15,19 @@ define_calculator_builtin_function!(log2, (val: complex), Ok(Value::Number(val.l
 define_calculator_builtin_function!(log10, (val: complex), Ok(Value::Number(val.log10())));
 define_calculator_builtin_function!(ln, (val: complex), Ok(Value::Number(val.ln())));
 
+#[rustfmt::skip]
 pub fn get_starting_variables() -> HashMap<&'static str, Variable<'static>> {
     HashMap::from([
-        (
-            "i",
-            Variable {
-                constant: true,
-                value: Value::Number(Complex64::i()),
-            },
-        ),
-        (
-            "e",
-            Variable {
-                constant: true,
-                value: Value::Number(Complex64::from(E)),
-            },
-        ),
-        (
-            "pi",
-            Variable {
-                constant: true,
-                value: Value::Number(Complex64::from(PI)),
-            },
-        ),
-        (
-            "tau",
-            Variable {
-                constant: true,
-                value: Value::Number(Complex64::from(TAU)),
-            },
-        ),
-        (
-            "sin",
-            Variable {
-                constant: true,
-                value: sin,
-            },
-        ),
-        (
-            "cos",
-            Variable {
-                constant: true,
-                value: cos,
-            },
-        ),
-        (
-            "tan",
-            Variable {
-                constant: true,
-                value: tan,
-            },
-        ),
-        (
-            "log",
-            Variable {
-                constant: true,
-                value: log,
-            },
-        ),
-        (
-            "log2",
-            Variable {
-                constant: true,
-                value: log2,
-            },
-        ),
-        (
-            "log10",
-            Variable {
-                constant: true,
-                value: log10,
-            },
-        ),
-        (
-            "ln",
-            Variable {
-                constant: true,
-                value: ln,
-            },
-        ),
+        ("i", Variable::as_constant(Value::Number(Complex64::I))),
+        ("e", Variable::as_constant(Value::Number(Complex64::from(E)))),
+        ("pi", Variable::as_constant(Value::Number(Complex64::from(PI)))),
+        ("tau", Variable::as_constant(Value::Number(Complex64::from(TAU)))),
+        ("sin", Variable::as_constant(sin)),
+        ("cos", Variable::as_constant(cos)),
+        ("tan", Variable::as_constant(tan)),
+        ("log", Variable::as_constant(log)),
+        ("log2", Variable::as_constant(log2)),
+        ("log10", Variable::as_constant(log10)),
+        ("ln", Variable::as_constant(ln)),
     ])
 }

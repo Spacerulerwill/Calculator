@@ -11,7 +11,6 @@ pub struct Function<'a>  {
 
 impl<'a> fmt::Display for Function<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Define how to display a Function here
-        write!(f, "{} <{:?}>", self.name, self.function) // Example placeholder
+        write!(f, "{} <{:?}>", self.name, self.function)
     }
 }
