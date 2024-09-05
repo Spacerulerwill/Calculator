@@ -16,7 +16,7 @@
 <primary> ::= <NUMBER> | <IDENTIFIER> | "(" <expression> ")" | "|" <expression> "|"
 
 // helper rules
-<argument>s ::= <expression> ( "," <expression> )*
+<arguments> ::= <expression> ( "," <expression> )*
 */
 
 use std::{iter::Peekable, vec::IntoIter};
@@ -124,10 +124,10 @@ impl Parser {
             match token.kind {
                 TokenKind::Minus => {
                     let token = self.iter.next().unwrap();
-                    let right = self.unary()?;
+                    let operand = self.unary()?;
                     return Ok(Expr::Unary {
                         operator: token,
-                        right: Box::new(right),
+                        operand: Box::new(operand),
                     });
                 }
                 _ => {}
@@ -144,7 +144,7 @@ impl Parser {
                 let token = self.iter.next().unwrap();
                 expr = Expr::Unary {
                     operator: token,
-                    right: Box::new(expr),
+                    operand: Box::new(expr),
                 };
             } else {
                 break;

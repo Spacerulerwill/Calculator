@@ -2,7 +2,7 @@ use std::fmt;
 
 use num_complex::Complex64;
 
-use crate::function::Function;
+use crate::{expr::complex_to_string, function::Function};
 
 #[derive(Debug, Clone)]
 pub enum Value<'a> {
@@ -14,7 +14,7 @@ impl<'a> fmt::Display for Value<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Function(func) => write!(f, "{}", func),
-            Value::Number(num) => write!(f, "{}", num),
+            Value::Number(num) => write!(f, "{}", complex_to_string(&num))
         }
     }
 }

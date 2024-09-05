@@ -85,8 +85,6 @@ fn process_expression(expression: &str, variables: &HashMap<&str, Variable>, tab
         }
     };
 
-    println!("{}", &expr);
-
     let result = match expr.evaluate(variables) {
         Ok(result) => result,
         Err(err) => {
