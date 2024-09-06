@@ -21,6 +21,7 @@ pub fn get_starting_variables() -> HashMap<String, Variable<'static>> {
         (String::from("i"), Variable::as_constant(Value::Number(Complex64::I))),
         (String::from("e"), Variable::as_constant(Value::Number(Complex64::from(E)))),
         (String::from("pi"), Variable::as_constant(Value::Number(Complex64::from(PI)))),
+        (String::from("π"), Variable::as_constant(Value::Number(Complex64::from(PI)))),
         (String::from("tau"), Variable::as_constant(Value::Number(Complex64::from(TAU)))),
         (String::from("sin"), Variable::as_constant(sin)),
         (String::from("cos"), Variable::as_constant(cos)),
