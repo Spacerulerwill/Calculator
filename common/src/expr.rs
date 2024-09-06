@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, env::var_os, fmt};
 
 use crate::{
     tokenizer::{Token, TokenKind},
@@ -10,6 +10,10 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub enum Expr {
+    Assign {
+        name: Token,
+        new_value: Box<Expr>,
+    },
     Binary {
         left: Box<Expr>,
         operator: Token,
@@ -73,15 +77,19 @@ pub enum EvaluationError<'a> {
     InvalidCallable {
         callee: Value<'a>,
         paren: Token
+    },
+    ConstantAssignment {
+        name: Token,
     }
 }
 
 impl<'a> Expr {
     pub fn evaluate(
         self,
-        variables: &HashMap<&str, Variable<'a>>,
+        variables: &mut HashMap<String, Variable<'a>>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         match self {
+            Expr::Assign { name, new_value } => Self::evaluate_assign(name, new_value, variables),
             Expr::Binary {
                 left,
                 operator,
@@ -92,15 +100,31 @@ impl<'a> Expr {
             Expr::Absolute { pipe, expr } => Self::evaluate_absolute(pipe, expr, variables),
             Expr::Number { number } => Ok(Value::Number(number)),
             Expr::Identifier { name } => Self::evaluate_identifier(name, variables),
-            Expr::Call { callee, paren, arguments} => Self::evaluate_call(callee, paren, arguments, variables)
+            Expr::Call { callee, paren, arguments} => Self::evaluate_call(callee, paren, arguments, variables),
         }
     }
+
+    fn evaluate_assign(
+        name: Token,
+        new_value: Box<Expr>,
+        variables: &mut HashMap<String, Variable<'a>>,
+    ) -> Result<Value<'a>, EvaluationError<'a>> {
+        let new_value = new_value.evaluate(variables)?;
+        if let Some(variable) = variables.get(&name.kind.get_lexeme()) {
+            if variable.constant {
+                return Err(EvaluationError::ConstantAssignment { name: name })
+            }
+        }
+        variables.insert(name.kind.get_lexeme(), Variable::as_variable(new_value.clone()));
+        Ok(new_value)
+    }
+    
 
     fn evaluate_binary(
         left: Box<Expr>,
         operator: Token,
         right: Box<Expr>,
-        variables: &HashMap<&str, Variable<'a>>,
+        variables: &mut HashMap<String, Variable<'a>>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         let left = left.evaluate(variables)?;
         let right = right.evaluate(variables)?;
@@ -160,7 +184,7 @@ impl<'a> Expr {
     fn evaluate_unary(
         operand: Box<Expr>,
         operator: Token,
-        variables: &HashMap<&str, Variable<'a>>,
+        variables: &mut HashMap<String, Variable<'a>>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         let operand = operand.evaluate(variables)?;
         match operator.kind {
@@ -189,7 +213,7 @@ impl<'a> Expr {
 
     fn evaluate_grouping(
         expr: Box<Expr>,
-        variables: &HashMap<&str, Variable<'a>>,
+        variables: &mut HashMap<String, Variable<'a>>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         expr.evaluate(variables)
     }
@@ -197,7 +221,7 @@ impl<'a> Expr {
     fn evaluate_absolute(
         pipe: Token,
         expr: Box<Expr>,
-        variables: &HashMap<&str, Variable<'a>>,
+        variables: &mut HashMap<String, Variable<'a>>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         let result = expr.evaluate(variables)?;
         match result {
@@ -208,7 +232,7 @@ impl<'a> Expr {
 
     fn evaluate_identifier(
         name: Token,
-        variables: &HashMap<&str, Variable<'a>>,
+        variables: &mut HashMap<String, Variable<'a>>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         match variables.get(name.kind.get_lexeme().as_str()) {
             Some(variable) => Ok(variable.value.clone()),
@@ -220,7 +244,7 @@ impl<'a> Expr {
         callee: Box<Expr>,
         paren: Token,
         arguments: Vec<Expr>,
-        variables: &HashMap<&str, Variable<'a>>,
+        variables: &mut HashMap<String, Variable<'a>>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         let callee = callee.evaluate(variables)?;
         match callee {
@@ -247,7 +271,8 @@ impl<'a> Expr {
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Expr::Binary { left, operator, right } => {write!(f, "{left}{}{right}", &operator.kind.get_lexeme())},
+            Expr::Assign { name, new_value } => write!(f, "{}={}", name.kind.get_lexeme(), new_value),
+            Expr::Binary { left, operator, right } => write!(f, "{left}{}{right}", &operator.kind.get_lexeme()),
             Expr::Unary { operator, operand } => match &operator.kind {
                 TokenKind::Bang => write!(f, "{operand}{}", &operator.kind.get_lexeme()),
                 TokenKind::Minus => write!(f, "{}{operand}", &operator.kind.get_lexeme()),
@@ -290,7 +315,6 @@ pub fn complex_to_string(num: &Complex64) -> String {
         return format!("{}i", num.im);
     }
 }
-
 
 // Computes factorial of a non-negative integer
 fn factorial(n: u64) -> f64 {

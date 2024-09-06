@@ -29,15 +29,15 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let variables = get_starting_variables();
+    let mut variables = get_starting_variables();
     if let Some(expression) = args.expression {
-        process_expression(&expression.trim(), &variables, args.tabsize);
+        process_expression(&expression.trim(), &mut variables, args.tabsize);
     } else {
-        start_repl(args.tabsize, &variables);
+        start_repl(args.tabsize, &mut variables);
     }
 }
 
-fn process_expression(expression: &str, variables: &HashMap<&str, Variable>, tabsize: u8) {
+fn process_expression(expression: &str, variables: &mut HashMap<String, Variable>, tabsize: u8) {
     let tokens = match Tokenizer::tokenize(expression, tabsize) {
         Ok(tokenizer) => tokenizer.tokens,
         Err(err) => {
@@ -59,7 +59,7 @@ fn process_expression(expression: &str, variables: &HashMap<&str, Variable>, tab
                         eprintln!(
                             "Position {} :: Expected expression next but found '{}'",
                             found.col,
-                            found.kind.get_lexeme()
+                            &found.kind.get_lexeme()
                         );
                     } else {
                         eprintln!("Expected expression next but found EOF");
@@ -74,12 +74,17 @@ fn process_expression(expression: &str, variables: &HashMap<&str, Variable>, tab
                             found.kind.get_lexeme()
                         );
                     } else {
-                        eprintln!("Expected {} but found EOF", expected.get_lexeme());
+                        eprintln!("Expected {} but found EOF", &expected.get_lexeme());
                     }
                 }
-                ParserError::ExpectedEOF { found } => {
-                    eprintln!("Expected EOF but found '{}'", found.kind.get_lexeme())
-                }
+                ParserError::ExpectedEOF { found } => eprintln!(
+                    "Expected EOF but found '{}'", &found.kind.get_lexeme()
+                ),
+                ParserError::InvalidAssignmentTarget { target } => eprintln!(
+                    "Column {} :: '{}' is not a valid assignment target",
+                    target.col,
+                    &target.kind.get_lexeme(),
+                ),
             }
             return;
         }
@@ -145,6 +150,11 @@ fn process_expression(expression: &str, variables: &HashMap<&str, Variable>, tab
                     expected_type,
                     value.get_type_string()
                 ),
+                EvaluationError::ConstantAssignment { name } => eprintln!(
+                    "Column {} :: Cannot assign to '{}' as it is constant",
+                    name.col,
+                    &name.kind.get_lexeme()
+                ),
             }
             return;
         }
@@ -153,7 +163,7 @@ fn process_expression(expression: &str, variables: &HashMap<&str, Variable>, tab
     println!("{}", &result);
 }
 
-fn start_repl(tabsize: u8, variables: &HashMap<&str, Variable>) {
+fn start_repl(tabsize: u8, variables: &mut HashMap<String, Variable>) {
     let mut input = String::new();
 
     println!("Enter mathematical expressions to evaluate. Type 'exit' to quit.");

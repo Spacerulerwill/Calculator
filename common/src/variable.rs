@@ -7,10 +7,17 @@ pub struct Variable<'a> {
 }
 
 impl Variable<'_> {
-    pub fn as_constant(value: Value) -> Variable {
+    pub fn new(constant: bool, value: Value) -> Variable {
         Variable {
-            constant: true,
+            constant: constant,
             value: value
         }
+    }
+    pub fn as_constant(value: Value) -> Variable {
+        Variable::new(true, value)
+    }
+    
+    pub fn as_variable(value: Value) -> Variable {
+        Variable::new(false, value)
     }
 }

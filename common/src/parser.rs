@@ -1,5 +1,7 @@
 /*
-<expression> ::= <term>
+<expression> ::= <assignment>
+
+<assignment> ::= <IDENTIFIER> "=" <assignment> | <term>
 
 <term> ::= <factor> ( ( "-" | "+" ) <factor> )*
 
@@ -38,6 +40,7 @@ pub enum ParserError {
     ExpectedEOF {
         found: Token,
     },
+    InvalidAssignmentTarget{target: Token}
 }
 
 #[derive(Debug)]
@@ -57,8 +60,27 @@ impl Parser {
         Ok(expr)
     }
 
+
     fn expression(&mut self) -> Result<Expr, ParserError> {
-        self.term()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expr, ParserError> {
+        let expr = self.term()?;
+        if self.check(TokenKind::Equal) {
+            let equal = self.iter.next().unwrap();
+            let value = self.assignment()?;
+            match expr {
+                Expr::Identifier { name } => {
+                    return Ok(Expr::Assign {
+                        name: name,
+                        new_value: Box::new(value),
+                    })
+                }
+                _ => return Err(ParserError::InvalidAssignmentTarget{target: equal}),
+            }
+        }
+        Ok(expr)
     }
 
     fn term(&mut self) -> Result<Expr, ParserError> {

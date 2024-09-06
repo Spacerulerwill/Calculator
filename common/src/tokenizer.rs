@@ -17,6 +17,7 @@ pub enum TokenKind {
     Pipe,
     Percent,
     Comma,
+    Equal,
     Identifier(String),
     Number(Complex64),
 }
@@ -35,6 +36,7 @@ impl TokenKind {
             TokenKind::Pipe => String::from("|"),
             TokenKind::Percent => String::from("%"),
             TokenKind::Comma => String::from(","),
+            TokenKind::Equal => String::from("="),
             TokenKind::Identifier(indentifier) => indentifier.clone(),
             TokenKind::Number(number) => number.to_string(),
         }
@@ -91,6 +93,7 @@ impl<'a> Tokenizer<'a> {
                 '|' => self.add_single_char_token(TokenKind::Pipe),
                 '%' => self.add_single_char_token(TokenKind::Percent),
                 ',' => self.add_single_char_token(TokenKind::Comma),
+                '=' => self.add_single_char_token(TokenKind::Equal),
                 'a'..='z' | 'A'..='Z' | '_' => self.tokenize_identifier(),
                 '0'..='9' => self.tokenize_number(),
                 _ => return Err(TokenizerError::BadChar(ch, self.current_col)),

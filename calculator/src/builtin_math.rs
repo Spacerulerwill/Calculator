@@ -16,18 +16,18 @@ define_calculator_builtin_function!(log10, (val: complex), Ok(Value::Number(val.
 define_calculator_builtin_function!(ln, (val: complex), Ok(Value::Number(val.ln())));
 
 #[rustfmt::skip]
-pub fn get_starting_variables() -> HashMap<&'static str, Variable<'static>> {
+pub fn get_starting_variables() -> HashMap<String, Variable<'static>> {
     HashMap::from([
-        ("i", Variable::as_constant(Value::Number(Complex64::I))),
-        ("e", Variable::as_constant(Value::Number(Complex64::from(E)))),
-        ("pi", Variable::as_constant(Value::Number(Complex64::from(PI)))),
-        ("tau", Variable::as_constant(Value::Number(Complex64::from(TAU)))),
-        ("sin", Variable::as_constant(sin)),
-        ("cos", Variable::as_constant(cos)),
-        ("tan", Variable::as_constant(tan)),
-        ("log", Variable::as_constant(log)),
-        ("log2", Variable::as_constant(log2)),
-        ("log10", Variable::as_constant(log10)),
-        ("ln", Variable::as_constant(ln)),
+        (String::from("i"), Variable::as_constant(Value::Number(Complex64::I))),
+        (String::from("e"), Variable::as_constant(Value::Number(Complex64::from(E)))),
+        (String::from("pi"), Variable::as_constant(Value::Number(Complex64::from(PI)))),
+        (String::from("tau"), Variable::as_constant(Value::Number(Complex64::from(TAU)))),
+        (String::from("sin"), Variable::as_constant(sin)),
+        (String::from("cos"), Variable::as_constant(cos)),
+        (String::from("tan"), Variable::as_constant(tan)),
+        (String::from("log"), Variable::as_constant(log)),
+        (String::from("log2"), Variable::as_constant(log2)),
+        (String::from("log10"), Variable::as_constant(log10)),
+        (String::from("ln"), Variable::as_constant(ln)),
     ])
 }
