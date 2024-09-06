@@ -80,10 +80,9 @@ fn process_expression(expression: &str, variables: &mut HashMap<String, Variable
                 ParserError::ExpectedEOF { found } => eprintln!(
                     "Expected EOF but found '{}'", &found.kind.get_lexeme()
                 ),
-                ParserError::InvalidAssignmentTarget { target } => eprintln!(
-                    "Column {} :: '{}' is not a valid assignment target",
-                    target.col,
-                    &target.kind.get_lexeme(),
+                ParserError::InvalidAssignmentTarget { equal } => eprintln!(
+                    "Column {} :: Invalid assignment target",
+                    equal.col
                 ),
             }
             return;
