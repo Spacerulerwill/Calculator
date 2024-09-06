@@ -122,6 +122,7 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
 
     // Generate const and function implementation
     let expanded = quote! {
+        #[allow(non_upper_case_globals)]
         pub const #function_name: common::value::Value = {
             fn internal_builtin_function(col: usize, args: Vec<common::value::Value>) -> Result<common::value::Value, common::expr::EvaluationError> {
                 #(#unwrap_args)*

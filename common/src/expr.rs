@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env::var_os, fmt};
+use std::{collections::HashMap, fmt};
 
 use crate::{
     tokenizer::{Token, TokenKind},

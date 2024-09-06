@@ -40,7 +40,7 @@ pub enum ParserError {
     ExpectedEOF {
         found: Token,
     },
-    InvalidAssignmentTarget{target: Token}
+    InvalidAssignmentTarget{equal: Token}
 }
 
 #[derive(Debug)]
@@ -77,7 +77,7 @@ impl Parser {
                         new_value: Box::new(value),
                     })
                 }
-                _ => return Err(ParserError::InvalidAssignmentTarget{target: equal}),
+                _ => return Err(ParserError::InvalidAssignmentTarget{equal: equal}),
             }
         }
         Ok(expr)
