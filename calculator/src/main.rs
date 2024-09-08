@@ -77,13 +77,12 @@ fn process_expression(expression: &str, variables: &mut HashMap<String, Variable
                         eprintln!("Expected {} but found EOF", &expected.get_lexeme());
                     }
                 }
-                ParserError::ExpectedEOF { found } => eprintln!(
-                    "Expected EOF but found '{}'", &found.kind.get_lexeme()
-                ),
-                ParserError::InvalidAssignmentTarget { equal } => eprintln!(
-                    "Column {} :: Invalid assignment target",
-                    equal.col
-                ),
+                ParserError::ExpectedEOF { found } => {
+                    eprintln!("Expected EOF but found '{}'", &found.kind.get_lexeme())
+                }
+                ParserError::InvalidAssignmentTarget { equal } => {
+                    eprintln!("Column {} :: Invalid assignment target", equal.col)
+                }
             }
             return;
         }
