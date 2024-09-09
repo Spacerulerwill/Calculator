@@ -3,7 +3,7 @@ use std::{
     f64::consts::{E, PI, TAU},
 };
 
-use common::{num_complex::Complex64, value::Value, variable::Variable};
+use common::{num_complex::{Complex64, ComplexFloat}, value::Value, variable::Variable};
 
 use proc_macros::define_calculator_builtin_function;
 
@@ -24,6 +24,11 @@ define_calculator_builtin_function!(log2, (val: complex), Ok(Value::Number(val.l
 define_calculator_builtin_function!(log10, (val: complex), Ok(Value::Number(val.log10())));
 define_calculator_builtin_function!(ln, (val: complex), Ok(Value::Number(val.ln())));
 define_calculator_builtin_function!(sqrt, (val: complex), Ok(Value::Number(val.sqrt())));
+define_calculator_builtin_function!(re, (val: complex), Ok(Value::Number(val.re().into())));
+define_calculator_builtin_function!(im, (val: complex), Ok(Value::Number(val.im().into())));
+define_calculator_builtin_function!(arg, (val: complex), Ok(Value::Number(val.arg().into())));
+define_calculator_builtin_function!(conj, (val: complex), Ok(Value::Number(val.conj())));
+
 
 #[rustfmt::skip]
 pub fn get_starting_variables() -> HashMap<String, Variable<'static>> {
@@ -50,5 +55,11 @@ pub fn get_starting_variables() -> HashMap<String, Variable<'static>> {
         (String::from("log10"), Variable::as_constant(log10)),
         (String::from("ln"), Variable::as_constant(ln)),
         (String::from("sqrt"), Variable::as_constant(sqrt)),
+        (String::from("re"), Variable::as_constant(re)),
+        (String::from("im"), Variable::as_constant(im)),
+        (String::from("arg"), Variable::as_constant(arg)),
+        (String::from("conj"), Variable::as_constant(conj)),
+
+
     ])
 }

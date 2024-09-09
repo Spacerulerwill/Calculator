@@ -205,6 +205,12 @@ impl<'a> Expr {
                 }
                 _ => {},
             },
+            TokenKind::Star => match &operand {
+                Value::Number(right) => {
+                    return Ok(Value::Number(right.conj()));
+                }
+                _ => {},
+            }
             kind => panic!("Invalid token kind for unary operation: {:?}", kind),
         }
         // None were matched, unsupported
