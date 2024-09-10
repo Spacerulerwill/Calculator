@@ -117,6 +117,8 @@ name = "common"
 version = "0.1.0"
 dependencies = [
  "num-complex",
+ "proc-macro2",
+ "quote",
 ]
 
 [[package]]
@@ -171,7 +173,6 @@ dependencies = [
  "common",
  "paste",
  "proc-macro2",
- "quote",
  "syn",
 ]
 

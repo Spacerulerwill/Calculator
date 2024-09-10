@@ -1,12 +1,13 @@
 use proc_macro::TokenStream;
-use quote::quote;
-use syn::parenthesized;
-use syn::punctuated::Punctuated;
-use syn::token::Comma;
+use common::quote::quote;
 use syn::{
+    parenthesized,
+    punctuated::Punctuated,
+    token::Comma,
     parse::{Parse, ParseStream},
     parse_macro_input, Expr, Ident, Token,
 };
+use std::str::FromStr;
 
 // Define a struct to hold the parsed function input
 struct FunctionInput {
@@ -56,67 +57,44 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
     let unwrap_args = args.iter().enumerate().map(|(i, arg)| {
         let Argument { name, arg_type } = arg;
         let binding = arg_type.to_string();
-        let arg_type = binding.as_str();
-        match arg_type {
-            "complex" => return quote!{
-                let #name = match args.get(#i) {
-                    Some(val) => match val {
-                        common::value::Value::Number(val) => val,
-                        val => return Err(common::expr::EvaluationError::IncorrectFunctionArgumentType{
-                            function_name: stringify!(#function_name),
-                            function_col: col,
-                            idx: #i + 1,
-                            name: stringify!(#name),
-                            value: val.clone(),
-                            expected_type: #arg_type
-                        })
-                    },
-                    _ => panic!("Missing argument")
+        let constraint = common::value::ValueConstraint::from_str(binding.as_str()).unwrap();
+        let constraint_checking = quote! {
+            let #name = args.get(#i).unwrap();
+            if !#name.fits_value_constraint(#constraint) {
+                return Err(common::expr::EvaluationError::IncorrectFunctionArgumentType {
+                    function_name: stringify!(#function_name),
+                    function_col: col,
+                    idx: #i + 1,
+                    name: stringify!(#name),
+                    constraint: #constraint,
+                });
+            }
+        };
+
+        let extract_variable = match constraint {
+            common::value::ValueConstraint::Function => quote!{
+                let #name = match #name {
+                    Value::Function(f) => f,
+                    _ => panic!()
                 };
             },
-            "real" => return quote!{
-                let #name = match args.get(#i) {
-                    Some(val) => match val {
-                        common::value::Value::Number(inner_val) => match inner_val.im {
-                            0.0 => inner_val.re,
-                            inner_val => return Err(common::expr::EvaluationError::IncorrectFunctionArgumentType{
-                                function_name: stringify!(#function_name),
-                                function_col: col,
-                                idx: #i + 1,
-                                name: stringify!(#name),
-                                value: val.clone(),
-                                expected_type: #arg_type
-                            })
-                        },
-                        _ => return Err(common::expr::EvaluationError::IncorrectFunctionArgumentType{
-                            function_name: stringify!(#function_name),
-                            function_col: col,
-                            idx: #i + 1,
-                            name: stringify!(#name),
-                            value: val.clone(),
-                            expected_type: #arg_type
-                        })
-                    },
-                    _ => panic!("Missing argument")
+            common::value::ValueConstraint::Number => quote!{
+                let #name = match #name {
+                    Value::Number(num) => num,
+                    _ => panic!()
                 };
             },
-            "function" => return quote!{
-                let #name = match args.get(#i) {
-                    Some(val) => match val {
-                        common::value::Value::Function(val) => val,
-                        _ => return Err(common::expr::EvaluationError::IncorrectFunctionArgumentType{
-                            function_name: stringify!(#function_name),
-                            function_col: col,
-                            idx: #i + 1,
-                            name: stringify!(#name),
-                            value: val.clone(),
-                            expected_type: #arg_type
-                        })
-                    },
-                    _ => panic!("Missing argument")
+            common::value::ValueConstraint::Real | common::value::ValueConstraint::Natural => quote!{
+                let #name = match #name {
+                    Value::Number(num) => num.re,
+                    _ => panic!()
                 };
             },
-            _ => panic!("Invalid argument type")
+        };
+
+        quote!{
+            #constraint_checking
+            #extract_variable
         }
     });
 
@@ -125,6 +103,9 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
         #[allow(non_upper_case_globals)]
         pub const #function_name: common::value::Value = {
             fn internal_builtin_function(col: usize, args: Vec<common::value::Value>) -> Result<common::value::Value, common::expr::EvaluationError> {
+                // TODO :: determine why this line is neccesary?
+                use common::value::ValueConstraint;
+                use common::num_complex::ComplexFloat;
                 #(#unwrap_args)*
                 #body
             }

@@ -8,6 +8,10 @@ use std::{
 pub enum TokenKind {
     LeftParen,
     RightParen,
+    LeftCeiling,
+    RightCeiling,
+    LeftFloor,
+    RightFloor,
     Plus,
     Minus,
     Slash,
@@ -27,6 +31,10 @@ impl TokenKind {
         match &self {
             TokenKind::LeftParen => String::from("("),
             TokenKind::RightParen => String::from(")"),
+            TokenKind::LeftCeiling => String::from("⌈"),
+            TokenKind::RightCeiling => String::from("⌉"),
+            TokenKind::LeftFloor => String::from("⌊"),
+            TokenKind::RightFloor => String::from("⌋"),
             TokenKind::Plus => String::from("+"),
             TokenKind::Minus => String::from("-"),
             TokenKind::Slash => String::from("/"),
@@ -84,6 +92,10 @@ impl<'a> Tokenizer<'a> {
                 }
                 '(' => self.add_single_char_token(TokenKind::LeftParen),
                 ')' => self.add_single_char_token(TokenKind::RightParen),
+                '⌈' => self.add_single_char_token(TokenKind::LeftCeiling),
+                '⌉' => self.add_single_char_token(TokenKind::RightCeiling),
+                '⌊' => self.add_single_char_token(TokenKind::LeftFloor),
+                '⌋' => self.add_single_char_token(TokenKind::RightFloor),
                 '+' => self.add_single_char_token(TokenKind::Plus),
                 '-' => self.add_single_char_token(TokenKind::Minus),
                 '/' => self.add_single_char_token(TokenKind::Slash),

@@ -3,9 +3,10 @@ mod builtin_math;
 use builtin_math::get_starting_variables;
 use clap::Parser as ClapParser;
 use common::{
-    expr::EvaluationError,
+    expr::{EvaluationError, GroupingKind},
     parser::{Parser, ParserError},
     tokenizer::{Tokenizer, TokenizerError},
+    value::ValueConstraint,
     variable::Variable,
 };
 use std::{
@@ -106,47 +107,51 @@ fn process_expression(expression: &str, variables: &mut HashMap<String, Variable
                     paren.col, function.name, function.arity, received,
                 ),
                 EvaluationError::UnsupportedBinaryOperator {
-                    left,
                     operator,
-                    right,
+                    constraint
                 } => eprintln!(
-                    "Column {} :: Unsupported binary operator '{}' for types '{}' and '{}'",
+                    "Column {} :: Cannot apply binary operator '{}' as one or more operands does not meet value constraint '{}'",
                     operator.col,
                     &operator.kind.get_lexeme(),
-                    left.get_type_string(),
-                    right.get_type_string()
+                    constraint
                 ),
-                EvaluationError::UnsupportedUnaryOperator { value, operator } => eprintln!(
-                    "Column {} :: Unsupported unary operator '{}' for type '{}'",
+                EvaluationError::UnsupportedUnaryOperator { operator, constraint} => eprintln!(
+                    "Column {} :: Cannot apply unary operator '{}' as operand does not meet value constraint '{}'",
                     operator.col,
                     &operator.kind.get_lexeme(),
-                    value.get_type_string()
+                    constraint
                 ),
-                EvaluationError::InvalidCallable { callee, paren } => eprintln!(
-                    "Column {} :: Type '{}' is not callable",
+                EvaluationError::InvalidCallable { paren } => eprintln!(
+                    "Column {} :: Callee does not meet value constraint '{}'",
                     paren.col,
-                    callee.get_type_string()
+                    ValueConstraint::Function
                 ),
-                EvaluationError::UnsupportedAbsoluteOperand { pipe, value } => eprintln!(
-                    "Column {} :: Type '{}' is not supported for absolute grouping",
-                    pipe.col,
-                    value.get_type_string()
-                ),
+                EvaluationError::GroupingValueConstraintNotMet { paren, kind, constraint } => {
+                    let grouping_str = match kind {
+                        GroupingKind::Grouping => "grouping",
+                        GroupingKind::Absolute => "absolute grouping",
+                        GroupingKind::Ceil => "ceil grouping",
+                        GroupingKind::Floor => "floor grouping"
+                    };
+                    eprintln!(
+                        "Column {} :: Value in {grouping_str} does meet value constraint '{}'",
+                        paren.col,
+                        constraint
+                    )
+                },
                 EvaluationError::IncorrectFunctionArgumentType {
                     function_name,
                     function_col,
                     idx,
                     name,
-                    value,
-                    expected_type,
+                    constraint
                 } => eprintln!(
-                    "Column {} :: Function '{}' expects argument {} ({}) to be of type '{}' but found type '{}'",
+                    "Column {} :: Argument {} ({}) for function '{}' does not meet value constraint '{}'",
                     function_col,
-                    function_name,
                     idx,
                     name,
-                    expected_type,
-                    value.get_type_string()
+                    function_name,
+                    constraint,
                 ),
                 EvaluationError::ConstantAssignment { name } => eprintln!(
                     "Column {} :: Cannot assign to '{}' as it is constant",

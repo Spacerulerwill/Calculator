@@ -15,7 +15,12 @@
 
 <call> ::= <primary> ( "(" <arguments>? ")" )*
 
-<primary> ::= <NUMBER> | <IDENTIFIER> | "(" <expression> ")" | "|" <expression> "|"
+<primary> ::= <NUMBER> 
+              | <IDENTIFIER> 
+              | "(" <expression> ")" 
+              | "|" <expression> "|" 
+              | "⌈" <expression> "⌉"
+              | "⌊" <expression> "⌋"
 
 // helper rules
 <arguments> ::= <expression> ( "," <expression> )*
@@ -24,7 +29,7 @@
 use std::{iter::Peekable, vec::IntoIter};
 
 use crate::{
-    expr::Expr,
+    expr::{Expr, GroupingKind},
     tokenizer::{Token, TokenKind},
 };
 
@@ -214,14 +219,35 @@ impl Parser {
                     let expr = self.expression()?;
                     self.consume(TokenKind::RightParen)?;
                     return Ok(Expr::Grouping {
+                        paren: token,
+                        kind: GroupingKind::Grouping,
                         expr: Box::new(expr),
                     });
                 }
                 TokenKind::Pipe => {
                     let expr = self.expression()?;
                     self.consume(TokenKind::Pipe)?;
-                    return Ok(Expr::Absolute {
-                        pipe: token,
+                    return Ok(Expr::Grouping {
+                        paren: token,
+                        kind: GroupingKind::Absolute,
+                        expr: Box::new(expr),
+                    });
+                }
+                TokenKind::LeftCeiling => {
+                    let expr = self.expression()?;
+                    self.consume(TokenKind::RightCeiling)?;
+                    return Ok(Expr::Grouping {
+                        paren: token,
+                        kind: GroupingKind::Ceil,
+                        expr: Box::new(expr),
+                    });
+                }
+                TokenKind::LeftFloor => {
+                    let expr = self.expression()?;
+                    self.consume(TokenKind::RightFloor)?;
+                    return Ok(Expr::Grouping {
+                        paren: token,
+                        kind: GroupingKind::Floor,
                         expr: Box::new(expr),
                     });
                 }

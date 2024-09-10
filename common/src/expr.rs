@@ -1,12 +1,16 @@
 use std::{collections::HashMap, fmt};
 
 use crate::{
-    tokenizer::{Token, TokenKind},
-    variable::Variable,
-    value::Value,
-    function::Function,
-    num_complex::Complex64
+    function::Function, num_complex::Complex64, tokenizer::{Token, TokenKind}, value::{Value, ValueConstraint}, variable::Variable
 };
+
+#[derive(Debug, Clone)]
+pub enum GroupingKind {
+    Grouping,
+    Absolute,
+    Ceil,
+    Floor
+}
 
 #[derive(Debug, Clone)]
 pub enum Expr {
@@ -24,10 +28,8 @@ pub enum Expr {
         operand: Box<Expr>,
     },
     Grouping {
-        expr: Box<Expr>,
-    },
-    Absolute {
-        pipe: Token,
+        paren: Token,
+        kind: GroupingKind,
         expr: Box<Expr>,
     },
     Number {
@@ -58,24 +60,22 @@ pub enum EvaluationError<'a> {
         function_col: usize,
         idx: usize,
         name: &'a str,
-        value: Value<'a>,
-        expected_type: &'a str,
+        constraint: ValueConstraint,
     },
     UnsupportedBinaryOperator {
-        left: Value<'a>,
         operator: Token,
-        right: Value<'a>,
+        constraint: ValueConstraint
     },
     UnsupportedUnaryOperator {
-        value: Value<'a>,
         operator: Token,
+        constraint: ValueConstraint
     },
-    UnsupportedAbsoluteOperand {
-        pipe: Token,
-        value: Value<'a>
+    GroupingValueConstraintNotMet {
+        paren: Token,
+        kind: GroupingKind,
+        constraint: ValueConstraint,
     },
     InvalidCallable {
-        callee: Value<'a>,
         paren: Token
     },
     ConstantAssignment {
@@ -96,8 +96,7 @@ impl<'a> Expr {
                 right,
             } => Self::evaluate_binary(left, operator, right, variables),
             Expr::Unary { operator, operand } => Self::evaluate_unary(operand, operator, variables),
-            Expr::Grouping { expr } => Self::evaluate_grouping(expr, variables),
-            Expr::Absolute { pipe, expr } => Self::evaluate_absolute(pipe, expr, variables),
+            Expr::Grouping { paren, kind, expr } => Self::evaluate_grouping(paren, kind, expr, variables),
             Expr::Number { number } => Ok(Value::Number(number)),
             Expr::Identifier { name } => Self::evaluate_identifier(name, variables),
             Expr::Call { callee, paren, arguments} => Self::evaluate_call(callee, paren, arguments, variables),
@@ -175,9 +174,8 @@ impl<'a> Expr {
         }
         // None were matched, unsupported
         Err(EvaluationError::UnsupportedBinaryOperator {
-            left,
             operator,
-            right,
+            constraint: ValueConstraint::Number
         })
     }
 
@@ -192,47 +190,51 @@ impl<'a> Expr {
                 Value::Number(right) => {
                     return Ok(Value::Number(right * Complex64::new(-1.0, 0.0)));
                 }
-                _ => {},
+                _ => return Err(EvaluationError::UnsupportedUnaryOperator { operator: operator, constraint: ValueConstraint::Number  })
             },
             TokenKind::Bang => match &operand {
-                Value::Number(right) => {
-                    let real_part = right.re;
-                    if right.im == 0.0 {
-                        if real_part.fract() == 0.0 && real_part >= 0.0 {
-                            return Ok(Value::Number(factorial(real_part as u64).into()))
-                        }
-                    }
+                Value::Number(right) if operand.fits_value_constraint(ValueConstraint::Natural) => {
+                    return Ok(Value::Number(factorial(right.re as u64).into()))
                 }
-                _ => {},
+                _ => return Err(EvaluationError::UnsupportedUnaryOperator { operator: operator, constraint: ValueConstraint::Natural  })
             },
-            TokenKind::Star => match &operand {
-                Value::Number(right) => {
-                    return Ok(Value::Number(right.conj()));
-                }
-                _ => {},
-            }
             kind => panic!("Invalid token kind for unary operation: {:?}", kind),
         }
-        // None were matched, unsupported
-        Err(EvaluationError::UnsupportedUnaryOperator { value: operand, operator: operator })
     }
 
     fn evaluate_grouping(
+        paren: Token,
+        kind: GroupingKind,
         expr: Box<Expr>,
         variables: &mut HashMap<String, Variable<'a>>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
-        expr.evaluate(variables)
-    }
-
-    fn evaluate_absolute(
-        pipe: Token,
-        expr: Box<Expr>,
-        variables: &mut HashMap<String, Variable<'a>>,
-    ) -> Result<Value<'a>, EvaluationError<'a>> {
-        let result = expr.evaluate(variables)?;
-        match result {
-            Value::Number(result) => Ok(Value::Number(result.norm().into())),
-            _ => Err(EvaluationError::UnsupportedAbsoluteOperand { pipe: pipe, value: result }),
+        match kind {
+            GroupingKind::Grouping => expr.evaluate(variables),
+            GroupingKind::Absolute => {
+                let result = expr.evaluate(variables)?;
+                match result {
+                    Value::Number(result) => Ok(Value::Number(result.norm().into())),
+                    _ => Err(EvaluationError::GroupingValueConstraintNotMet { paren: paren, kind: kind, constraint: ValueConstraint::Number }),
+                }
+            },
+            GroupingKind::Ceil => {
+                let result = expr.evaluate(variables)?;
+                match result {
+                    Value::Number(num) if result.fits_value_constraint(ValueConstraint::Real) => {
+                        return Ok(Value::Number(num.re.ceil().into()));
+                    }
+                    _ => Err(EvaluationError::GroupingValueConstraintNotMet { paren: paren, kind: kind, constraint: ValueConstraint::Real }),
+                }
+            },
+            GroupingKind::Floor => {
+                let result = expr.evaluate(variables)?;
+                match result {
+                    Value::Number(num) if result.fits_value_constraint(ValueConstraint::Real) => {
+                        return Ok(Value::Number(num.re.floor().into()));
+                    }
+                    _ => Err(EvaluationError::GroupingValueConstraintNotMet { paren: paren, kind: kind, constraint: ValueConstraint::Real }),
+                }
+            },
         }
     }
 
@@ -268,7 +270,7 @@ impl<'a> Expr {
                 }
                 return Ok((function.function)(paren.col, evaluated_arguments)?)
             } 
-            _ => return Err(EvaluationError::InvalidCallable { callee: callee, paren: paren })
+            _ => return Err(EvaluationError::InvalidCallable { paren: paren })
 
         }
     } 
@@ -284,8 +286,12 @@ impl fmt::Display for Expr {
                 TokenKind::Minus => write!(f, "{}{operand}", &operator.kind.get_lexeme()),
                 kind => panic!("Invalid operator for unary expression {:?}", kind)
             }
-            Expr::Grouping { expr } => write!(f, "({expr})"),
-            Expr::Absolute { pipe: _, expr } => write!(f, "|{expr}|"),
+            Expr::Grouping { paren: _, kind, expr } => match kind {
+                GroupingKind::Grouping => write!(f, "({expr})"),
+                GroupingKind::Absolute => write!(f, "|{expr}|"),
+                GroupingKind::Ceil => write!(f, "⌈{expr}⌉"),
+                GroupingKind::Floor => write!(f, "⌊{expr}⌋"),
+            },
             Expr::Number { number } => write!(f, "{}", complex_to_string(number)),
             Expr::Identifier { name } => write!(f, "{}", name.kind.get_lexeme()),
             Expr::Call { callee, paren: _, arguments } => {
