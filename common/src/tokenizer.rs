@@ -109,7 +109,7 @@ impl<'a> Tokenizer<'a> {
                 ',' => self.add_single_char_token(TokenKind::Comma),
                 '=' => self.add_single_char_token(TokenKind::Equal),
                 '√' => self.add_single_char_token(TokenKind::Sqrt),
-                'a'..='z' | 'A'..='Z' | '_' | 'π' => self.tokenize_identifier(),
+                'a'..='z' | 'A'..='Z' | '_' | 'π' | 'ϕ' => self.tokenize_identifier(),
                 '0'..='9' => self.tokenize_number(),
                 _ => return Err(TokenizerError::BadChar(ch, self.current_col)),
             }

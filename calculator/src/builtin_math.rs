@@ -10,6 +10,10 @@ use common::{
 };
 use proc_macros::define_calculator_builtin_function;
 
+const C: f64 = 299792458_f64;
+const G: f64 =  9.80665_f64;
+const PHI: f64 = 1.618033988749894848204586834365638118_f64;
+
 // trigonometry
 define_calculator_builtin_function!(sin, (val: number), Ok(Value::Number(val.sin())));
 define_calculator_builtin_function!(cos, (val: number), Ok(Value::Number(val.cos())));
@@ -47,7 +51,11 @@ pub fn get_starting_variables() -> HashMap<String, Variable<'static>> {
         (String::from("e"), Variable::as_constant(Value::Number(Complex64::from(E)))),
         (String::from("pi"), Variable::as_constant(Value::Number(Complex64::from(PI)))),
         (String::from("π"), Variable::as_constant(Value::Number(Complex64::from(PI)))),
+        (String::from("phi"), Variable::as_constant(Value::Number(Complex64::from(PHI)))),
+        (String::from("ϕ"), Variable::as_constant(Value::Number(Complex64::from(PHI)))),
         (String::from("tau"), Variable::as_constant(Value::Number(Complex64::from(TAU)))),
+        (String::from("c"), Variable::as_constant(Value::Number(Complex64::from(C)))),
+        (String::from("g"), Variable::as_constant(Value::Number(Complex64::from(G)))),
         (String::from("sin"), Variable::as_constant(sin)),
         (String::from("cos"), Variable::as_constant(cos)),
         (String::from("tan"), Variable::as_constant(tan)),
