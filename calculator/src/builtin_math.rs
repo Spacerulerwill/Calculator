@@ -3,7 +3,12 @@ use std::{
     f64::consts::{E, PI, TAU},
 };
 
-use common::{num_complex::Complex64, value::Value, variable::Variable};
+use common::{
+    num_complex::Complex64, 
+    value::Value, 
+    variable::Variable,
+    num::integer::{gcd as _gcd, lcm as _lcm}
+};
 use proc_macros::define_calculator_builtin_function;
 
 // trigonometry
@@ -33,6 +38,9 @@ define_calculator_builtin_function!(log2, (val: number), Ok(Value::Number(val.lo
 define_calculator_builtin_function!(log10, (val: number), Ok(Value::Number(val.log10())));
 define_calculator_builtin_function!(ln, (val: number), Ok(Value::Number(val.ln())));
 define_calculator_builtin_function!(sqrt, (val: number), Ok(Value::Number(val.sqrt())));
+define_calculator_builtin_function!(gcd, (first: integer, second: integer), Ok(Value::Number(Complex64::from(_gcd(first as i64, second as i64) as f64))));
+define_calculator_builtin_function!(lcm, (first: integer, second: integer), Ok(Value::Number(Complex64::from(_lcm(first as i64, second as i64) as f64))));
+
 
 #[rustfmt::skip]
 pub fn get_starting_variables() -> HashMap<String, Variable<'static>> {
@@ -66,5 +74,7 @@ pub fn get_starting_variables() -> HashMap<String, Variable<'static>> {
         (String::from("log10"), Variable::as_constant(log10)),
         (String::from("ln"), Variable::as_constant(ln)),
         (String::from("sqrt"), Variable::as_constant(sqrt)),
+        (String::from("gcd"), Variable::as_constant(gcd)),
+        (String::from("lcm"), Variable::as_constant(lcm))
     ])
 }

@@ -7,3 +7,4 @@ pub mod value;
 pub use num_complex;
 pub use quote;
 pub use proc_macro2;
+pub use num;

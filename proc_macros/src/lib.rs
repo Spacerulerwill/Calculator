@@ -84,7 +84,9 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
                     _ => panic!()
                 };
             },
-            common::value::ValueConstraint::Real | common::value::ValueConstraint::Natural => quote!{
+            common::value::ValueConstraint::Real 
+            | common::value::ValueConstraint::Natural 
+            | common::value::ValueConstraint::Integer => quote!{
                 let #name = match #name {
                     Value::Number(num) => num.re,
                     _ => panic!()

@@ -13,6 +13,7 @@ pub enum ValueConstraint {
     Number,
     Real,
     Natural,
+    Integer,
 }
 
 impl FromStr for ValueConstraint {
@@ -24,6 +25,7 @@ impl FromStr for ValueConstraint {
             "number" => Ok(ValueConstraint::Number),
             "real" => Ok(ValueConstraint::Real),
             "natural" => Ok(ValueConstraint::Natural),
+            "integer" => Ok(ValueConstraint::Integer),
             _ => Err(())
         }
     }
@@ -36,6 +38,7 @@ impl fmt::Display for ValueConstraint {
             ValueConstraint::Number => write!(f, "number"),
             ValueConstraint::Real => write!(f, "real"),
             ValueConstraint::Natural => write!(f, "natural"),
+            ValueConstraint::Integer => write!(f, "integer")
         }
     }
 }
@@ -47,7 +50,8 @@ impl ToTokens for ValueConstraint {
             ValueConstraint::Function => quote! { ValueConstraint::Function },
             ValueConstraint::Number => quote! { ValueConstraint::Number },
             ValueConstraint::Real => quote! { ValueConstraint::Real },
-            ValueConstraint::Natural => quote! { ValueConstraint::Natural }
+            ValueConstraint::Natural => quote! { ValueConstraint::Natural },
+            ValueConstraint::Integer => quote! { ValueConstraint::Integer }
         };
         tokens.extend(token_str);
     }
@@ -85,6 +89,10 @@ impl Value<'_> {
             },
             ValueConstraint::Natural => match self {
                 Value::Number(num) => num.im == 0.0 && num.re.fract() == 0.0 && num.re >= 0.0,
+                _ => false
+            }
+            ValueConstraint::Integer => match self {
+                Value::Number(num) => num.im == 0.0 && num.re.fract() == 0.0,
                 _ => false
             }
         }
