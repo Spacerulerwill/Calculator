@@ -22,6 +22,7 @@ pub enum TokenKind {
     Percent,
     Comma,
     Equal,
+    Sqrt,
     Identifier(String),
     Number(Complex64),
 }
@@ -45,6 +46,7 @@ impl TokenKind {
             TokenKind::Percent => String::from("%"),
             TokenKind::Comma => String::from(","),
             TokenKind::Equal => String::from("="),
+            TokenKind::Sqrt => String::from("√"),
             TokenKind::Identifier(indentifier) => indentifier.clone(),
             TokenKind::Number(number) => number.to_string(),
         }
@@ -106,6 +108,7 @@ impl<'a> Tokenizer<'a> {
                 '%' => self.add_single_char_token(TokenKind::Percent),
                 ',' => self.add_single_char_token(TokenKind::Comma),
                 '=' => self.add_single_char_token(TokenKind::Equal),
+                '√' => self.add_single_char_token(TokenKind::Sqrt),
                 'a'..='z' | 'A'..='Z' | '_' | 'π' => self.tokenize_identifier(),
                 '0'..='9' => self.tokenize_number(),
                 _ => return Err(TokenizerError::BadChar(ch, self.current_col)),

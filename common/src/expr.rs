@@ -192,6 +192,12 @@ impl<'a> Expr {
                 }
                 _ => return Err(EvaluationError::UnsupportedUnaryOperator { operator: operator, constraint: ValueConstraint::Number  })
             },
+            TokenKind::Sqrt => match &operand {
+                Value::Number(right) => {
+                    return Ok(Value::Number(right.sqrt()));
+                }
+                _ => return Err(EvaluationError::UnsupportedUnaryOperator { operator: operator, constraint: ValueConstraint::Number  })
+            }
             TokenKind::Bang => match &operand {
                 Value::Number(right) if operand.fits_value_constraint(ValueConstraint::Natural) => {
                     return Ok(Value::Number(factorial(right.re as u64).into()))

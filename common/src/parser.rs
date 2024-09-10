@@ -9,7 +9,7 @@
 
 <exponent> ::= <unary> ( "^" <unary> )*
 
-<unary> ::= "-" <unary> | <factorial>
+<unary> ::= ( "-" | "√" ) <unary> | <factorial>
 
 <factorial> ::= <call> ( "!" )*
 
@@ -149,7 +149,7 @@ impl Parser {
     fn unary(&mut self) -> Result<Expr, ParserError> {
         if let Some(token) = self.iter.peek() {
             match token.kind {
-                TokenKind::Minus => {
+                TokenKind::Minus | TokenKind::Sqrt => {
                     let token = self.iter.next().unwrap();
                     let operand = self.unary()?;
                     return Ok(Expr::Unary {
