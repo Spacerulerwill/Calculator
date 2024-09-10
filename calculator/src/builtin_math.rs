@@ -2,7 +2,6 @@ use std::{
     collections::HashMap,
     f64::consts::{E, PI, TAU},
 };
-
 use common::{
     num_complex::Complex64, 
     value::Value, 
@@ -40,7 +39,6 @@ define_calculator_builtin_function!(ln, (val: number), Ok(Value::Number(val.ln()
 define_calculator_builtin_function!(sqrt, (val: number), Ok(Value::Number(val.sqrt())));
 define_calculator_builtin_function!(gcd, (first: integer, second: integer), Ok(Value::Number(Complex64::from(_gcd(first as i64, second as i64) as f64))));
 define_calculator_builtin_function!(lcm, (first: integer, second: integer), Ok(Value::Number(Complex64::from(_lcm(first as i64, second as i64) as f64))));
-
 
 #[rustfmt::skip]
 pub fn get_starting_variables() -> HashMap<String, Variable<'static>> {
