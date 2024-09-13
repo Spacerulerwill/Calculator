@@ -107,6 +107,12 @@ fn process_expression(expression: &str, variables: &mut HashMap<String, Variable
                     "Column {} :: Function '{}' requires {} argument(s) but received {}",
                     paren.col, name, required, received,
                 ),
+                EvaluationError::IncorrectFunctionArgumentSignature { paren, name } => eprintln!(
+                    "Column {} :: Incorrect argument signature for function '{}'. Type '{}' to see list of signatures",
+                    paren.col,
+                    name,
+                    name
+                ),
                 EvaluationError::UnsupportedBinaryOperator {
                     operator,
                     constraint

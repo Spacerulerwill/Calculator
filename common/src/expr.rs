@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::{self, Error}};
+use std::{collections::HashMap, fmt::{self}};
 
 use crate::{
     function::{Function, UserDefinedFunctionArgType}, num_complex::Complex64, tokenizer::{Token, TokenKind}, value::{Value, ValueConstraint}, variable::Variable
@@ -55,6 +55,10 @@ pub enum EvaluationError<'a> {
         name: &'a str,
         received: usize,
         required: usize,
+    },
+    IncorrectFunctionArgumentSignature {
+        paren: Token,
+        name: &'a str,
     },
     IncorrectFunctionArgumentType {
         function_name: &'a str,
@@ -322,7 +326,7 @@ impl<'a> Expr {
                                 return expr.evaluate(&mut inputs)
                             }
                         }
-                        todo!()
+                        Err(EvaluationError::IncorrectFunctionArgumentSignature { paren: paren, name: func.name })
                     }
                 }
             } 
