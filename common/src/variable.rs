@@ -1,6 +1,6 @@
 use crate::value::Value;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Variable<'a> {
     pub constant: bool,
     pub value: Value<'a>,

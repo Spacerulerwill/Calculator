@@ -81,7 +81,7 @@ impl Parser {
                         name: name,
                         new_value: Box::new(value),
                     })
-                }
+                },
                 _ => return Err(ParserError::InvalidAssignmentTarget{equal: equal}),
             }
         }

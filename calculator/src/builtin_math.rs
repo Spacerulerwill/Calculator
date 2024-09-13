@@ -1,17 +1,20 @@
+use common::{
+    expr::Expr,
+    function::{Function, UserDefinedFunction, UserDefinedFunctionArgType},
+    num::integer::{gcd as _gcd, lcm as _lcm},
+    num_complex::Complex64,
+    tokenizer::{Token, TokenKind},
+    value::Value,
+    variable::Variable,
+};
+use proc_macros::define_calculator_builtin_function;
 use std::{
     collections::HashMap,
     f64::consts::{E, PI, TAU},
 };
-use common::{
-    num_complex::Complex64, 
-    value::Value, 
-    variable::Variable,
-    num::integer::{gcd as _gcd, lcm as _lcm}
-};
-use proc_macros::define_calculator_builtin_function;
 
 const C: f64 = 299792458_f64;
-const G: f64 =  9.80665_f64;
+const G: f64 = 9.80665_f64;
 const PHI: f64 = 1.618033988749894848204586834365638118_f64;
 
 // trigonometry
@@ -81,6 +84,46 @@ pub fn get_starting_variables() -> HashMap<String, Variable<'static>> {
         (String::from("ln"), Variable::as_constant(ln)),
         (String::from("sqrt"), Variable::as_constant(sqrt)),
         (String::from("gcd"), Variable::as_constant(gcd)),
-        (String::from("lcm"), Variable::as_constant(lcm))
+        (String::from("lcm"), Variable::as_constant(lcm)),
+        (String::from("fib"), Variable::as_variable(Value::Function(Function::UserDefinedFunction(UserDefinedFunction {
+            name: "fib",
+            signatures: vec![
+                (
+                    vec![UserDefinedFunctionArgType::Number(Complex64::from(0.0))],
+                    Expr::Number { number: Complex64::from(0.0) }
+                ),
+                (
+                    vec![UserDefinedFunctionArgType::Number(Complex64::from(1.0))],
+                    Expr::Number { number: Complex64::from(1.0) }
+                ),
+                (
+                    vec![UserDefinedFunctionArgType::Identifier(String::from("x"))], 
+                    Expr::Binary { 
+                        left: Box::new(Expr::Call { 
+                            callee: Box::new(Expr::Identifier { name: Token { kind: TokenKind::Identifier(String::from("fib")), col: 0 } }), 
+                            paren: Token { kind: TokenKind::LeftParen, col: 0 }, 
+                            arguments: vec![
+                                Expr::Binary { 
+                                    left: Box::new(Expr::Identifier { name: Token { kind: TokenKind::Identifier(String::from("x")), col: 0 } }), 
+                                    operator: Token { kind: TokenKind::Minus, col: 0 }, 
+                                    right: Box::new(Expr::Number { number: Complex64::from(1.0) }) 
+                                }
+                            ]
+                        }), 
+                        operator: Token { kind: TokenKind::Plus, col: 0}, 
+                        right: Box::new(Expr::Call { 
+                            callee: Box::new(Expr::Identifier { name: Token { kind: TokenKind::Identifier(String::from("fib")), col: 0 } }), 
+                            paren: Token { kind: TokenKind::LeftParen, col: 0 }, 
+                            arguments: vec![
+                                Expr::Binary { 
+                                    left: Box::new(Expr::Identifier { name: Token { kind: TokenKind::Identifier(String::from("x")), col: 0 } }), 
+                                    operator: Token { kind: TokenKind::Minus, col: 0 }, 
+                                    right: Box::new(Expr::Number { number: Complex64::from(2.0) }) 
+                                }
+                            ]
+                        }),
+                    }
+                )],
+        }))))
     ])
 }

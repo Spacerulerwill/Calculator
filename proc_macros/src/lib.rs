@@ -112,11 +112,11 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
                 #body
             }
 
-            common::value::Value::Function(common::function::Function {
+            common::value::Value::Function(common::function::Function::NativeFunction(common::function::NativeFunction {
                 name: stringify!(#function_name),
                 function: internal_builtin_function,
                 arity: #arity,
-            })
+            }))
         };
     };
 

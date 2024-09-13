@@ -1,7 +1,7 @@
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt::{self, Error}};
 
 use crate::{
-    function::Function, num_complex::Complex64, tokenizer::{Token, TokenKind}, value::{Value, ValueConstraint}, variable::Variable
+    function::{Function, UserDefinedFunctionArgType}, num_complex::Complex64, tokenizer::{Token, TokenKind}, value::{Value, ValueConstraint}, variable::Variable
 };
 
 #[derive(Debug, Clone)]
@@ -52,8 +52,9 @@ pub enum EvaluationError<'a> {
     },
     IncorrectFunctionArgumentCount {
         paren: Token,
-        function: Function<'a>,
+        name: &'a str,
         received: usize,
+        required: usize,
     },
     IncorrectFunctionArgumentType {
         function_name: &'a str,
@@ -79,6 +80,9 @@ pub enum EvaluationError<'a> {
         paren: Token
     },
     ConstantAssignment {
+        name: Token,
+    },
+    UnknownVariable {
         name: Token,
     }
 }
@@ -250,10 +254,35 @@ impl<'a> Expr {
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         match variables.get(name.kind.get_lexeme().as_str()) {
             Some(variable) => Ok(variable.value.clone()),
-            None => Ok(Value::Number(Complex64::from(0.0)))
+            None => Err(EvaluationError::UnknownVariable { name: name })
         }
     }
 
+    fn matches_signature(
+        signature: &Vec<UserDefinedFunctionArgType>,
+        arguments: &Vec<Value>,
+    ) -> bool {
+        if signature.len() != arguments.len() {
+            return false;
+        }
+    
+        for (param, arg) in signature.iter().zip(arguments.iter()) {
+            match param {
+                UserDefinedFunctionArgType::Identifier(_) => continue, // Identifier matches any number
+                UserDefinedFunctionArgType::Number(expected) => {
+                    match arg {
+                        Value::Function(_) => return false,
+                        Value::Number(num) => if num != expected {
+                            return false
+                        }
+                    };
+                }
+            }
+        }
+    
+        true
+    }
+    
     fn evaluate_call(
         callee: Box<Expr>,
         paren: Token,
@@ -263,18 +292,39 @@ impl<'a> Expr {
         let callee = callee.evaluate(variables)?;
         match callee {
             Value::Function(function) => {
-                if function.arity != arguments.len() {
-                    return Err(EvaluationError::IncorrectFunctionArgumentCount {
-                        paren: paren,
-                        function: function,
-                        received: arguments.len(),
-                    });
-                }
                 let mut evaluated_arguments = Vec::with_capacity(arguments.len());
                 for argument in arguments {
                     evaluated_arguments.push(argument.evaluate(variables)?);
                 }
-                return Ok((function.function)(paren.col, evaluated_arguments)?)
+
+                match function {
+                    Function::NativeFunction(func) => {
+                        if func.arity != evaluated_arguments.len() {
+                            return Err(EvaluationError::IncorrectFunctionArgumentCount {
+                                paren: paren,
+                                name: func.name,
+                                received: evaluated_arguments.len(),
+                                required: func.arity,
+                            });
+                        }
+                        Ok((func.function)(paren.col, evaluated_arguments)?)
+                    },
+                    Function::UserDefinedFunction(func) => {
+                        for (signature, expr) in func.signatures {
+                            if Self::matches_signature(&signature, &evaluated_arguments) {
+                                // TODO: we do not need to clone outer scope
+                                let mut inputs = variables.clone();
+                                for (arg_type, val) in signature.into_iter().zip(evaluated_arguments.into_iter()) {
+                                    if let UserDefinedFunctionArgType::Identifier(identifier) = arg_type {
+                                        inputs.insert(identifier, Variable::as_variable(val));
+                                    }
+                                }
+                                return expr.evaluate(&mut inputs)
+                            }
+                        }
+                        todo!()
+                    }
+                }
             } 
             _ => return Err(EvaluationError::InvalidCallable { paren: paren })
 

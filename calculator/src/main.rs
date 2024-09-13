@@ -100,11 +100,12 @@ fn process_expression(expression: &str, variables: &mut HashMap<String, Variable
                 ),
                 EvaluationError::IncorrectFunctionArgumentCount {
                     paren,
-                    function,
+                    name,
                     received,
+                    required,
                 } => eprintln!(
                     "Column {} :: Function '{}' requires {} argument(s) but received {}",
-                    paren.col, function.name, function.arity, received,
+                    paren.col, name, required, received,
                 ),
                 EvaluationError::UnsupportedBinaryOperator {
                     operator,
@@ -155,6 +156,11 @@ fn process_expression(expression: &str, variables: &mut HashMap<String, Variable
                 ),
                 EvaluationError::ConstantAssignment { name } => eprintln!(
                     "Column {} :: Cannot assign to '{}' as it is constant",
+                    name.col,
+                    &name.kind.get_lexeme()
+                ),
+                EvaluationError::UnknownVariable { name } => eprintln!(
+                    "Column {} :: Unknown variable '{}'",
                     name.col,
                     &name.kind.get_lexeme()
                 ),
