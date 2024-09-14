@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use std::{collections::HashMap, str::FromStr};
 use std::fmt;
 
@@ -59,7 +60,7 @@ impl ToTokens for ValueConstraint {
 
 #[derive(Debug, Clone)]
 pub enum Value<'a> {
-    Function(Function<'a>),
+    Function(Rc<Function<'a>>),
     Number(Complex64),
 }
 

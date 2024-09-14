@@ -1,7 +1,7 @@
-use std::{collections::HashMap, env::var, fmt::{self}};
+use std::{collections::HashMap, fmt::{self}};
 
 use crate::{
-    function::{Function, UserDefinedFunction, UserDefinedFunctionArgType}, 
+    function::{Function, UserDefinedFunctionArgType}, 
     num_complex::Complex64, tokenizer::{Token, TokenKind}, 
     value::{Value, ValueConstraint, ValueMap},
 };
@@ -330,7 +330,7 @@ impl<'a> Expr {
                     evaluated_arguments.push(argument.evaluate(constants, variables)?);
                 }
 
-                match function {
+                match &*function {
                     Function::NativeFunction(func) => {
                         if func.arity != evaluated_arguments.len() {
                             return Err(EvaluationError::IncorrectFunctionArgumentCount {
@@ -343,19 +343,19 @@ impl<'a> Expr {
                         Ok((func.function)(paren.col, evaluated_arguments)?)
                     },
                     Function::UserDefinedFunction(func) => {
-                        for (signature, expr) in func.signatures {
+                        for (signature, expr) in func.signatures.iter() {
                             if Self::matches_signature(&signature, &evaluated_arguments) {
                                 // Copy  
                                 let mut inputs = HashMap::new();
                                 for (arg_type, val) in signature.into_iter().zip(evaluated_arguments.into_iter()) {
                                     if let UserDefinedFunctionArgType::Identifier(identifier) = arg_type {
-                                        inputs.insert(identifier, val);
+                                        inputs.insert(identifier.clone(), val);
                                     }
                                 }
-                                return expr.evaluate(constants, &mut inputs)
+                                return expr.clone().evaluate(constants, &mut inputs)
                             }
                         }
-                        Err(EvaluationError::IncorrectFunctionArgumentSignature { paren: paren, name: func.name })
+                        Err(EvaluationError::IncorrectFunctionArgumentSignature { paren: paren, name: func.name.clone() })
                     }
                 }
             } 

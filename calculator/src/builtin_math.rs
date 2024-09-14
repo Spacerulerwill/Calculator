@@ -7,7 +7,7 @@ use common::{
     value::{Value, ValueMap},
 };
 use proc_macros::define_calculator_builtin_function;
-use std::f64::consts::{E, PI, TAU};
+use std::{f64::consts::{E, PI, TAU}, rc::Rc};
 
 const C: f64 = 299792458_f64;
 const G: f64 = 9.80665_f64;
@@ -55,33 +55,33 @@ pub fn get_constants() -> ValueMap<'static>{
         (String::from("tau"), Value::Number(Complex64::from(TAU))),
         (String::from("c"), Value::Number(Complex64::from(C))),
         (String::from("g"), Value::Number(Complex64::from(G))),
-        (String::from("sin"), sin),
-        (String::from("cos"), cos),
-        (String::from("tan"), tan),
-        (String::from("asin"), asin),
-        (String::from("acos"), acos),
-        (String::from("atan"), atan),
-        (String::from("sinh"), sinh),
-        (String::from("cosh"), cosh),
-        (String::from("tanh"), tanh),
-        (String::from("asinh"), asinh),
-        (String::from("acosh"), acosh),
-        (String::from("atanh"), atanh),
-        (String::from("re"), re),
-        (String::from("im"), im),
-        (String::from("arg"), arg),
-        (String::from("conj"), conj),
-        (String::from("abs"), abs),
-        (String::from("ceil"), ceil),
-        (String::from("floor"), floor),
-        (String::from("log"), log),
-        (String::from("log2"), log2),
-        (String::from("log10"), log10),
-        (String::from("ln"), ln),
-        (String::from("sqrt"), sqrt),
-        (String::from("gcd"), gcd),
-        (String::from("lcm"), lcm),
-        (String::from("fib"), Value::Function(Function::UserDefinedFunction(UserDefinedFunction {
+        (String::from("sin"), Value::Function(Rc::new(sin))),
+        (String::from("cos"), Value::Function(Rc::new(cos))),
+        (String::from("tan"), Value::Function(Rc::new(tan))),
+        (String::from("asin"), Value::Function(Rc::new(asin))),
+        (String::from("acos"), Value::Function(Rc::new(acos))),
+        (String::from("atan"), Value::Function(Rc::new(atan))),
+        (String::from("sinh"), Value::Function(Rc::new(sinh))),
+        (String::from("cosh"), Value::Function(Rc::new(cosh))),
+        (String::from("tanh"), Value::Function(Rc::new(tanh))),
+        (String::from("asinh"), Value::Function(Rc::new(asinh))),
+        (String::from("acosh"), Value::Function(Rc::new(acosh))),
+        (String::from("atanh"), Value::Function(Rc::new(atanh))),
+        (String::from("re"), Value::Function(Rc::new(re))),
+        (String::from("im"), Value::Function(Rc::new(im))),
+        (String::from("arg"), Value::Function(Rc::new(arg))),
+        (String::from("conj"), Value::Function(Rc::new(conj))),
+        (String::from("abs"), Value::Function(Rc::new(abs))),
+        (String::from("ceil"), Value::Function(Rc::new(ceil))),
+        (String::from("floor"), Value::Function(Rc::new(floor))),
+        (String::from("log"), Value::Function(Rc::new(log))),
+        (String::from("log2"), Value::Function(Rc::new(log2))),
+        (String::from("log10"), Value::Function(Rc::new(log10))),
+        (String::from("ln"), Value::Function(Rc::new(ln))),
+        (String::from("sqrt"), Value::Function(Rc::new(sqrt))),
+        (String::from("gcd"), Value::Function(Rc::new(gcd))),
+        (String::from("lcm"), Value::Function(Rc::new(lcm))),
+        (String::from("fib"), Value::Function(Rc::new(Function::UserDefinedFunction(UserDefinedFunction {
             name: String::from("fib"),
             signatures: vec![
                 (
@@ -120,6 +120,6 @@ pub fn get_constants() -> ValueMap<'static>{
                         }),
                     }
                 )],
-        })))
+        }))))
     ])
 }

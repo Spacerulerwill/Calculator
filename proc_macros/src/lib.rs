@@ -103,7 +103,7 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
     // Generate const and function implementation
     let expanded = quote! {
         #[allow(non_upper_case_globals)]
-        pub const #function_name: common::value::Value = {
+        pub const #function_name: common::function::Function = {
             fn internal_builtin_function(col: usize, args: Vec<common::value::Value>) -> Result<common::value::Value, common::expr::EvaluationError> {
                 // TODO :: determine why this line is neccesary?
                 use common::value::ValueConstraint;
@@ -112,11 +112,11 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
                 #body
             }
 
-            common::value::Value::Function(common::function::Function::NativeFunction(common::function::NativeFunction {
+            common::function::Function::NativeFunction(common::function::NativeFunction {
                 name: stringify!(#function_name),
                 function: internal_builtin_function,
                 arity: #arity,
-            }))
+            })
         };
     };
 
