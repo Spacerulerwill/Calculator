@@ -7,7 +7,7 @@ use common::{
     value::{Value, ValueMap},
 };
 use proc_macros::define_calculator_builtin_function;
-use std::{f64::consts::{E, PI, TAU}, rc::Rc};
+use std::{cell::RefCell, f64::consts::{E, PI, TAU}, rc::Rc};
 
 const C: f64 = 299792458_f64;
 const G: f64 = 9.80665_f64;
@@ -55,71 +55,31 @@ pub fn get_constants() -> ValueMap<'static>{
         (String::from("tau"), Value::Number(Complex64::from(TAU))),
         (String::from("c"), Value::Number(Complex64::from(C))),
         (String::from("g"), Value::Number(Complex64::from(G))),
-        (String::from("sin"), Value::Function(Rc::new(sin))),
-        (String::from("cos"), Value::Function(Rc::new(cos))),
-        (String::from("tan"), Value::Function(Rc::new(tan))),
-        (String::from("asin"), Value::Function(Rc::new(asin))),
-        (String::from("acos"), Value::Function(Rc::new(acos))),
-        (String::from("atan"), Value::Function(Rc::new(atan))),
-        (String::from("sinh"), Value::Function(Rc::new(sinh))),
-        (String::from("cosh"), Value::Function(Rc::new(cosh))),
-        (String::from("tanh"), Value::Function(Rc::new(tanh))),
-        (String::from("asinh"), Value::Function(Rc::new(asinh))),
-        (String::from("acosh"), Value::Function(Rc::new(acosh))),
-        (String::from("atanh"), Value::Function(Rc::new(atanh))),
-        (String::from("re"), Value::Function(Rc::new(re))),
-        (String::from("im"), Value::Function(Rc::new(im))),
-        (String::from("arg"), Value::Function(Rc::new(arg))),
-        (String::from("conj"), Value::Function(Rc::new(conj))),
-        (String::from("abs"), Value::Function(Rc::new(abs))),
-        (String::from("ceil"), Value::Function(Rc::new(ceil))),
-        (String::from("floor"), Value::Function(Rc::new(floor))),
-        (String::from("log"), Value::Function(Rc::new(log))),
-        (String::from("log2"), Value::Function(Rc::new(log2))),
-        (String::from("log10"), Value::Function(Rc::new(log10))),
-        (String::from("ln"), Value::Function(Rc::new(ln))),
-        (String::from("sqrt"), Value::Function(Rc::new(sqrt))),
-        (String::from("gcd"), Value::Function(Rc::new(gcd))),
-        (String::from("lcm"), Value::Function(Rc::new(lcm))),
-        (String::from("fib"), Value::Function(Rc::new(Function::UserDefinedFunction(UserDefinedFunction {
-            name: String::from("fib"),
-            signatures: vec![
-                (
-                    vec![UserDefinedFunctionArgType::Number(Complex64::from(0.0))],
-                    Expr::Number { number: Complex64::from(0.0) }
-                ),
-                (
-                    vec![UserDefinedFunctionArgType::Number(Complex64::from(1.0))],
-                    Expr::Number { number: Complex64::from(1.0) }
-                ),
-                (
-                    vec![UserDefinedFunctionArgType::Identifier(String::from("x"))], 
-                    Expr::Binary { 
-                        left: Box::new(Expr::Call { 
-                            callee: Box::new(Expr::Identifier { name: Token { kind: TokenKind::Identifier(String::from("fib")), col: 0 } }), 
-                            paren: Token { kind: TokenKind::LeftParen, col: 0 }, 
-                            arguments: vec![
-                                Expr::Binary { 
-                                    left: Box::new(Expr::Identifier { name: Token { kind: TokenKind::Identifier(String::from("x")), col: 0 } }), 
-                                    operator: Token { kind: TokenKind::Minus, col: 0 }, 
-                                    right: Box::new(Expr::Number { number: Complex64::from(1.0) }) 
-                                }
-                            ]
-                        }), 
-                        operator: Token { kind: TokenKind::Plus, col: 0}, 
-                        right: Box::new(Expr::Call { 
-                            callee: Box::new(Expr::Identifier { name: Token { kind: TokenKind::Identifier(String::from("fib")), col: 0 } }), 
-                            paren: Token { kind: TokenKind::LeftParen, col: 0 }, 
-                            arguments: vec![
-                                Expr::Binary { 
-                                    left: Box::new(Expr::Identifier { name: Token { kind: TokenKind::Identifier(String::from("x")), col: 0 } }), 
-                                    operator: Token { kind: TokenKind::Minus, col: 0 }, 
-                                    right: Box::new(Expr::Number { number: Complex64::from(2.0) }) 
-                                }
-                            ]
-                        }),
-                    }
-                )],
-        }))))
+        (String::from("sin"), Value::Function(Rc::new(RefCell::new(sin)))),
+        (String::from("cos"), Value::Function(Rc::new(RefCell::new(cos)))),
+        (String::from("tan"), Value::Function(Rc::new(RefCell::new(tan)))),
+        (String::from("asin"), Value::Function(Rc::new(RefCell::new(asin)))),
+        (String::from("acos"), Value::Function(Rc::new(RefCell::new(acos)))),
+        (String::from("atan"), Value::Function(Rc::new(RefCell::new(atan)))),
+        (String::from("sinh"), Value::Function(Rc::new(RefCell::new(sinh)))),
+        (String::from("cosh"), Value::Function(Rc::new(RefCell::new(cosh)))),
+        (String::from("tanh"), Value::Function(Rc::new(RefCell::new(tanh)))),
+        (String::from("asinh"), Value::Function(Rc::new(RefCell::new(asinh)))),
+        (String::from("acosh"), Value::Function(Rc::new(RefCell::new(acosh)))),
+        (String::from("atanh"), Value::Function(Rc::new(RefCell::new(atanh)))),
+        (String::from("re"), Value::Function(Rc::new(RefCell::new(re)))),
+        (String::from("im"), Value::Function(Rc::new(RefCell::new(im)))),
+        (String::from("arg"), Value::Function(Rc::new(RefCell::new(arg)))),
+        (String::from("conj"), Value::Function(Rc::new(RefCell::new(conj)))),
+        (String::from("abs"), Value::Function(Rc::new(RefCell::new(abs)))),
+        (String::from("ceil"), Value::Function(Rc::new(RefCell::new(ceil)))),
+        (String::from("floor"), Value::Function(Rc::new(RefCell::new(floor)))),
+        (String::from("log"), Value::Function(Rc::new(RefCell::new(log)))),
+        (String::from("log2"), Value::Function(Rc::new(RefCell::new(log2)))),
+        (String::from("log10"), Value::Function(Rc::new(RefCell::new(log10)))),
+        (String::from("ln"), Value::Function(Rc::new(RefCell::new(ln)))),
+        (String::from("sqrt"), Value::Function(Rc::new(RefCell::new(sqrt)))),
+        (String::from("gcd"), Value::Function(Rc::new(RefCell::new(gcd)))),
+        (String::from("lcm"), Value::Function(Rc::new(RefCell::new(lcm)))),
     ])
 }

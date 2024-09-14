@@ -1,7 +1,7 @@
-use std::{collections::HashMap, fmt::{self}};
+use std::{cell::RefCell, collections::HashMap, fmt::{self}, rc::Rc};
 
 use crate::{
-    function::{Function, UserDefinedFunctionArgType}, 
+    function::{Function, UserDefinedFunction, UserDefinedFunctionArgType}, 
     num_complex::Complex64, tokenizer::{Token, TokenKind}, 
     value::{Value, ValueConstraint, ValueMap},
 };
@@ -141,7 +141,42 @@ impl<'a> Expr {
         constants: &ValueMap<'a>,
         variables: &mut ValueMap<'a>
     ) -> Result<Value<'a>, EvaluationError<'a>> {
-        todo!()
+        if constants.contains_key(&name.kind.get_lexeme()) {
+            return Err(EvaluationError::ConstantAssignment { name: name })
+        }
+        // create signature
+        let mut final_signature = Vec::new();
+        for expr in signature {
+            match expr {
+                Expr::Number { number } => final_signature.push(UserDefinedFunctionArgType::Number(number)),
+                Expr::Identifier { name } => final_signature.push(UserDefinedFunctionArgType::Identifier(name.kind.get_lexeme())),
+                _ => panic!("Invalid signature")
+            }
+        }
+        // If already a user-defined function check an equivalent signature does not exist and then add it
+        if let Some(value) = variables.get(&name.kind.get_lexeme()).cloned() {
+            if let Value::Function(func) = value.clone() {
+                let mut func = func.borrow_mut(); 
+                match &mut *func {
+                    Function::UserDefinedFunction(ref mut func) => {
+                        if func.signatures.iter().any(|sig| Self::are_signatures_equivalent(&sig.0, &final_signature)) {
+                            panic!("Equivalent signature found!");
+                        }
+                        func.signatures.push((final_signature, *body));
+                        return Ok(value)
+                    },
+                    _ => {}
+                }
+            }
+        }
+
+        // otherwise just completely replace as new user defined function
+        let function = Value::Function(Rc::new(RefCell::new(Function::UserDefinedFunction(UserDefinedFunction{
+            name: name.kind.get_lexeme(),
+            signatures: vec![(final_signature, *body)]
+        }))));
+        variables.insert(name.kind.get_lexeme(), function.clone());
+        Ok(function)
     }
     
 
@@ -287,7 +322,6 @@ impl<'a> Expr {
             None => {}
         }
         Err(EvaluationError::UnknownVariable { name: name })
-        
     }
 
     fn matches_signature(
@@ -314,6 +348,27 @@ impl<'a> Expr {
     
         true
     }
+
+    fn are_signatures_equivalent(
+        signature1: &Vec<UserDefinedFunctionArgType>,
+        signature2: &Vec<UserDefinedFunctionArgType>,
+    ) -> bool {
+        if signature1.len() != signature2.len() {
+            return false
+        }
+        for (arg_type_1, arg_type_2) in signature1.iter().zip(signature2.iter()) {
+            if std::mem::discriminant(arg_type_1) != std::mem::discriminant(arg_type_2) {
+                return false;
+            }
+            match (arg_type_1, arg_type_2) {
+                (UserDefinedFunctionArgType::Number(one), UserDefinedFunctionArgType::Number(two)) => if one != two {
+                    return false
+                }
+                _ => {}
+            }
+        }
+        true
+    }
     
     fn evaluate_call(
         callee: Box<Expr>,
@@ -329,8 +384,8 @@ impl<'a> Expr {
                 for argument in arguments {
                     evaluated_arguments.push(argument.evaluate(constants, variables)?);
                 }
-
-                match &*function {
+                let function = function.borrow();
+                match & *function {
                     Function::NativeFunction(func) => {
                         if func.arity != evaluated_arguments.len() {
                             return Err(EvaluationError::IncorrectFunctionArgumentCount {
@@ -346,7 +401,7 @@ impl<'a> Expr {
                         for (signature, expr) in func.signatures.iter() {
                             if Self::matches_signature(&signature, &evaluated_arguments) {
                                 // Copy  
-                                let mut inputs = HashMap::new();
+                                let mut inputs = variables.clone();
                                 for (arg_type, val) in signature.into_iter().zip(evaluated_arguments.into_iter()) {
                                     if let UserDefinedFunctionArgType::Identifier(identifier) = arg_type {
                                         inputs.insert(identifier.clone(), val);

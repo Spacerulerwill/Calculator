@@ -88,7 +88,6 @@ impl Parser {
                             Expr::Identifier { name } => name,
                             _ => return Err(ParserError::InvalidAssignmentTarget{equal: equal}),
                         };
-                        // TODO: Remove clone somehow
                         return Ok(Expr::FunctionAssign { name: name, signature: arguments, body: Box::new(value) })
                     }
                     _ => return Err(ParserError::InvalidAssignmentTarget{equal: equal}),

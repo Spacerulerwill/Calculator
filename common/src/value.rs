@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::{collections::HashMap, str::FromStr};
 use std::fmt;
@@ -60,7 +61,7 @@ impl ToTokens for ValueConstraint {
 
 #[derive(Debug, Clone)]
 pub enum Value<'a> {
-    Function(Rc<Function<'a>>),
+    Function(Rc<RefCell<Function<'a>>>),
     Number(Complex64),
 }
 
@@ -69,7 +70,7 @@ pub type ValueMap<'a> = HashMap<String, Value<'a>>;
 impl fmt::Display for Value<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::Function(func) => write!(f, "{}", func),
+            Value::Function(func) => write!(f, "{}", func.borrow()),
             Value::Number(num) => write!(f, "{}", complex_to_string(&num))
         }
     }
