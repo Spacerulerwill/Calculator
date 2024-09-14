@@ -62,10 +62,10 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
             let #name = args.get(#i).unwrap();
             if !#name.fits_value_constraint(#constraint) {
                 return Err(common::expr::EvaluationError::IncorrectFunctionArgumentType {
-                    function_name: stringify!(#function_name),
+                    function_name: stringify!(#function_name).to_string(),
                     function_col: col,
                     idx: #i + 1,
-                    name: stringify!(#name),
+                    name: stringify!(#name).to_string(),
                     constraint: #constraint,
                 });
             }

@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 use std::fmt;
 
 use num_complex::Complex64;
@@ -62,6 +62,8 @@ pub enum Value<'a> {
     Function(Function<'a>),
     Number(Complex64),
 }
+
+pub type ValueMap<'a> = HashMap<String, Value<'a>>;
 
 impl fmt::Display for Value<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -4,14 +4,10 @@ use common::{
     num::integer::{gcd as _gcd, lcm as _lcm},
     num_complex::Complex64,
     tokenizer::{Token, TokenKind},
-    value::Value,
-    variable::Variable,
+    value::{Value, ValueMap},
 };
 use proc_macros::define_calculator_builtin_function;
-use std::{
-    collections::HashMap,
-    f64::consts::{E, PI, TAU},
-};
+use std::f64::consts::{E, PI, TAU};
 
 const C: f64 = 299792458_f64;
 const G: f64 = 9.80665_f64;
@@ -48,45 +44,45 @@ define_calculator_builtin_function!(gcd, (first: integer, second: integer), Ok(V
 define_calculator_builtin_function!(lcm, (first: integer, second: integer), Ok(Value::Number(Complex64::from(_lcm(first as i64, second as i64) as f64))));
 
 #[rustfmt::skip]
-pub fn get_starting_variables() -> HashMap<String, Variable<'static>> {
-    HashMap::from([
-        (String::from("i"), Variable::as_constant(Value::Number(Complex64::I))),
-        (String::from("e"), Variable::as_constant(Value::Number(Complex64::from(E)))),
-        (String::from("pi"), Variable::as_constant(Value::Number(Complex64::from(PI)))),
-        (String::from("π"), Variable::as_constant(Value::Number(Complex64::from(PI)))),
-        (String::from("phi"), Variable::as_constant(Value::Number(Complex64::from(PHI)))),
-        (String::from("ϕ"), Variable::as_constant(Value::Number(Complex64::from(PHI)))),
-        (String::from("tau"), Variable::as_constant(Value::Number(Complex64::from(TAU)))),
-        (String::from("c"), Variable::as_constant(Value::Number(Complex64::from(C)))),
-        (String::from("g"), Variable::as_constant(Value::Number(Complex64::from(G)))),
-        (String::from("sin"), Variable::as_constant(sin)),
-        (String::from("cos"), Variable::as_constant(cos)),
-        (String::from("tan"), Variable::as_constant(tan)),
-        (String::from("asin"), Variable::as_constant(asin)),
-        (String::from("acos"), Variable::as_constant(acos)),
-        (String::from("atan"), Variable::as_constant(atan)),
-        (String::from("sinh"), Variable::as_constant(sinh)),
-        (String::from("cosh"), Variable::as_constant(cosh)),
-        (String::from("tanh"), Variable::as_constant(tanh)),
-        (String::from("asinh"), Variable::as_constant(asinh)),
-        (String::from("acosh"), Variable::as_constant(acosh)),
-        (String::from("atanh"), Variable::as_constant(atanh)),
-        (String::from("re"), Variable::as_constant(re)),
-        (String::from("im"), Variable::as_constant(im)),
-        (String::from("arg"), Variable::as_constant(arg)),
-        (String::from("conj"), Variable::as_constant(conj)),
-        (String::from("abs"), Variable::as_constant(abs)),
-        (String::from("ceil"), Variable::as_constant(ceil)),
-        (String::from("floor"), Variable::as_constant(floor)),
-        (String::from("log"), Variable::as_constant(log)),
-        (String::from("log2"), Variable::as_constant(log2)),
-        (String::from("log10"), Variable::as_constant(log10)),
-        (String::from("ln"), Variable::as_constant(ln)),
-        (String::from("sqrt"), Variable::as_constant(sqrt)),
-        (String::from("gcd"), Variable::as_constant(gcd)),
-        (String::from("lcm"), Variable::as_constant(lcm)),
-        (String::from("fib"), Variable::as_variable(Value::Function(Function::UserDefinedFunction(UserDefinedFunction {
-            name: "fib",
+pub fn get_constants() -> ValueMap<'static>{
+    ValueMap::from([
+        (String::from("i"), Value::Number(Complex64::I)),
+        (String::from("e"), Value::Number(Complex64::from(E))),
+        (String::from("pi"), Value::Number(Complex64::from(PI))),
+        (String::from("π"), Value::Number(Complex64::from(PI))),
+        (String::from("phi"), Value::Number(Complex64::from(PHI))),
+        (String::from("ϕ"), Value::Number(Complex64::from(PHI))),
+        (String::from("tau"), Value::Number(Complex64::from(TAU))),
+        (String::from("c"), Value::Number(Complex64::from(C))),
+        (String::from("g"), Value::Number(Complex64::from(G))),
+        (String::from("sin"), sin),
+        (String::from("cos"), cos),
+        (String::from("tan"), tan),
+        (String::from("asin"), asin),
+        (String::from("acos"), acos),
+        (String::from("atan"), atan),
+        (String::from("sinh"), sinh),
+        (String::from("cosh"), cosh),
+        (String::from("tanh"), tanh),
+        (String::from("asinh"), asinh),
+        (String::from("acosh"), acosh),
+        (String::from("atanh"), atanh),
+        (String::from("re"), re),
+        (String::from("im"), im),
+        (String::from("arg"), arg),
+        (String::from("conj"), conj),
+        (String::from("abs"), abs),
+        (String::from("ceil"), ceil),
+        (String::from("floor"), floor),
+        (String::from("log"), log),
+        (String::from("log2"), log2),
+        (String::from("log10"), log10),
+        (String::from("ln"), ln),
+        (String::from("sqrt"), sqrt),
+        (String::from("gcd"), gcd),
+        (String::from("lcm"), lcm),
+        (String::from("fib"), Value::Function(Function::UserDefinedFunction(UserDefinedFunction {
+            name: String::from("fib"),
             signatures: vec![
                 (
                     vec![UserDefinedFunctionArgType::Number(Complex64::from(0.0))],
@@ -124,6 +120,6 @@ pub fn get_starting_variables() -> HashMap<String, Variable<'static>> {
                         }),
                     }
                 )],
-        }))))
+        })))
     ])
 }

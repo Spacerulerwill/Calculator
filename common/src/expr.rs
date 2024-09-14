@@ -1,7 +1,9 @@
-use std::{collections::HashMap, fmt::{self}};
+use std::{collections::HashMap, env::var, fmt::{self}};
 
 use crate::{
-    function::{Function, UserDefinedFunctionArgType}, num_complex::Complex64, tokenizer::{Token, TokenKind}, value::{Value, ValueConstraint}, variable::Variable
+    function::{Function, UserDefinedFunction, UserDefinedFunctionArgType}, 
+    num_complex::Complex64, tokenizer::{Token, TokenKind}, 
+    value::{Value, ValueConstraint, ValueMap},
 };
 
 #[derive(Debug, Clone)]
@@ -17,6 +19,11 @@ pub enum Expr {
     Assign {
         name: Token,
         new_value: Box<Expr>,
+    },
+    FunctionAssign {
+        name: Token,
+        signature: Vec<Expr>,
+        body: Box<Expr>,
     },
     Binary {
         left: Box<Expr>,
@@ -58,13 +65,13 @@ pub enum EvaluationError<'a> {
     },
     IncorrectFunctionArgumentSignature {
         paren: Token,
-        name: &'a str,
+        name: String,
     },
     IncorrectFunctionArgumentType {
-        function_name: &'a str,
+        function_name: String,
         function_col: usize,
         idx: usize,
-        name: &'a str,
+        name: String,
         constraint: ValueConstraint,
     },
     UnsupportedBinaryOperator {
@@ -94,36 +101,47 @@ pub enum EvaluationError<'a> {
 impl<'a> Expr {
     pub fn evaluate(
         self,
-        variables: &mut HashMap<String, Variable<'a>>,
+        constants: &ValueMap<'a>,
+        variables: &mut ValueMap<'a>
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         match self {
-            Expr::Assign { name, new_value } => Self::evaluate_assign(name, new_value, variables),
+            Expr::Assign { name, new_value } => Self::evaluate_assign(name, new_value, constants, variables),
+            Expr::FunctionAssign { name, signature, body } => Self::evaluate_function_assign(name, signature, body, constants, variables),
             Expr::Binary {
                 left,
                 operator,
                 right,
-            } => Self::evaluate_binary(left, operator, right, variables),
-            Expr::Unary { operator, operand } => Self::evaluate_unary(operand, operator, variables),
-            Expr::Grouping { paren, kind, expr } => Self::evaluate_grouping(paren, kind, expr, variables),
+            } => Self::evaluate_binary(left, operator, right, constants, variables),
+            Expr::Unary { operator, operand } => Self::evaluate_unary(operand, operator, constants, variables),
+            Expr::Grouping { paren, kind, expr } => Self::evaluate_grouping(paren, kind, expr, constants, variables),
             Expr::Number { number } => Ok(Value::Number(number)),
-            Expr::Identifier { name } => Self::evaluate_identifier(name, variables),
-            Expr::Call { callee, paren, arguments} => Self::evaluate_call(callee, paren, arguments, variables),
+            Expr::Identifier { name } => Self::evaluate_identifier(name, constants, variables),
+            Expr::Call { callee, paren, arguments} => Self::evaluate_call(callee, paren, arguments, constants, variables),
         }
     }
 
     fn evaluate_assign(
         name: Token,
         new_value: Box<Expr>,
-        variables: &mut HashMap<String, Variable<'a>>,
+        constants: &ValueMap<'a>,
+        variables: &mut ValueMap<'a>
     ) -> Result<Value<'a>, EvaluationError<'a>> {
-        let new_value = new_value.evaluate(variables)?;
-        if let Some(variable) = variables.get(&name.kind.get_lexeme()) {
-            if variable.constant {
-                return Err(EvaluationError::ConstantAssignment { name: name })
-            }
+        let new_value = new_value.evaluate(constants, variables)?;
+        if constants.contains_key(&name.kind.get_lexeme()) {
+            return Err(EvaluationError::ConstantAssignment { name: name })
         }
-        variables.insert(name.kind.get_lexeme(), Variable::as_variable(new_value.clone()));
+        variables.insert(name.kind.get_lexeme(), new_value.clone());
         Ok(new_value)
+    }
+    
+    fn evaluate_function_assign(
+        name: Token, 
+        signature: Vec<Expr>,
+        body: Box<Expr>,
+        constants: &ValueMap<'a>,
+        variables: &mut ValueMap<'a>
+    ) -> Result<Value<'a>, EvaluationError<'a>> {
+        todo!()
     }
     
 
@@ -131,10 +149,11 @@ impl<'a> Expr {
         left: Box<Expr>,
         operator: Token,
         right: Box<Expr>,
-        variables: &mut HashMap<String, Variable<'a>>,
+        constants: &ValueMap<'a>,
+        variables: &mut ValueMap<'a>
     ) -> Result<Value<'a>, EvaluationError<'a>> {
-        let left = left.evaluate(variables)?;
-        let right = right.evaluate(variables)?;
+        let left = left.evaluate(constants, variables)?;
+        let right = right.evaluate(constants, variables)?;
         match operator.kind {
             TokenKind::Plus => match (&left, &right) {
                 (Value::Number(left), Value::Number(right)) => {
@@ -190,9 +209,10 @@ impl<'a> Expr {
     fn evaluate_unary(
         operand: Box<Expr>,
         operator: Token,
-        variables: &mut HashMap<String, Variable<'a>>,
+        constants: &ValueMap<'a>,
+        variables: &mut ValueMap<'a>
     ) -> Result<Value<'a>, EvaluationError<'a>> {
-        let operand = operand.evaluate(variables)?;
+        let operand = operand.evaluate(constants, variables)?;
         match operator.kind {
             TokenKind::Minus => match &operand {
                 Value::Number(right) => {
@@ -220,19 +240,20 @@ impl<'a> Expr {
         paren: Token,
         kind: GroupingKind,
         expr: Box<Expr>,
-        variables: &mut HashMap<String, Variable<'a>>,
+        constants: &ValueMap<'a>,
+        variables: &mut ValueMap<'a>
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         match kind {
-            GroupingKind::Grouping => expr.evaluate(variables),
+            GroupingKind::Grouping => expr.evaluate(constants, variables),
             GroupingKind::Absolute => {
-                let result = expr.evaluate(variables)?;
+                let result = expr.evaluate(constants, variables)?;
                 match result {
                     Value::Number(result) => Ok(Value::Number(result.norm().into())),
                     _ => Err(EvaluationError::GroupingValueConstraintNotMet { paren: paren, kind: kind, constraint: ValueConstraint::Number }),
                 }
             },
             GroupingKind::Ceil => {
-                let result = expr.evaluate(variables)?;
+                let result = expr.evaluate(constants, variables)?;
                 match result {
                     Value::Number(num) if result.fits_value_constraint(ValueConstraint::Real) => {
                         return Ok(Value::Number(num.re.ceil().into()));
@@ -241,7 +262,7 @@ impl<'a> Expr {
                 }
             },
             GroupingKind::Floor => {
-                let result = expr.evaluate(variables)?;
+                let result = expr.evaluate(constants, variables)?;
                 match result {
                     Value::Number(num) if result.fits_value_constraint(ValueConstraint::Real) => {
                         return Ok(Value::Number(num.re.floor().into()));
@@ -254,12 +275,19 @@ impl<'a> Expr {
 
     fn evaluate_identifier(
         name: Token,
-        variables: &mut HashMap<String, Variable<'a>>,
+        constants: &ValueMap<'a>,
+        variables: &mut ValueMap<'a>        
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         match variables.get(name.kind.get_lexeme().as_str()) {
-            Some(variable) => Ok(variable.value.clone()),
-            None => Err(EvaluationError::UnknownVariable { name: name })
+            Some(value) => return Ok(value.clone()),
+            None => {},
         }
+        match constants.get(name.kind.get_lexeme().as_str()) {
+            Some(value) => return Ok(value.clone()),
+            None => {}
+        }
+        Err(EvaluationError::UnknownVariable { name: name })
+        
     }
 
     fn matches_signature(
@@ -291,14 +319,15 @@ impl<'a> Expr {
         callee: Box<Expr>,
         paren: Token,
         arguments: Vec<Expr>,
-        variables: &mut HashMap<String, Variable<'a>>,
+        constants: &ValueMap<'a>,
+        variables: &mut ValueMap<'a>
     ) -> Result<Value<'a>, EvaluationError<'a>> {
-        let callee = callee.evaluate(variables)?;
+        let callee = callee.evaluate(constants, variables)?;
         match callee {
             Value::Function(function) => {
                 let mut evaluated_arguments = Vec::with_capacity(arguments.len());
                 for argument in arguments {
-                    evaluated_arguments.push(argument.evaluate(variables)?);
+                    evaluated_arguments.push(argument.evaluate(constants, variables)?);
                 }
 
                 match function {
@@ -316,14 +345,14 @@ impl<'a> Expr {
                     Function::UserDefinedFunction(func) => {
                         for (signature, expr) in func.signatures {
                             if Self::matches_signature(&signature, &evaluated_arguments) {
-                                // TODO: we do not need to clone outer scope
-                                let mut inputs = variables.clone();
+                                // Copy  
+                                let mut inputs = HashMap::new();
                                 for (arg_type, val) in signature.into_iter().zip(evaluated_arguments.into_iter()) {
                                     if let UserDefinedFunctionArgType::Identifier(identifier) = arg_type {
-                                        inputs.insert(identifier, Variable::as_variable(val));
+                                        inputs.insert(identifier, val);
                                     }
                                 }
-                                return expr.evaluate(&mut inputs)
+                                return expr.evaluate(constants, &mut inputs)
                             }
                         }
                         Err(EvaluationError::IncorrectFunctionArgumentSignature { paren: paren, name: func.name })
@@ -340,6 +369,11 @@ impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Expr::Assign { name, new_value } => write!(f, "{}={}", name.kind.get_lexeme(), new_value),
+            Expr::FunctionAssign { name, signature, body } => {
+                let args: Vec<String> = signature.iter().map(|arg| format!("{}", arg)).collect();
+                let args_str = args.join(", ");
+                write!(f, "{}({}) = {}", &name.kind.get_lexeme(), args_str, body)
+            }
             Expr::Binary { left, operator, right } => write!(f, "{left}{}{right}", &operator.kind.get_lexeme()),
             Expr::Unary { operator, operand } => match &operator.kind {
                 TokenKind::Bang => write!(f, "{operand}{}", &operator.kind.get_lexeme()),

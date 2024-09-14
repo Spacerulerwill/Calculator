@@ -1,18 +1,14 @@
 mod builtin_math;
 
-use builtin_math::get_starting_variables;
+use builtin_math::get_constants;
 use clap::Parser as ClapParser;
 use common::{
     expr::{EvaluationError, GroupingKind},
     parser::{Parser, ParserError},
     tokenizer::{Tokenizer, TokenizerError},
-    value::ValueConstraint,
-    variable::Variable,
+    value::{ValueConstraint, ValueMap},
 };
-use std::{
-    collections::HashMap,
-    io::{self, Write},
-};
+use std::io::{self, Write};
 
 const DEFAULT_TAB_SIZE: u8 = 4;
 
@@ -30,15 +26,21 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let mut variables = get_starting_variables();
+    let constants = get_constants();
+    let mut variables = ValueMap::new();
     if let Some(expression) = args.expression {
-        process_expression(&expression.trim(), &mut variables, args.tabsize);
+        process_expression(&expression.trim(), &constants, &mut variables, args.tabsize);
     } else {
-        start_repl(args.tabsize, &mut variables);
+        start_repl(args.tabsize, &constants, &mut variables);
     }
 }
 
-fn process_expression(expression: &str, variables: &mut HashMap<String, Variable>, tabsize: u8) {
+fn process_expression<'a>(
+    expression: &str,
+    constants: &ValueMap<'a>,
+    variables: &mut ValueMap<'a>,
+    tabsize: u8,
+) {
     let tokens = match Tokenizer::tokenize(expression, tabsize) {
         Ok(tokenizer) => tokenizer.tokens,
         Err(err) => {
@@ -89,7 +91,7 @@ fn process_expression(expression: &str, variables: &mut HashMap<String, Variable
         }
     };
 
-    let result = match expr.evaluate(variables) {
+    let result = match expr.evaluate(constants, variables) {
         Ok(result) => result,
         Err(err) => {
             match err {
@@ -178,7 +180,7 @@ fn process_expression(expression: &str, variables: &mut HashMap<String, Variable
     println!("{}", &result);
 }
 
-fn start_repl(tabsize: u8, variables: &mut HashMap<String, Variable>) {
+fn start_repl<'a>(tabsize: u8, constants: &ValueMap<'a>, variables: &mut ValueMap<'a>) {
     let mut input = String::new();
 
     println!("Enter mathematical expressions to evaluate. Type 'exit' to quit.");
@@ -198,6 +200,6 @@ fn start_repl(tabsize: u8, variables: &mut HashMap<String, Variable>) {
             break;
         }
 
-        process_expression(trimmed_input, variables, tabsize);
+        process_expression(trimmed_input, constants, variables, tabsize);
     }
 }

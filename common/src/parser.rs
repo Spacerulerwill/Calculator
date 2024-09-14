@@ -72,18 +72,29 @@ impl Parser {
 
     fn assignment(&mut self) -> Result<Expr, ParserError> {
         let expr = self.term()?;
-        if self.check(TokenKind::Equal) {
-            let equal = self.iter.next().unwrap();
-            let value = self.assignment()?;
-            match expr {
-                Expr::Identifier { name } => {
-                    return Ok(Expr::Assign {
-                        name: name,
-                        new_value: Box::new(value),
-                    })
-                },
-                _ => return Err(ParserError::InvalidAssignmentTarget{equal: equal}),
-            }
+        match self.iter.peek() {
+            Some(Token { kind: TokenKind::Equal, ..})  => {
+                let equal = self.iter.next().unwrap();
+                let value = self.assignment()?;
+                match expr {
+                    Expr::Identifier { name } => {
+                        return Ok(Expr::Assign {
+                            name: name,
+                            new_value: Box::new(value),
+                        })
+                    },
+                    Expr::Call { callee, paren: _, arguments } => {
+                        let name = match *callee {
+                            Expr::Identifier { name } => name,
+                            _ => return Err(ParserError::InvalidAssignmentTarget{equal: equal}),
+                        };
+                        // TODO: Remove clone somehow
+                        return Ok(Expr::FunctionAssign { name: name, signature: arguments, body: Box::new(value) })
+                    }
+                    _ => return Err(ParserError::InvalidAssignmentTarget{equal: equal}),
+                }
+            },
+            _ => {}
         }
         Ok(expr)
     }
@@ -190,7 +201,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn finish_call(&mut self, callee: Expr, left_paren: Token) -> Result<Expr, ParserError> {
+    fn consume_comma_seperated_arguments(&mut self) -> Result<Vec<Expr>, ParserError> {
         let mut arguments = Vec::new();
         if !self.check(TokenKind::RightParen) {
             loop {
@@ -203,6 +214,11 @@ impl Parser {
             }
         }
         self.consume(TokenKind::RightParen)?;
+        Ok(arguments)
+    }
+
+    fn finish_call(&mut self, callee: Expr, left_paren: Token) -> Result<Expr, ParserError> {
+        let arguments = self.consume_comma_seperated_arguments()?;
         Ok(Expr::Call {
             callee: Box::new(callee),
             paren: left_paren,

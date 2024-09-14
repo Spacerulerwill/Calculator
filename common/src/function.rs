@@ -7,7 +7,7 @@ use crate::{expr::{complex_to_string, EvaluationError, Expr}, value::Value};
 #[derive(Debug, Clone)]
 pub enum Function<'a> {
     NativeFunction(NativeFunction<'a>),
-    UserDefinedFunction(UserDefinedFunction<'a>)
+    UserDefinedFunction(UserDefinedFunction)
 }
 
 impl<'a> fmt::Display for Function<'a> {
@@ -20,10 +20,10 @@ impl<'a> fmt::Display for Function<'a> {
 }
 
 impl<'a> Function<'a> {
-    pub fn name(&self) -> &'a str {
+    pub fn name(&self) -> &str {
         match self {
             Function::NativeFunction(f) => f.name,
-            Function::UserDefinedFunction(f) => f.name
+            Function::UserDefinedFunction(f) => &f.name
         }
     }
 }
@@ -58,12 +58,12 @@ impl fmt::Display for UserDefinedFunctionArgType {
 }
 
 #[derive(Debug, Clone)]
-pub struct UserDefinedFunction<'a> {
-    pub name: &'a str,
+pub struct UserDefinedFunction {
+    pub name: String,
     pub signatures: Vec<(Vec<UserDefinedFunctionArgType>, Expr)>,
 }
 
-impl<'a> fmt::Display for UserDefinedFunction<'a> {
+impl fmt::Display for UserDefinedFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut iter = self.signatures.iter().peekable();
 
