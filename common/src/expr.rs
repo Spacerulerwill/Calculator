@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, fmt::{self}, rc::Rc};
+use std::{cell::RefCell, fmt::{self}, rc::Rc};
 
 use crate::{
     function::{Function, UserDefinedFunction, UserDefinedFunctionArgType}, 
