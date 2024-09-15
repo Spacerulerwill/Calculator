@@ -2,12 +2,15 @@ use std::fmt;
 
 use num_complex::Complex64;
 
-use crate::{expr::{complex_to_string, EvaluationError, Expr}, value::Value};
+use crate::{
+    expr::{complex_to_string, EvaluationError, Expr},
+    value::Value,
+};
 
 #[derive(Debug, Clone)]
 pub enum Function<'a> {
     NativeFunction(NativeFunction<'a>),
-    UserDefinedFunction(UserDefinedFunction)
+    UserDefinedFunction(UserDefinedFunction),
 }
 
 impl<'a> fmt::Display for Function<'a> {
@@ -23,13 +26,13 @@ impl<'a> Function<'a> {
     pub fn name(&self) -> &str {
         match self {
             Function::NativeFunction(f) => f.name,
-            Function::UserDefinedFunction(f) => &f.name
+            Function::UserDefinedFunction(f) => &f.name,
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct NativeFunction<'a>  {
+pub struct NativeFunction<'a> {
     pub name: &'a str,
     pub function: fn(usize, Vec<Value>) -> Result<Value, EvaluationError>,
     pub arity: usize,
@@ -41,7 +44,7 @@ impl<'a> fmt::Display for NativeFunction<'a> {
     }
 }
 
-// Used in 
+// Used in
 #[derive(Debug, Clone)]
 pub enum UserDefinedFunctionArgType {
     Identifier(String),
@@ -52,7 +55,9 @@ impl fmt::Display for UserDefinedFunctionArgType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             UserDefinedFunctionArgType::Identifier(identifier) => write!(f, "{}", identifier),
-            UserDefinedFunctionArgType::Number(number) => write!(f, "{}", complex_to_string(number)),
+            UserDefinedFunctionArgType::Number(number) => {
+                write!(f, "{}", complex_to_string(number))
+            }
         }
     }
 }
@@ -70,9 +75,21 @@ impl fmt::Display for UserDefinedFunction {
         while let Some((args, expr)) = iter.next() {
             let args_str: Vec<String> = args.iter().map(|arg| arg.to_string()).collect();
             if iter.peek().is_some() {
-                writeln!(f, "{}({}) = {}", self.name, args_str.join(", "), expr.to_string())?;
+                writeln!(
+                    f,
+                    "{}({}) = {}",
+                    self.name,
+                    args_str.join(", "),
+                    expr.to_string()
+                )?;
             } else {
-                write!(f, "{}({}) = {}", self.name, args_str.join(", "), expr.to_string())?;
+                write!(
+                    f,
+                    "{}({}) = {}",
+                    self.name,
+                    args_str.join(", "),
+                    expr.to_string()
+                )?;
             }
         }
 

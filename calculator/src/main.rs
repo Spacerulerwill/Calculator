@@ -62,7 +62,7 @@ fn process_expression<'a>(
                         eprintln!(
                             "Position {} :: Expected expression next but found '{}'",
                             found.col,
-                            &found.kind.get_lexeme()
+                            &found.lexeme
                         );
                     } else {
                         eprintln!("Expected expression next but found EOF");
@@ -74,14 +74,14 @@ fn process_expression<'a>(
                             "Column {} :: Expected {:?} but found '{}'",
                             found.col,
                             expected,
-                            found.kind.get_lexeme()
+                            found.lexeme
                         );
                     } else {
-                        eprintln!("Expected {} but found EOF", &expected.get_lexeme());
+                        eprintln!("Expected {:?} but found EOF", expected);
                     }
                 }
                 ParserError::ExpectedEOF { found } => {
-                    eprintln!("Expected EOF but found '{}'", &found.kind.get_lexeme())
+                    eprintln!("Expected EOF but found '{}'", &found.lexeme)
                 }
                 ParserError::InvalidAssignmentTarget { equal } => {
                     eprintln!("Column {} :: Invalid assignment target", equal.col)
@@ -98,7 +98,7 @@ fn process_expression<'a>(
                 EvaluationError::DivisionByZero { operator } => eprintln!(
                     "Column {} :: Divison by zero on right side of '{}'",
                     operator.col,
-                    &operator.kind.get_lexeme()
+                    &operator.lexeme
                 ),
                 EvaluationError::IncorrectFunctionArgumentCount {
                     paren,
@@ -121,13 +121,13 @@ fn process_expression<'a>(
                 } => eprintln!(
                     "Column {} :: Cannot apply binary operator '{}' as one or more operands does not meet value constraint '{}'",
                     operator.col,
-                    &operator.kind.get_lexeme(),
+                    &operator.lexeme,
                     constraint
                 ),
                 EvaluationError::UnsupportedUnaryOperator { operator, constraint} => eprintln!(
                     "Column {} :: Cannot apply unary operator '{}' as operand does not meet value constraint '{}'",
                     operator.col,
-                    &operator.kind.get_lexeme(),
+                    &operator.lexeme,
                     constraint
                 ),
                 EvaluationError::InvalidCallable { paren } => eprintln!(
@@ -165,12 +165,12 @@ fn process_expression<'a>(
                 EvaluationError::ConstantAssignment { name } => eprintln!(
                     "Column {} :: Cannot assign to '{}' as it is constant",
                     name.col,
-                    &name.kind.get_lexeme()
+                    &name.lexeme
                 ),
                 EvaluationError::UnknownVariable { name } => eprintln!(
                     "Column {} :: Unknown variable '{}'",
                     name.col,
-                    &name.kind.get_lexeme()
+                    &name.lexeme
                 ),
                 EvaluationError::InvalidFunctionSignatureArgument { name, idx, expr } => eprintln!(
                     "Column {} :: Cannot use a {} at position {} as an argument in a function assignment expression",
@@ -181,7 +181,7 @@ fn process_expression<'a>(
                 EvaluationError::EquivalentSignatureFound { name } => eprintln!(
                     "Column {} :: An equivalent signature for function '{}' function already exists",
                     name.col,
-                    &name.kind.get_lexeme()
+                    &name.lexeme
                 ),
             }
             return;

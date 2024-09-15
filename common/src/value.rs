@@ -1,11 +1,11 @@
 use std::cell::RefCell;
+use std::fmt;
 use std::rc::Rc;
 use std::{collections::HashMap, str::FromStr};
-use std::fmt;
 
 use num_complex::Complex64;
 use proc_macro2::TokenStream;
-use quote::{ToTokens, quote};
+use quote::{quote, ToTokens};
 
 use crate::{expr::complex_to_string, function::Function};
 
@@ -23,12 +23,12 @@ impl FromStr for ValueConstraint {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "function" => Ok(ValueConstraint::Function),    
+            "function" => Ok(ValueConstraint::Function),
             "number" => Ok(ValueConstraint::Number),
             "real" => Ok(ValueConstraint::Real),
             "natural" => Ok(ValueConstraint::Natural),
             "integer" => Ok(ValueConstraint::Integer),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }
@@ -40,11 +40,10 @@ impl fmt::Display for ValueConstraint {
             ValueConstraint::Number => write!(f, "number"),
             ValueConstraint::Real => write!(f, "real"),
             ValueConstraint::Natural => write!(f, "natural"),
-            ValueConstraint::Integer => write!(f, "integer")
+            ValueConstraint::Integer => write!(f, "integer"),
         }
     }
 }
-
 
 impl ToTokens for ValueConstraint {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -53,7 +52,7 @@ impl ToTokens for ValueConstraint {
             ValueConstraint::Number => quote! { ValueConstraint::Number },
             ValueConstraint::Real => quote! { ValueConstraint::Real },
             ValueConstraint::Natural => quote! { ValueConstraint::Natural },
-            ValueConstraint::Integer => quote! { ValueConstraint::Integer }
+            ValueConstraint::Integer => quote! { ValueConstraint::Integer },
         };
         tokens.extend(token_str);
     }
@@ -71,7 +70,7 @@ impl fmt::Display for Value<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Function(func) => write!(f, "{}", func.borrow()),
-            Value::Number(num) => write!(f, "{}", complex_to_string(&num))
+            Value::Number(num) => write!(f, "{}", complex_to_string(&num)),
         }
     }
 }
@@ -93,12 +92,12 @@ impl Value<'_> {
             },
             ValueConstraint::Natural => match self {
                 Value::Number(num) => num.im == 0.0 && num.re.fract() == 0.0 && num.re >= 0.0,
-                _ => false
-            }
+                _ => false,
+            },
             ValueConstraint::Integer => match self {
                 Value::Number(num) => num.im == 0.0 && num.re.fract() == 0.0,
-                _ => false
-            }
+                _ => false,
+            },
         }
     }
 }

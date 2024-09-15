@@ -15,10 +15,10 @@
 
 <call> ::= <primary> ( "(" <arguments>? ")" )*
 
-<primary> ::= <NUMBER> 
-              | <IDENTIFIER> 
-              | "(" <expression> ")" 
-              | "|" <expression> "|" 
+<primary> ::= <NUMBER>
+              | <IDENTIFIER>
+              | "(" <expression> ")"
+              | "|" <expression> "|"
               | "⌈" <expression> "⌉"
               | "⌊" <expression> "⌋"
 
@@ -45,7 +45,9 @@ pub enum ParserError {
     ExpectedEOF {
         found: Token,
     },
-    InvalidAssignmentTarget{equal: Token}
+    InvalidAssignmentTarget {
+        equal: Token,
+    },
 }
 
 #[derive(Debug)]
@@ -65,7 +67,6 @@ impl Parser {
         Ok(expr)
     }
 
-
     fn expression(&mut self) -> Result<Expr, ParserError> {
         self.assignment()
     }
@@ -73,7 +74,10 @@ impl Parser {
     fn assignment(&mut self) -> Result<Expr, ParserError> {
         let expr = self.term()?;
         match self.iter.peek() {
-            Some(Token { kind: TokenKind::Equal, ..})  => {
+            Some(Token {
+                kind: TokenKind::Equal,
+                ..
+            }) => {
                 let equal = self.iter.next().unwrap();
                 let value = self.assignment()?;
                 match expr {
@@ -82,17 +86,25 @@ impl Parser {
                             name: name,
                             new_value: Box::new(value),
                         })
-                    },
-                    Expr::Call { callee, paren: _, arguments } => {
+                    }
+                    Expr::Call {
+                        callee,
+                        paren: _,
+                        arguments,
+                    } => {
                         let name = match *callee {
                             Expr::Identifier { name } => name,
-                            _ => return Err(ParserError::InvalidAssignmentTarget{equal: equal}),
+                            _ => return Err(ParserError::InvalidAssignmentTarget { equal: equal }),
                         };
-                        return Ok(Expr::FunctionAssign { name: name, signature: arguments, body: Box::new(value) })
+                        return Ok(Expr::FunctionAssign {
+                            name: name,
+                            signature: arguments,
+                            body: Box::new(value),
+                        });
                     }
-                    _ => return Err(ParserError::InvalidAssignmentTarget{equal: equal}),
+                    _ => return Err(ParserError::InvalidAssignmentTarget { equal: equal }),
                 }
-            },
+            }
             _ => {}
         }
         Ok(expr)
