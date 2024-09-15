@@ -109,7 +109,7 @@ fn process_expression<'a>(
                     "Column {} :: Function '{}' requires {} argument(s) but received {}",
                     paren.col, name, required, received,
                 ),
-                EvaluationError::IncorrectFunctionArgumentSignature { paren, name } => eprintln!(
+                EvaluationError::NoMatchingSignature { paren, name } => eprintln!(
                     "Column {} :: Incorrect argument signature for function '{}'. Type '{}' to see list of signatures",
                     paren.col,
                     name,
@@ -169,6 +169,17 @@ fn process_expression<'a>(
                 ),
                 EvaluationError::UnknownVariable { name } => eprintln!(
                     "Column {} :: Unknown variable '{}'",
+                    name.col,
+                    &name.kind.get_lexeme()
+                ),
+                EvaluationError::InvalidFunctionSignatureArgument { name, idx, expr } => eprintln!(
+                    "Column {} :: Cannot use a {} at position {} as an argument in a function assignment expression",
+                    name.col,
+                    expr.get_type_string(),
+                    idx + 1
+                ),
+                EvaluationError::EquivalentSignatureFound { name } => eprintln!(
+                    "Column {} :: An equivalent signature for function '{}' function already exists",
                     name.col,
                     &name.kind.get_lexeme()
                 ),

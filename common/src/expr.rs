@@ -63,9 +63,19 @@ pub enum EvaluationError<'a> {
         received: usize,
         required: usize,
     },
-    IncorrectFunctionArgumentSignature {
+    /// No matching signature found for a function call
+    NoMatchingSignature {
         paren: Token,
         name: String,
+    },
+    /// In a function assignment expression, an incorrect expression type
+    InvalidFunctionSignatureArgument {
+        name: Token,
+        idx: usize,
+        expr: Expr,
+    },
+    EquivalentSignatureFound {
+        name: Token,
     },
     IncorrectFunctionArgumentType {
         function_name: String,
@@ -146,11 +156,11 @@ impl<'a> Expr {
         }
         // create signature
         let mut final_signature = Vec::new();
-        for expr in signature {
+        for (idx, expr) in signature.into_iter().enumerate() {
             match expr {
                 Expr::Number { number } => final_signature.push(UserDefinedFunctionArgType::Number(number)),
                 Expr::Identifier { name } => final_signature.push(UserDefinedFunctionArgType::Identifier(name.kind.get_lexeme())),
-                _ => panic!("Invalid signature")
+                _ => return Err(EvaluationError::InvalidFunctionSignatureArgument { name: name, idx: idx, expr: expr })
             }
         }
         // If already a user-defined function check an equivalent signature does not exist and then add it
@@ -160,7 +170,7 @@ impl<'a> Expr {
                 match &mut *func {
                     Function::UserDefinedFunction(ref mut func) => {
                         if func.signatures.iter().any(|sig| Self::are_signatures_equivalent(&sig.0, &final_signature)) {
-                            panic!("Equivalent signature found!");
+                            return Err(EvaluationError::EquivalentSignatureFound { name: name });
                         }
                         func.signatures.push((final_signature, *body));
                         return Ok(value)
@@ -400,7 +410,6 @@ impl<'a> Expr {
                     Function::UserDefinedFunction(func) => {
                         for (signature, expr) in func.signatures.iter() {
                             if Self::matches_signature(&signature, &evaluated_arguments) {
-                                // Copy  
                                 let mut inputs = variables.clone();
                                 for (arg_type, val) in signature.into_iter().zip(evaluated_arguments.into_iter()) {
                                     if let UserDefinedFunctionArgType::Identifier(identifier) = arg_type {
@@ -410,7 +419,7 @@ impl<'a> Expr {
                                 return expr.clone().evaluate(constants, &mut inputs)
                             }
                         }
-                        Err(EvaluationError::IncorrectFunctionArgumentSignature { paren: paren, name: func.name.clone() })
+                        Err(EvaluationError::NoMatchingSignature { paren: paren, name: func.name.clone() })
                     }
                 }
             } 
@@ -418,6 +427,19 @@ impl<'a> Expr {
 
         }
     } 
+
+    pub fn get_type_string(&self) -> &'static str {
+        match self {
+            Expr::Assign { name: _, new_value: _ } => "assignment expression",
+            Expr::FunctionAssign { name: _, signature: _, body: _ } => "function assignment expression",
+            Expr::Binary { left: _, operator: _, right: _ } => "binary expression",
+            Expr::Unary { operator: _, operand: _ } => "unary expression",
+            Expr::Grouping { paren: _, kind: _, expr: _ } => "grouping",
+            Expr::Number { number: _ } => "number",
+            Expr::Identifier { name: _ } => "identifier",
+            Expr::Call { callee: _, paren: _, arguments: _ } => "function call expression",
+        }
+    }
 }
 
 impl fmt::Display for Expr {
