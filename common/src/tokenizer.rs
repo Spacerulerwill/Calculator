@@ -121,9 +121,47 @@ impl<'a> Tokenizer<'a> {
         string
     }
 
+    fn consume_exponent_for_number(&mut self, number_string: &mut String) -> bool {
+        // Save position at start
+        let iter_save = self.iter.clone();
+        let current_pos_save = self.current_pos.clone();
+
+        if self.iter.peek() == Some(&'e') {
+            let exponent_char = self.next().unwrap();
+            let mut has_minus = false;
+            // Could be a minus symbol
+            if self.iter.peek() == Some(&'-') {
+                has_minus = true;
+                self.next();
+            }
+            let exponent = self.consume_while(|ch| ch.is_numeric());
+            if exponent.is_empty() {
+                self.iter = iter_save;
+                self.current_pos = current_pos_save;
+                return false;
+            }
+            number_string.push(exponent_char);
+            if has_minus {
+                number_string.push('-');
+            }
+            number_string.push_str(&exponent);
+            return true;
+        }
+
+        self.iter = iter_save;
+        self.current_pos = current_pos_save;
+        false
+    }
+
     fn tokenize_number(&mut self) {
         // Consume digits before decimal point
         let mut number_string = self.consume_while(|ch| ch.is_digit(10));
+        // Consume and exponent and if there is one we stop here
+        if self.consume_exponent_for_number(&mut number_string) {
+            let num = Complex::new(f64::from_str(&number_string).unwrap(), 0.0);
+            self.add_token(TokenKind::Number(num));
+            return;
+        }
         // Consume decimal point if exists,
         let iter_save = self.iter.clone();
         let current_col_save = self.current_pos.clone();
@@ -138,6 +176,9 @@ impl<'a> Tokenizer<'a> {
                 number_string.push_str(post_dot_digit.as_str());
             }
         }
+        // Finally try and consume and exponent
+        let _ = self.consume_exponent_for_number(&mut number_string);
+        // Add token
         let num = Complex::new(f64::from_str(&number_string).unwrap(), 0.0);
         self.add_token(TokenKind::Number(num));
     }
@@ -178,7 +219,10 @@ mod tests {
     }
 
     fn extract_lexemes<'a>(tokens: &'a Vec<Token>) -> Vec<&'a str> {
-        tokens.into_iter().map(|token| token.lexeme.as_str()).collect()
+        tokens
+            .into_iter()
+            .map(|token| token.lexeme.as_str())
+            .collect()
     }
 
     fn extract_token_cols(tokens: Vec<Token>) -> Vec<usize> {
@@ -209,76 +253,76 @@ mod tests {
             ("12", TokenKind::Number(Complex64::new(12.0, 0.0))),
             ("12.5", TokenKind::Number(Complex64::new(12.5, 0.0))),
             ("0.5", TokenKind::Number(Complex64::new(0.5, 0.0))),
+            ("1e6", TokenKind::Number(Complex64::new(1e6 as f64, 0.0))),
+            ("1e-6", TokenKind::Number(Complex64::new(1e-6 as f64, 0.0))),
+            ("2.5e6", TokenKind::Number(Complex64::new(2.5e6 as f64, 0.0))),
+            ("2.5e-6", TokenKind::Number(Complex64::new(2.5e-6 as f64, 0.0))),
         ] {
             let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
-            assert_eq!(
-                extract_token_types(tokens),
-                vec![result]
-            );
+            assert_eq!(extract_token_types(tokens), vec![result]);
         }
     }
 
     #[test]
     fn test_samples() {
         for (input, expected_tokens) in [
-            // Complex expression with nested parentheses, sqrt, and multiple operators
-            ("(√(5 + 3) * 2 - foo) / ⌊bar⌋", 
+            (
+                "(√(5 + 3) * 2 - foo) / ⌊bar⌋",
                 vec![
-                    TokenKind::LeftParen, 
-                    TokenKind::Sqrt, 
-                    TokenKind::LeftParen, 
-                    TokenKind::Number(Complex64::new(5.0, 0.0)), 
-                    TokenKind::Plus, 
-                    TokenKind::Number(Complex64::new(3.0, 0.0)), 
-                    TokenKind::RightParen, 
-                    TokenKind::Star, 
-                    TokenKind::Number(Complex64::new(2.0, 0.0)), 
-                    TokenKind::Minus, 
-                    TokenKind::Identifier(String::from("foo")), 
-                    TokenKind::RightParen, 
-                    TokenKind::Slash, 
-                    TokenKind::LeftFloor, 
-                    TokenKind::Identifier(String::from("bar")), 
-                    TokenKind::RightFloor
-                ]
+                    TokenKind::LeftParen,
+                    TokenKind::Sqrt,
+                    TokenKind::LeftParen,
+                    TokenKind::Number(Complex64::new(5.0, 0.0)),
+                    TokenKind::Plus,
+                    TokenKind::Number(Complex64::new(3.0, 0.0)),
+                    TokenKind::RightParen,
+                    TokenKind::Star,
+                    TokenKind::Number(Complex64::new(2.0, 0.0)),
+                    TokenKind::Minus,
+                    TokenKind::Identifier(String::from("foo")),
+                    TokenKind::RightParen,
+                    TokenKind::Slash,
+                    TokenKind::LeftFloor,
+                    TokenKind::Identifier(String::from("bar")),
+                    TokenKind::RightFloor,
+                ],
             ),
-            // Assignment with complex identifiers and numbers
-            ("a_long_variable = 3.14 + π * ϕ / 2", 
+            (
+                "a_long_variable = 3.14 + π * ϕ / 2",
                 vec![
-                    TokenKind::Identifier(String::from("a_long_variable")), 
-                    TokenKind::Equal, 
-                    TokenKind::Number(Complex64::new(3.14, 0.0)), 
-                    TokenKind::Plus, 
-                    TokenKind::Identifier(String::from("π")), 
-                    TokenKind::Star, 
-                    TokenKind::Identifier(String::from("ϕ")), 
-                    TokenKind::Slash, 
-                    TokenKind::Number(Complex64::new(2.0, 0.0))
-                ]
+                    TokenKind::Identifier(String::from("a_long_variable")),
+                    TokenKind::Equal,
+                    TokenKind::Number(Complex64::new(3.14, 0.0)),
+                    TokenKind::Plus,
+                    TokenKind::Identifier(String::from("π")),
+                    TokenKind::Star,
+                    TokenKind::Identifier(String::from("ϕ")),
+                    TokenKind::Slash,
+                    TokenKind::Number(Complex64::new(2.0, 0.0)),
+                ],
             ),
-            // More advanced math symbols with square roots and pipes
-            ("|foo^2| + √(bar - 1)", 
+            (
+                "|foo^2| + √(bar - 1)",
                 vec![
-                    TokenKind::Pipe, 
-                    TokenKind::Identifier(String::from("foo")), 
-                    TokenKind::Caret, 
-                    TokenKind::Number(Complex64::new(2.0, 0.0)), 
-                    TokenKind::Pipe, 
-                    TokenKind::Plus, 
-                    TokenKind::Sqrt, 
-                    TokenKind::LeftParen, 
-                    TokenKind::Identifier(String::from("bar")), 
-                    TokenKind::Minus, 
-                    TokenKind::Number(Complex64::new(1.0, 0.0)), 
-                    TokenKind::RightParen
-                ]
-            )
+                    TokenKind::Pipe,
+                    TokenKind::Identifier(String::from("foo")),
+                    TokenKind::Caret,
+                    TokenKind::Number(Complex64::new(2.0, 0.0)),
+                    TokenKind::Pipe,
+                    TokenKind::Plus,
+                    TokenKind::Sqrt,
+                    TokenKind::LeftParen,
+                    TokenKind::Identifier(String::from("bar")),
+                    TokenKind::Minus,
+                    TokenKind::Number(Complex64::new(1.0, 0.0)),
+                    TokenKind::RightParen,
+                ],
+            ),
         ] {
             let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
             assert_eq!(extract_token_types(tokens), expected_tokens);
         }
     }
-
 
     #[test]
     fn test_no_input() {
@@ -289,25 +333,30 @@ mod tests {
 
     #[test]
     fn test_lexeme_extraction() {
-        let input = "()⌈⌉⌊⌋+-/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01";
+        let input = "()⌈⌉⌊⌋+-/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01 1e6 1e-6 2.5e6 2.5e-6";
         let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
         assert_eq!(
             extract_lexemes(&tokens),
             vec![
-                "(", ")", "⌈", "⌉", "⌊", "⌋", "+", "-", "/", "*", "^", "!", "|", "%", ",", "=", "√",
-                "foo", "bar", "baz",
-                "3.14", "0.0001", "0.045", "10.01"
+                "(", ")", "⌈", "⌉", "⌊", "⌋", "+", "-", "/", "*", "^", "!", "|", "%", ",", "=",
+                "√", "foo", "bar", "baz", "3.14", "0.0001", "0.045", "10.01", "1e6", "1e-6", "2.5e6", "2.5e-6"
             ]
         )
     }
 
     #[test]
-    fn test_col_calculations() { 
-        let input = "(  )⌈ ⌉⌊⌋+  -/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01";
+    fn test_col_calculations() {
+        let input = "(  )⌈ ⌉⌊⌋+  -/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01 1e6 1e-6 2.5e6 2.5e-6";
         let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
         dbg!(&tokens);
         let cols = extract_token_cols(tokens);
-        assert_eq!(cols, vec![1, 4, 5, 7, 8, 9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 30, 35, 39, 44, 54, 63])
+        assert_eq!(
+            cols,
+            vec![
+                1, 4, 5, 7, 8, 9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 30, 35, 39, 44,
+                54, 63, 69, 73, 78, 84
+            ]
+        )
     }
 
     #[test]
@@ -315,9 +364,13 @@ mod tests {
         for (input, bad_char, col) in [
             (".", '.', 1),
             ("f(x) = #", '#', 8),
-            ("23~", '~', 3)
+            ("23~", '~', 3),
+            ("1e2.5", '.', 4),
         ] {
-            assert_eq!(Tokenizer::tokenize(input, 4).unwrap_err(), TokenizerError::BadChar(bad_char, col));
+            assert_eq!(
+                Tokenizer::tokenize(input, 4).unwrap_err(),
+                TokenizerError::BadChar(bad_char, col)
+            );
         }
     }
 }

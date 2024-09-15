@@ -180,9 +180,9 @@ impl<'a> Expr {
                 Expr::Number { number } => {
                     final_signature.push(UserDefinedFunctionArgType::Number(number))
                 }
-                Expr::Identifier { name } => final_signature.push(
-                    UserDefinedFunctionArgType::Identifier(name.lexeme),
-                ),
+                Expr::Identifier { name } => {
+                    final_signature.push(UserDefinedFunctionArgType::Identifier(name.lexeme))
+                }
                 _ => {
                     return Err(EvaluationError::InvalidFunctionSignatureArgument {
                         name: name,
@@ -441,7 +441,7 @@ impl<'a> Expr {
                     if one != two {
                         return false;
                     }
-                }   
+                }
                 _ => {}
             }
         }
