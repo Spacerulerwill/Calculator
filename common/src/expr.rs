@@ -61,9 +61,6 @@ pub enum EvaluationError<'a> {
         paren: Token,
         name: String,
     },
-    EquivalentSignatureFound {
-        name: Token,
-    },
     IncorrectFunctionArgumentType {
         function_name: String,
         function_col: usize,
@@ -182,12 +179,6 @@ impl<'a> fmt::Display for EvaluationError<'a> {
             EvaluationError::UnknownVariable { name } => write!(
                 f,
                 "Column {} :: Unknown variable '{}'",
-                name.col,
-                &name.lexeme
-            ),
-            EvaluationError::EquivalentSignatureFound { name } => write!(
-                f,
-                "Column {} :: An equivalent signature for function '{}' function already exists",
                 name.col,
                 &name.lexeme
             ),

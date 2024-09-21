@@ -64,18 +64,16 @@ impl Statement {
                         return Err(EvaluationError::ConstantAssignment { name: name });
                     }
                 }
-                // If already a user-defined function check an equivalent signature does not exist and then add it
                 if let Some(variable) = variables.get(&name.lexeme).cloned() {
                     if let Value::Function(func) = variable.value.clone() {
                         let mut func = func.borrow_mut();
                         match &mut *func {
                             Function::UserDefinedFunction(ref mut func) => {
-                                if func
-                                    .signatures
-                                    .iter()
-                                    .any(|sig| are_signatures_equivalent(&sig.0, &signature))
-                                {
-                                    return Err(EvaluationError::EquivalentSignatureFound { name: name });
+                                for sig in func.signatures.iter_mut() {
+                                    if are_signatures_equivalent(&sig.0, &signature) {
+                                        *sig = (signature, expr);
+                                        return Ok(())
+                                    }
                                 }
                                 func.signatures.push((signature, expr));
                                 return Ok(())
