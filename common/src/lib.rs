@@ -1,7 +1,8 @@
+#![feature(box_patterns)]
 pub mod expr;
-pub mod stmt;
 pub mod function;
 pub mod parser;
+pub mod stmt;
 pub mod tokenizer;
 pub mod value;
 pub mod variable;

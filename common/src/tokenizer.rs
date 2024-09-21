@@ -1,5 +1,5 @@
-use std::fmt;
 use crate::num_complex::{Complex, Complex64};
+use std::fmt;
 use std::{
     iter::Peekable,
     str::{Chars, FromStr},
@@ -27,6 +27,7 @@ pub enum TokenKind {
     Newline,
     Identifier(String),
     Number(Complex64),
+    Simplify,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -44,13 +45,16 @@ pub struct TokenPosition {
 
 #[derive(Debug, PartialEq)]
 pub enum TokenizerError {
-    BadChar{col: usize, char: char},
+    BadChar { col: usize, char: char },
 }
 
 impl fmt::Display for TokenizerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self{
-            TokenizerError::BadChar{col, char} => write!(f, "Column {col} :: Unexpected or invalid character '{char}'"),
+        match self {
+            TokenizerError::BadChar { col, char } => write!(
+                f,
+                "Column {col} :: Unexpected or invalid character '{char}'"
+            ),
         }
     }
 }
@@ -77,6 +81,13 @@ impl<'a> Tokenizer<'a> {
         };
         tokenizer.tokenize_internal()?;
         Ok(tokenizer)
+    }
+
+    fn get_keyword_token_kind(lexeme: &str) -> Option<TokenKind> {
+        match lexeme {
+            "simplify" => Some(TokenKind::Simplify),
+            _ => None,
+        }
     }
 
     pub fn tokenize_internal(&mut self) -> Result<(), TokenizerError> {
@@ -106,7 +117,12 @@ impl<'a> Tokenizer<'a> {
                 '√' => self.add_single_char_token(TokenKind::Sqrt),
                 'a'..='z' | 'A'..='Z' | '_' | 'π' | 'ϕ' => self.tokenize_identifier(),
                 '0'..='9' => self.tokenize_number(),
-                ch => return Err(TokenizerError::BadChar{ col:self.current_pos.col, char: ch}),
+                ch => {
+                    return Err(TokenizerError::BadChar {
+                        col: self.current_pos.col,
+                        char: ch,
+                    })
+                }
             }
         }
         Ok(())
@@ -196,13 +212,21 @@ impl<'a> Tokenizer<'a> {
 
     fn tokenize_identifier(&mut self) {
         let identifier = self.consume_while(|ch| ch.is_alphanumeric() || ch == '_');
-        self.add_token(TokenKind::Identifier(identifier));
+        if let Some(keyword) = Self::get_keyword_token_kind(&identifier) {
+            self.add_token(keyword);
+        } else {
+            self.add_token(TokenKind::Identifier(identifier));
+        }
     }
 
     fn add_token(&mut self, kind: TokenKind) {
+        let mut lexeme = self.input[self.prev_pos.idx..self.current_pos.idx].to_string();
+        if lexeme == "\n" {
+            lexeme = String::from("\\n");
+        }
         self.tokens.push(Token {
             kind: kind,
-            lexeme: self.input[self.prev_pos.idx..self.current_pos.idx].to_string(),
+            lexeme: lexeme,
             col: self.prev_pos.col,
         });
         self.prev_pos = self.current_pos.clone();
@@ -266,8 +290,15 @@ mod tests {
             ("0.5", TokenKind::Number(Complex64::new(0.5, 0.0))),
             ("1e6", TokenKind::Number(Complex64::new(1e6 as f64, 0.0))),
             ("1e-6", TokenKind::Number(Complex64::new(1e-6 as f64, 0.0))),
-            ("2.5e6", TokenKind::Number(Complex64::new(2.5e6 as f64, 0.0))),
-            ("2.5e-6", TokenKind::Number(Complex64::new(2.5e-6 as f64, 0.0))),
+            (
+                "2.5e6",
+                TokenKind::Number(Complex64::new(2.5e6 as f64, 0.0)),
+            ),
+            (
+                "2.5e-6",
+                TokenKind::Number(Complex64::new(2.5e-6 as f64, 0.0)),
+            ),
+            ("simplify", TokenKind::Simplify),
         ] {
             let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
             assert_eq!(extract_token_types(tokens), vec![result]);
@@ -344,20 +375,23 @@ mod tests {
 
     #[test]
     fn test_lexeme_extraction() {
-        let input = "()⌈⌉⌊⌋+-/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01 1e6 1e-6 2.5e6 2.5e-6";
+        let input =
+            "()⌈⌉⌊⌋+-/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01 1e6 1e-6 2.5e6 2.5e-6";
         let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
         assert_eq!(
             extract_lexemes(&tokens),
             vec![
                 "(", ")", "⌈", "⌉", "⌊", "⌋", "+", "-", "/", "*", "^", "!", "|", "%", ",", "=",
-                "√", "foo", "bar", "baz", "3.14", "0.0001", "0.045", "10.01", "1e6", "1e-6", "2.5e6", "2.5e-6"
+                "√", "foo", "bar", "baz", "3.14", "0.0001", "0.045", "10.01", "1e6", "1e-6",
+                "2.5e6", "2.5e-6"
             ]
         )
     }
 
     #[test]
     fn test_col_calculations() {
-        let input = "(  )⌈ ⌉⌊⌋+  -/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01 1e6 1e-6 2.5e6 2.5e-6";
+        let input =
+            "(  )⌈ ⌉⌊⌋+  -/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01 1e6 1e-6 2.5e6 2.5e-6";
         let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
         dbg!(&tokens);
         let cols = extract_token_cols(tokens);
@@ -380,7 +414,10 @@ mod tests {
         ] {
             assert_eq!(
                 Tokenizer::tokenize(input, 4).unwrap_err(),
-                TokenizerError::BadChar { col: col, char: bad_char }
+                TokenizerError::BadChar {
+                    col: col,
+                    char: bad_char
+                }
             );
         }
     }

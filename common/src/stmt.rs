@@ -1,12 +1,26 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{expr::{EvaluationError, Expr}, function::{Function, UserDefinedFunction, UserDefinedFunctionArgType}, tokenizer::Token, value::Value, variable::{Variable, VariableMap}};
+use crate::{
+    expr::{EvaluationError, Expr},
+    function::{Function, UserDefinedFunction, UserDefinedFunctionArgType},
+    tokenizer::Token,
+    value::Value,
+    variable::{Variable, VariableMap},
+};
 
 #[derive(Debug)]
 pub enum Statement {
-    Expression(Expr),
-    Assignment{identifier: Token, expr: Expr},
-    FunctionDeclaration{name: Token, signature: Vec<UserDefinedFunctionArgType>, expr: Expr} 
+    ExpressionStatement(Expr),
+    SimplifyStatement(Expr),
+    Assignment {
+        identifier: Token,
+        expr: Expr,
+    },
+    FunctionDeclaration {
+        name: Token,
+        signature: Vec<UserDefinedFunctionArgType>,
+        expr: Expr,
+    },
 }
 
 fn are_signatures_equivalent(
@@ -21,10 +35,7 @@ fn are_signatures_equivalent(
             return false;
         }
         match (arg_type_1, arg_type_2) {
-            (
-                UserDefinedFunctionArgType::Number(one),
-                UserDefinedFunctionArgType::Number(two),
-            ) => {
+            (UserDefinedFunctionArgType::Number(one), UserDefinedFunctionArgType::Number(two)) => {
                 if one != two {
                     return false;
                 }
@@ -36,16 +47,17 @@ fn are_signatures_equivalent(
 }
 
 impl Statement {
-    pub fn interpret<'a>(
-        self,
-        variables: &mut VariableMap<'a>,
-    ) -> Result<(), EvaluationError<'a>>{
+    pub fn interpret<'a>(self, variables: &mut VariableMap<'a>) -> Result<(), EvaluationError<'a>> {
         match self {
-            Statement::Expression(expr) => {
+            Statement::ExpressionStatement(expr) => {
                 match expr.evaluate(variables) {
                     Ok(result) => println!("{}", &result),
                     Err(err) => println!("{}", &err),
                 };
+                Ok(())
+            }
+            Statement::SimplifyStatement(expr) => {
+                println!("{}", expr.simplify());
                 Ok(())
             }
             Statement::Assignment { identifier, expr } => {
@@ -57,8 +69,12 @@ impl Statement {
                 let new_value = expr.evaluate(variables)?;
                 variables.insert(identifier.lexeme, Variable::as_variable(new_value));
                 Ok(())
-            },
-            Statement::FunctionDeclaration { name, signature, expr } => {
+            }
+            Statement::FunctionDeclaration {
+                name,
+                signature,
+                expr,
+            } => {
                 if let Some(variable) = variables.get(&name.lexeme) {
                     if variable.constant {
                         return Err(EvaluationError::ConstantAssignment { name: name });
@@ -72,27 +88,27 @@ impl Statement {
                                 for sig in func.signatures.iter_mut() {
                                     if are_signatures_equivalent(&sig.0, &signature) {
                                         *sig = (signature, expr);
-                                        return Ok(())
+                                        return Ok(());
                                     }
                                 }
                                 func.signatures.push((signature, expr));
-                                return Ok(())
+                                return Ok(());
                             }
                             _ => {}
                         }
                     }
                 }
-        
+
                 // otherwise just completely replace as new user defined function
-                let function = Value::Function(Rc::new(RefCell::new(Function::UserDefinedFunction(
-                    UserDefinedFunction {
+                let function = Value::Function(Rc::new(RefCell::new(
+                    Function::UserDefinedFunction(UserDefinedFunction {
                         name: name.lexeme.clone(),
                         signatures: vec![(signature, expr)],
-                    },
-                ))));
+                    }),
+                )));
                 variables.insert(name.lexeme, Variable::as_variable(function));
                 Ok(())
-            },
+            }
         }
     }
 }

@@ -1,13 +1,14 @@
-use proc_macro::TokenStream;
 use common::quote::quote;
+use proc_macro::TokenStream;
+use std::str::FromStr;
 use syn::{
     parenthesized,
+    parse::{Parse, ParseStream},
+    parse_macro_input,
     punctuated::Punctuated,
     token::Comma,
-    parse::{Parse, ParseStream},
-    parse_macro_input, Expr, Ident, Token,
+    Expr, Ident, Token,
 };
-use std::str::FromStr;
 
 // Define a struct to hold the parsed function input
 struct FunctionInput {
@@ -29,13 +30,17 @@ impl Parse for FunctionInput {
         input.parse::<Token![,]>()?;
         let body: Expr = input.parse()?;
 
-        Ok(FunctionInput { function_name, args, body })
+        Ok(FunctionInput {
+            function_name,
+            args,
+            body,
+        })
     }
 }
 
 struct Argument {
     name: Ident,
-    arg_type: Ident, 
+    arg_type: Ident,
 }
 
 impl Parse for Argument {
@@ -49,7 +54,11 @@ impl Parse for Argument {
 
 #[proc_macro]
 pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
-    let FunctionInput { function_name, args, body } = parse_macro_input!(input as FunctionInput);
+    let FunctionInput {
+        function_name,
+        args,
+        body,
+    } = parse_macro_input!(input as FunctionInput);
 
     let arity = args.len();
 
@@ -72,21 +81,21 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
         };
 
         let extract_variable = match constraint {
-            common::value::ValueConstraint::Function => quote!{
+            common::value::ValueConstraint::Function => quote! {
                 let #name = match #name {
                     Value::Function(f) => f,
                     _ => panic!()
                 };
             },
-            common::value::ValueConstraint::Number => quote!{
+            common::value::ValueConstraint::Number => quote! {
                 let #name = match #name {
                     Value::Number(num) => num,
                     _ => panic!()
                 };
             },
-            common::value::ValueConstraint::Real 
-            | common::value::ValueConstraint::Natural 
-            | common::value::ValueConstraint::Integer => quote!{
+            common::value::ValueConstraint::Real
+            | common::value::ValueConstraint::Natural
+            | common::value::ValueConstraint::Integer => quote! {
                 let #name = match #name {
                     Value::Number(num) => num.re,
                     _ => panic!()
@@ -94,7 +103,7 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
             },
         };
 
-        quote!{
+        quote! {
             #constraint_checking
             #extract_variable
         }

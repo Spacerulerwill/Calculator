@@ -2,12 +2,11 @@ mod builtin_math;
 
 use builtin_math::get_constants;
 use clap::Parser as ClapParser;
-use common::{
-    parser::Parser,
-    tokenizer::Tokenizer,
-    variable::VariableMap,
+use common::{parser::Parser, tokenizer::Tokenizer, variable::VariableMap};
+use std::{
+    fs,
+    io::{self, Write},
 };
-use std::{fs, io::{self, Write}};
 
 const DEFAULT_TAB_SIZE: u8 = 4;
 
@@ -34,10 +33,10 @@ fn main() {
             Ok(contents) => process_text(contents, &mut variables, args.tabsize),
             Err(err) => {
                 eprintln!("Can't find file '{filepath}': {err}");
-                return
+                return;
             }
         }
-    }   
+    }
 
     if let Some(expression) = args.expression {
         process_text(expression, &mut variables, args.tabsize);
@@ -46,11 +45,7 @@ fn main() {
     }
 }
 
-fn process_text<'a>(
-    mut expression: String,
-    variables: &mut VariableMap<'a>,
-    tabsize: u8,
-) {
+fn process_text<'a>(mut expression: String, variables: &mut VariableMap<'a>, tabsize: u8) {
     if !expression.ends_with('\n') {
         expression.push('\n');
     }
@@ -59,7 +54,7 @@ fn process_text<'a>(
         Ok(tokenizer) => tokenizer.tokens,
         Err(err) => {
             println!("{}", &err);
-            return
+            return;
         }
     };
 
@@ -67,7 +62,7 @@ fn process_text<'a>(
         Ok(expr) => expr,
         Err(err) => {
             println!("{}", &err);
-            return
+            return;
         }
     };
 
@@ -84,7 +79,7 @@ fn start_repl<'a>(tabsize: u8, variables: &mut VariableMap<'a>) {
     loop {
         print!("> ");
         io::stdout().flush().expect("Failed to flush stdout");
-        
+
         let mut input = String::new();
 
         if io::stdin().read_line(&mut input).is_err() {

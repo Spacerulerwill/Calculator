@@ -5,20 +5,29 @@ use crate::value::Value;
 #[derive(Debug, Clone)]
 pub struct Variable<'a> {
     pub value: Value<'a>,
-    pub constant: bool
+    pub constant: bool,
 }
 
 impl<'a> Variable<'a> {
     pub fn new(value: Value<'a>, constant: bool) -> Self {
-        Variable { value: value, constant: constant }
+        Variable {
+            value: value,
+            constant: constant,
+        }
     }
 
     pub fn as_variable(value: Value<'a>) -> Self {
-        Variable { value: value, constant: false }
+        Variable {
+            value: value,
+            constant: false,
+        }
     }
 
     pub fn as_constant(value: Value<'a>) -> Self {
-        Variable { value: value, constant: true }
+        Variable {
+            value: value,
+            constant: true,
+        }
     }
 }
 

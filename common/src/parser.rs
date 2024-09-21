@@ -1,11 +1,12 @@
 /*
 <statement> ::= <expression_statement>
+              | <simplfiy_statement>
               | <assignment>
               | <function_declaration>
 
 <expression_statement> ::= <expression> "\n"
+<simplify_statement> ::= "simplify" <expression> "\n"
 <assignment> ::= <IDENTIFIER> "=" <expression> "\n"
-
 <function_declaration> ::= <call> "=" <expression> "\n"
 
 <expression> ::= <term>
@@ -36,7 +37,10 @@
 use std::{fmt, iter::Peekable, vec::IntoIter};
 
 use crate::{
-    expr::{Expr, GroupingKind}, function::UserDefinedFunctionArgType, stmt::Statement, tokenizer::{Token, TokenKind}
+    expr::{Expr, GroupingKind},
+    function::UserDefinedFunctionArgType,
+    stmt::Statement,
+    tokenizer::{Token, TokenKind},
 };
 
 #[derive(Debug)]
@@ -64,8 +68,7 @@ impl fmt::Display for ParserError {
                     write!(
                         f,
                         "Position {} :: Expected expression next but found '{}'",
-                        found.col,
-                        &found.lexeme
+                        found.col, &found.lexeme
                     )
                 } else {
                     write!(f, "Expected expression next but found EOF")
@@ -76,17 +79,18 @@ impl fmt::Display for ParserError {
                     write!(
                         f,
                         "Column {} :: Expected {:?} but found '{}'",
-                        found.col,
-                        expected,
-                        found.lexeme
+                        found.col, expected, found.lexeme
                     )
                 } else {
                     write!(f, "Expected {:?} but found EOF", expected)
                 }
             }
-            ParserError::ExpectedEOF { found } => write!(f, "Expected EOF but found '{}'", &found.lexeme),
-            ParserError::InvalidAssignmentTarget { equal } => write!(f, "Column {} :: Invalid assignment target", equal.col)
-
+            ParserError::ExpectedEOF { found } => {
+                write!(f, "Expected EOF but found '{}'", &found.lexeme)
+            }
+            ParserError::InvalidAssignmentTarget { equal } => {
+                write!(f, "Column {} :: Invalid assignment target", equal.col)
+            }
         }
     }
 }
@@ -109,56 +113,63 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Statement, ParserError> {
+        if self.check(TokenKind::Simplify) {
+            self.iter.next();
+            let expr = self.expression()?;
+            self.consume(TokenKind::Newline)?;
+            return Ok(Statement::SimplifyStatement(expr));
+        }
+
         let expr = self.expression()?;
-    
         match expr.clone() {
             Expr::Identifier { name } => {
-                if let Some(statement) = self.try_assignment_statement(name)? {
-                    return Ok(statement);
+                if self.check(TokenKind::Equal) {
+                    self.iter.next();
+                    let right = self.expression()?;
+                    self.consume(TokenKind::Newline)?;
+                    return Ok(Statement::Assignment {
+                        identifier: name,
+                        expr: right,
+                    });
                 }
             }
-            Expr::Call { callee, paren: _, arguments } => {
-                if let Some(statement) = self.try_function_assignment_statement(callee, arguments)? {
-                    return Ok(statement);
+            Expr::Call {
+                callee,
+                paren: _,
+                arguments,
+            } => {
+                if self.check(TokenKind::Equal) {
+                    let equal = self.iter.next().unwrap();
+                    let function_body = self.expression()?;
+                    self.consume(TokenKind::Newline)?;
+                    if let Expr::Identifier { name } = *callee {
+                        let mut signature = Vec::with_capacity(arguments.len());
+                        for arg in arguments {
+                            match arg {
+                                Expr::Identifier { name } => signature
+                                    .push(UserDefinedFunctionArgType::Identifier(name.lexeme)),
+                                Expr::Number { number } => {
+                                    signature.push(UserDefinedFunctionArgType::Number(number))
+                                }
+                                _ => {
+                                    return Err(ParserError::InvalidAssignmentTarget {
+                                        equal: equal,
+                                    })
+                                }
+                            }
+                        }
+                        return Ok(Statement::FunctionDeclaration {
+                            name: name,
+                            signature: signature,
+                            expr: function_body,
+                        });
+                    }
                 }
             }
             _ => {}
         }
-
-        // Expression statement
         self.consume(TokenKind::Newline)?;
-        return Ok(Statement::Expression(expr))
-    }
-    
-
-    fn try_assignment_statement(&mut self, name: Token) -> Result<Option<Statement>, ParserError> {
-        if self.check(TokenKind::Equal) {
-            self.iter.next();
-            let right = self.expression()?;
-            self.consume(TokenKind::Newline)?;
-            return Ok(Some(Statement::Assignment { identifier: name, expr: right }))
-        }
-        Ok(None)
-    }
-
-    fn try_function_assignment_statement(&mut self, callee: Box<Expr>, args: Vec<Expr>) -> Result<Option<Statement>, ParserError> {
-        if self.check(TokenKind::Equal) {
-            let equal = self.iter.next().unwrap();
-            let function_body = self.expression()?;
-            self.consume(TokenKind::Newline)?;
-            if let Expr::Identifier { name } = *callee {
-                let mut signature = Vec::with_capacity(args.len());
-                for arg in args {
-                    match arg {
-                        Expr::Identifier { name } => signature.push(UserDefinedFunctionArgType::Identifier(name.lexeme)),
-                        Expr::Number { number } => signature.push(UserDefinedFunctionArgType::Number(number)),
-                        _ => return Err(ParserError::InvalidAssignmentTarget { equal: equal }),
-                    }
-                }
-                return Ok(Some(Statement::FunctionDeclaration { name: name, signature: signature, expr: function_body }))
-            }
-        } 
-        Ok(None)
+        return Ok(Statement::ExpressionStatement(expr));
     }
 
     fn expression(&mut self) -> Result<Expr, ParserError> {

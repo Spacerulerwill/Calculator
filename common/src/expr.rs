@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 use crate::{
     function::{Function, UserDefinedFunctionArgType},
@@ -8,7 +8,7 @@ use crate::{
     variable::{Variable, VariableMap},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum GroupingKind {
     Grouping,
     Absolute,
@@ -188,7 +188,7 @@ impl<'a> fmt::Display for EvaluationError<'a> {
 
 impl<'a> Expr {
     pub fn evaluate(
-        self,
+        &self,
         variables: &mut VariableMap<'a>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         match self {
@@ -196,32 +196,32 @@ impl<'a> Expr {
                 left,
                 operator,
                 right,
-            } => Self::evaluate_binary(left, operator, right, variables),
+            } => Self::evaluate_binary(&*left, operator, &*right, variables),
             Expr::Unary { operator, operand } => {
-                Self::evaluate_unary(operand, operator, variables)
+                Self::evaluate_unary(&*operand, operator, variables)
             }
             Expr::Grouping { paren, kind, expr } => {
-                Self::evaluate_grouping(paren, kind, expr, variables)
+                Self::evaluate_grouping(paren, *kind, &*expr, variables)
             }
-            Expr::Number { number } => Ok(Value::Number(number)),
+            Expr::Number { number } => Ok(Value::Number(*number)),
             Expr::Identifier { name } => Self::evaluate_identifier(name, variables),
             Expr::Call {
                 callee,
                 paren,
                 arguments,
-            } => Self::evaluate_call(callee, paren, arguments, variables),
+            } => Self::evaluate_call(&*callee, paren, arguments, variables),
         }
     }
 
     fn evaluate_binary(
-        left: Box<Expr>,
-        operator: Token,
-        right: Box<Expr>,
+        left: &Expr,
+        operator: &Token,
+        right: &Expr,
         variables: &mut VariableMap<'a>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         let left = left.evaluate(variables)?;
         let right = right.evaluate(variables)?;
-        match operator.kind {
+        match &operator.kind {
             TokenKind::Plus => match (&left, &right) {
                 (Value::Number(left), Value::Number(right)) => {
                     return Ok(Value::Number(left + right))
@@ -243,7 +243,9 @@ impl<'a> Expr {
             TokenKind::Slash => match (&left, &right) {
                 (Value::Number(left), Value::Number(right)) => {
                     if right.norm() == 0.0 {
-                        return Err(EvaluationError::DivisionByZero { operator: operator });
+                        return Err(EvaluationError::DivisionByZero {
+                            operator: operator.clone(),
+                        });
                     }
                     return Ok(Value::Number(left / right));
                 }
@@ -258,7 +260,9 @@ impl<'a> Expr {
             TokenKind::Percent => match (&left, &right) {
                 (Value::Number(left), Value::Number(right)) => {
                     if right.norm() == 0.0 {
-                        return Err(EvaluationError::DivisionByZero { operator: operator });
+                        return Err(EvaluationError::DivisionByZero {
+                            operator: operator.clone(),
+                        });
                     }
                     return Ok(Value::Number(left % right));
                 }
@@ -268,25 +272,25 @@ impl<'a> Expr {
         }
         // None were matched, unsupported
         Err(EvaluationError::UnsupportedBinaryOperator {
-            operator,
+            operator: operator.clone(),
             constraint: ValueConstraint::Number,
         })
     }
 
     fn evaluate_unary(
-        operand: Box<Expr>,
-        operator: Token,
+        operand: &Expr,
+        operator: &Token,
         variables: &mut VariableMap<'a>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         let operand = operand.evaluate(variables)?;
-        match operator.kind {
+        match &operator.kind {
             TokenKind::Minus => match &operand {
                 Value::Number(right) => {
                     return Ok(Value::Number(right * Complex64::new(-1.0, 0.0)));
                 }
                 _ => {
                     return Err(EvaluationError::UnsupportedUnaryOperator {
-                        operator: operator,
+                        operator: operator.clone(),
                         constraint: ValueConstraint::Number,
                     })
                 }
@@ -297,7 +301,7 @@ impl<'a> Expr {
                 }
                 _ => {
                     return Err(EvaluationError::UnsupportedUnaryOperator {
-                        operator: operator,
+                        operator: operator.clone(),
                         constraint: ValueConstraint::Number,
                     })
                 }
@@ -308,7 +312,7 @@ impl<'a> Expr {
                 }
                 _ => {
                     return Err(EvaluationError::UnsupportedUnaryOperator {
-                        operator: operator,
+                        operator: operator.clone(),
                         constraint: ValueConstraint::Natural,
                     })
                 }
@@ -318,9 +322,9 @@ impl<'a> Expr {
     }
 
     fn evaluate_grouping(
-        paren: Token,
+        paren: &Token,
         kind: GroupingKind,
-        expr: Box<Expr>,
+        expr: &Expr,
         variables: &mut VariableMap<'a>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         match kind {
@@ -330,7 +334,7 @@ impl<'a> Expr {
                 match result {
                     Value::Number(result) => Ok(Value::Number(result.norm().into())),
                     _ => Err(EvaluationError::GroupingValueConstraintNotMet {
-                        paren: paren,
+                        paren: paren.clone(),
                         kind: kind,
                         constraint: ValueConstraint::Number,
                     }),
@@ -343,7 +347,7 @@ impl<'a> Expr {
                         return Ok(Value::Number(num.re.ceil().into()));
                     }
                     _ => Err(EvaluationError::GroupingValueConstraintNotMet {
-                        paren: paren,
+                        paren: paren.clone(),
                         kind: kind,
                         constraint: ValueConstraint::Real,
                     }),
@@ -356,7 +360,7 @@ impl<'a> Expr {
                         return Ok(Value::Number(num.re.floor().into()));
                     }
                     _ => Err(EvaluationError::GroupingValueConstraintNotMet {
-                        paren: paren,
+                        paren: paren.clone(),
                         kind: kind,
                         constraint: ValueConstraint::Real,
                     }),
@@ -366,12 +370,12 @@ impl<'a> Expr {
     }
 
     fn evaluate_identifier(
-        name: Token,
+        name: &Token,
         variables: &mut VariableMap<'a>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         match variables.get(name.lexeme.as_str()) {
             Some(variable) => Ok(variable.value.clone()),
-            _ => Err(EvaluationError::UnknownVariable { name: name })
+            _ => Err(EvaluationError::UnknownVariable { name: name.clone() }),
         }
     }
 
@@ -403,9 +407,9 @@ impl<'a> Expr {
     }
 
     fn evaluate_call(
-        callee: Box<Expr>,
-        paren: Token,
-        arguments: Vec<Expr>,
+        callee: &Expr,
+        paren: &Token,
+        arguments: &Vec<Expr>,
         variables: &mut VariableMap<'a>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         let callee = callee.evaluate(variables)?;
@@ -420,7 +424,7 @@ impl<'a> Expr {
                     Function::NativeFunction(func) => {
                         if func.arity != evaluated_arguments.len() {
                             return Err(EvaluationError::IncorrectFunctionArgumentCount {
-                                paren: paren,
+                                paren: paren.clone(),
                                 name: func.name,
                                 received: evaluated_arguments.len(),
                                 required: func.arity,
@@ -438,20 +442,25 @@ impl<'a> Expr {
                                     if let UserDefinedFunctionArgType::Identifier(identifier) =
                                         arg_type
                                     {
-                                        inputs.insert(identifier.clone(), Variable::as_variable(val));
+                                        inputs
+                                            .insert(identifier.clone(), Variable::as_variable(val));
                                     }
                                 }
                                 return expr.clone().evaluate(&mut inputs);
                             }
                         }
                         Err(EvaluationError::NoMatchingSignature {
-                            paren: paren,
+                            paren: paren.clone(),
                             name: func.name.clone(),
                         })
                     }
                 }
             }
-            _ => return Err(EvaluationError::InvalidCallable { paren: paren }),
+            _ => {
+                return Err(EvaluationError::InvalidCallable {
+                    paren: paren.clone(),
+                })
+            }
         }
     }
 
@@ -478,6 +487,163 @@ impl<'a> Expr {
                 paren: _,
                 arguments: _,
             } => "function call expression",
+        }
+    }
+
+    pub fn simplify(self) -> Expr {
+        match self {
+            Expr::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                let left_simplified = left.simplify();
+                let right_simplified = right.simplify();
+
+                match (&left_simplified, &right_simplified, &operator.kind) {
+                    // Simplify 0+x
+                    (Expr::Number { number: left_num }, r, TokenKind::Plus)
+                        if *left_num == Complex64::from(0.0) =>
+                    {
+                        return r.clone()
+                    }
+                    // Simplify x+0
+                    (l, Expr::Number { number: right_num }, TokenKind::Plus)
+                        if *right_num == Complex64::from(0.0) =>
+                    {
+                        return l.clone()
+                    }
+                    // Simplify 1*x
+                    (Expr::Number { number: left_num }, r, TokenKind::Star)
+                        if *left_num == Complex64::from(1.0) =>
+                    {
+                        return r.clone()
+                    }
+                    // Simplify x*1
+                    (l, Expr::Number { number: right_num }, TokenKind::Star)
+                        if *right_num == Complex64::from(1.0) =>
+                    {
+                        return l.clone()
+                    }
+                    // Simplify x-0
+                    (l, Expr::Number { number: right_num }, TokenKind::Minus)
+                        if *right_num == Complex64::from(0.0) =>
+                    {
+                        return l.clone()
+                    }
+                    // Simplify 0-x
+                    (Expr::Number { number: left_num }, r, TokenKind::Minus)
+                        if *left_num == Complex64::from(0.0) =>
+                    {
+                        return Expr::Unary {
+                            operator: Token {
+                                kind: TokenKind::Minus,
+                                lexeme: String::from("-"),
+                                col: 0,
+                            },
+                            operand: Box::new(r.clone()),
+                        }
+                    }
+                    // Simplify x/1
+                    (l, Expr::Number { number: right_num }, TokenKind::Slash)
+                        if *right_num == Complex64::from(1.0) =>
+                    {
+                        return l.clone()
+                    }
+                    // Simplify x^1
+                    (l, Expr::Number { number: right_num }, TokenKind::Caret)
+                        if *right_num == Complex64::from(1.0) =>
+                    {
+                        return l.clone()
+                    }
+                    // Simplify 1^x
+                    (Expr::Number { number: left_num }, _, TokenKind::Caret)
+                        if *left_num == Complex64::from(1.0) =>
+                    {
+                        return Expr::Number {
+                            number: Complex64::from(1.0),
+                        }
+                    }
+                    // Simplify x^0
+                    (_, Expr::Number { number: right_num }, TokenKind::Caret)
+                        if *right_num == Complex64::from(0.0) =>
+                    {
+                        return Expr::Number {
+                            number: Complex64::from(1.0),
+                        }
+                    }
+                    // Simplify 0^x
+                    (Expr::Number { number: left_num }, _, TokenKind::Caret)
+                        if *left_num == Complex64::from(0.0) =>
+                    {
+                        return Expr::Number {
+                            number: Complex64::from(0.0),
+                        }
+                    }
+                    // Evaluate two numbers with a binary operator
+                    (Expr::Number { number: num1 }, Expr::Number { number: num2 }, _) => {
+                        let result = Self::evaluate_binary(
+                            &Expr::Number { number: *num1 },
+                            &operator,
+                            &Expr::Number { number: *num2 },
+                            &mut HashMap::new(),
+                        )
+                        .unwrap();
+                        if let Value::Number(num) = result {
+                            return Expr::Number { number: num };
+                        }
+                        panic!()
+                    }
+                    // We can't simplify further, return the binary expression
+                    _ => {}
+                }
+
+                Expr::Binary {
+                    left: Box::new(left_simplified),
+                    operator,
+                    right: Box::new(right_simplified),
+                }
+            }
+            Expr::Unary { operator, operand } => {
+                let operand_simplified = operand.simplify();
+
+                match (&operand_simplified, &operator) {
+                    (Expr::Number { number: _ }, _) => {
+                        let result = Self::evaluate_unary(
+                            &operand_simplified,
+                            &operator,
+                            &mut HashMap::new(),
+                        )
+                        .unwrap();
+                        if let Value::Number(num) = result {
+                            return Expr::Number { number: num };
+                        }
+                        panic!()
+                    }
+                    _ => {}
+                }
+
+                Expr::Unary {
+                    operator: operator,
+                    operand: Box::new(operand_simplified),
+                }
+            }
+            Expr::Grouping { paren, kind, expr } => Expr::Grouping {
+                paren,
+                kind,
+                expr: Box::new(expr.simplify()),
+            },
+            Expr::Number { number } => Expr::Number { number },
+            Expr::Identifier { name } => Expr::Identifier { name },
+            Expr::Call {
+                callee,
+                paren,
+                arguments,
+            } => Expr::Call {
+                callee: callee,
+                paren: paren,
+                arguments: arguments,
+            },
         }
     }
 }
