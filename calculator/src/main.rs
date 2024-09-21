@@ -3,10 +3,9 @@ mod builtin_math;
 use builtin_math::get_constants;
 use clap::Parser as ClapParser;
 use common::{
-    expr::{EvaluationError, GroupingKind},
-    parser::{Parser, ParserError},
-    tokenizer::{Tokenizer, TokenizerError},
-    value::{ValueConstraint, ValueMap},
+    parser::Parser,
+    tokenizer::Tokenizer,
+    variable::VariableMap,
 };
 use std::io::{self, Write};
 
@@ -26,172 +25,41 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let constants = get_constants();
-    let mut variables = ValueMap::new();
+    let mut variables = get_constants();
     if let Some(expression) = args.expression {
-        process_expression(&expression.trim(), &constants, &mut variables, args.tabsize);
+        process_expression(&expression.trim(), &mut variables, args.tabsize);
     } else {
-        start_repl(args.tabsize, &constants, &mut variables);
+        start_repl(args.tabsize, &mut variables);
     }
 }
 
 fn process_expression<'a>(
     expression: &str,
-    constants: &ValueMap<'a>,
-    variables: &mut ValueMap<'a>,
+    variables: &mut VariableMap<'a>,
     tabsize: u8,
 ) {
     let tokens = match Tokenizer::tokenize(expression, tabsize) {
         Ok(tokenizer) => tokenizer.tokens,
         Err(err) => {
-            match err {
-                TokenizerError::BadChar(char, char_pos) => {
-                    eprintln!("Position {char_pos} :: Unexpected or invalid character: '{char}'");
-                }
-            }
-            return;
+            println!("{}", &err);
+            return
         }
     };
 
-    let expr = match Parser::parse(tokens) {
+    let statement = match Parser::parse(tokens) {
         Ok(expr) => expr,
         Err(err) => {
-            match err {
-                ParserError::ExpectedExpression { found } => {
-                    if let Some(found) = found {
-                        eprintln!(
-                            "Position {} :: Expected expression next but found '{}'",
-                            found.col,
-                            &found.lexeme
-                        );
-                    } else {
-                        eprintln!("Expected expression next but found EOF");
-                    }
-                }
-                ParserError::ExpectedToken { expected, found } => {
-                    if let Some(found) = found {
-                        eprintln!(
-                            "Column {} :: Expected {:?} but found '{}'",
-                            found.col,
-                            expected,
-                            found.lexeme
-                        );
-                    } else {
-                        eprintln!("Expected {:?} but found EOF", expected);
-                    }
-                }
-                ParserError::ExpectedEOF { found } => {
-                    eprintln!("Expected EOF but found '{}'", &found.lexeme)
-                }
-                ParserError::InvalidAssignmentTarget { equal } => {
-                    eprintln!("Column {} :: Invalid assignment target", equal.col)
-                }
-            }
-            return;
+            println!("{}", &err);
+            return
         }
     };
 
-    let result = match expr.evaluate(constants, variables) {
-        Ok(result) => result,
-        Err(err) => {
-            match err {
-                EvaluationError::DivisionByZero { operator } => eprintln!(
-                    "Column {} :: Divison by zero on right side of '{}'",
-                    operator.col,
-                    &operator.lexeme
-                ),
-                EvaluationError::IncorrectFunctionArgumentCount {
-                    paren,
-                    name,
-                    received,
-                    required,
-                } => eprintln!(
-                    "Column {} :: Function '{}' requires {} argument(s) but received {}",
-                    paren.col, name, required, received,
-                ),
-                EvaluationError::NoMatchingSignature { paren, name } => eprintln!(
-                    "Column {} :: Incorrect argument signature for function '{}'. Type '{}' to see list of signatures",
-                    paren.col,
-                    name,
-                    name
-                ),
-                EvaluationError::UnsupportedBinaryOperator {
-                    operator,
-                    constraint
-                } => eprintln!(
-                    "Column {} :: Cannot apply binary operator '{}' as one or more operands does not meet value constraint '{}'",
-                    operator.col,
-                    &operator.lexeme,
-                    constraint
-                ),
-                EvaluationError::UnsupportedUnaryOperator { operator, constraint} => eprintln!(
-                    "Column {} :: Cannot apply unary operator '{}' as operand does not meet value constraint '{}'",
-                    operator.col,
-                    &operator.lexeme,
-                    constraint
-                ),
-                EvaluationError::InvalidCallable { paren } => eprintln!(
-                    "Column {} :: Callee does not meet value constraint '{}'",
-                    paren.col,
-                    ValueConstraint::Function
-                ),
-                EvaluationError::GroupingValueConstraintNotMet { paren, kind, constraint } => {
-                    let grouping_str = match kind {
-                        GroupingKind::Grouping => "grouping",
-                        GroupingKind::Absolute => "absolute grouping",
-                        GroupingKind::Ceil => "ceil grouping",
-                        GroupingKind::Floor => "floor grouping"
-                    };
-                    eprintln!(
-                        "Column {} :: Value in {grouping_str} does meet value constraint '{}'",
-                        paren.col,
-                        constraint
-                    )
-                },
-                EvaluationError::IncorrectFunctionArgumentType {
-                    function_name,
-                    function_col,
-                    idx,
-                    name,
-                    constraint
-                } => eprintln!(
-                    "Column {} :: Argument {} ({}) for function '{}' does not meet value constraint '{}'",
-                    function_col,
-                    idx,
-                    name,
-                    function_name,
-                    constraint,
-                ),
-                EvaluationError::ConstantAssignment { name } => eprintln!(
-                    "Column {} :: Cannot assign to '{}' as it is constant",
-                    name.col,
-                    &name.lexeme
-                ),
-                EvaluationError::UnknownVariable { name } => eprintln!(
-                    "Column {} :: Unknown variable '{}'",
-                    name.col,
-                    &name.lexeme
-                ),
-                EvaluationError::InvalidFunctionSignatureArgument { name, idx, expr } => eprintln!(
-                    "Column {} :: Cannot use a {} at position {} as an argument in a function assignment expression",
-                    name.col,
-                    expr.get_type_string(),
-                    idx + 1
-                ),
-                EvaluationError::EquivalentSignatureFound { name } => eprintln!(
-                    "Column {} :: An equivalent signature for function '{}' function already exists",
-                    name.col,
-                    &name.lexeme
-                ),
-            }
-            return;
-        }
-    };
-
-    println!("{}", &result);
+    if let Err(err) = statement.interpret(variables) {
+        println!("{err}")
+    }
 }
 
-fn start_repl<'a>(tabsize: u8, constants: &ValueMap<'a>, variables: &mut ValueMap<'a>) {
+fn start_repl<'a>(tabsize: u8, variables: &mut VariableMap<'a>) {
     let mut input = String::new();
 
     println!("Enter mathematical expressions to evaluate. Type 'exit' to quit.");
@@ -211,6 +79,6 @@ fn start_repl<'a>(tabsize: u8, constants: &ValueMap<'a>, variables: &mut ValueMa
             break;
         }
 
-        process_expression(trimmed_input, constants, variables, tabsize);
+        process_expression(trimmed_input, variables, tabsize);
     }
 }

@@ -1,3 +1,4 @@
+use std::fmt;
 use crate::num_complex::{Complex, Complex64};
 use std::{
     iter::Peekable,
@@ -42,7 +43,15 @@ pub struct TokenPosition {
 
 #[derive(Debug, PartialEq)]
 pub enum TokenizerError {
-    BadChar(char, usize),
+    BadChar{col: usize, char: char},
+}
+
+impl fmt::Display for TokenizerError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self{
+            TokenizerError::BadChar{col, char} => write!(f, "Column {col} :: Unexpected or invalid character '{char}'"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -95,7 +104,7 @@ impl<'a> Tokenizer<'a> {
                 '√' => self.add_single_char_token(TokenKind::Sqrt),
                 'a'..='z' | 'A'..='Z' | '_' | 'π' | 'ϕ' => self.tokenize_identifier(),
                 '0'..='9' => self.tokenize_number(),
-                _ => return Err(TokenizerError::BadChar(ch, self.current_pos.col)),
+                ch => return Err(TokenizerError::BadChar{ col:self.current_pos.col, char: ch}),
             }
         }
         Ok(())
@@ -369,7 +378,7 @@ mod tests {
         ] {
             assert_eq!(
                 Tokenizer::tokenize(input, 4).unwrap_err(),
-                TokenizerError::BadChar(bad_char, col)
+                TokenizerError::BadChar { col: col, char: bad_char }
             );
         }
     }

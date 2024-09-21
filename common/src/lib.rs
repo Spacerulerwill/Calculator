@@ -1,8 +1,10 @@
 pub mod expr;
+pub mod stmt;
 pub mod function;
 pub mod parser;
 pub mod tokenizer;
 pub mod value;
+pub mod variable;
 pub use num;
 pub use num_complex;
 pub use proc_macro2;

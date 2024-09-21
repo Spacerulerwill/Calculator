@@ -1,14 +1,11 @@
-use std::{
-    cell::RefCell,
-    fmt::{self},
-    rc::Rc,
-};
+use std::fmt;
 
 use crate::{
-    function::{Function, UserDefinedFunction, UserDefinedFunctionArgType},
+    function::{Function, UserDefinedFunctionArgType},
     num_complex::Complex64,
     tokenizer::{Token, TokenKind},
-    value::{Value, ValueConstraint, ValueMap},
+    value::{Value, ValueConstraint},
+    variable::{Variable, VariableMap},
 };
 
 #[derive(Debug, Clone)]
@@ -21,15 +18,6 @@ pub enum GroupingKind {
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Assign {
-        name: Token,
-        new_value: Box<Expr>,
-    },
-    FunctionAssign {
-        name: Token,
-        signature: Vec<Expr>,
-        body: Box<Expr>,
-    },
     Binary {
         left: Box<Expr>,
         operator: Token,
@@ -73,12 +61,6 @@ pub enum EvaluationError<'a> {
         paren: Token,
         name: String,
     },
-    /// In a function assignment expression, an incorrect expression type
-    InvalidFunctionSignatureArgument {
-        name: Token,
-        idx: usize,
-        expr: Expr,
-    },
     EquivalentSignatureFound {
         name: Token,
     },
@@ -113,126 +95,141 @@ pub enum EvaluationError<'a> {
     },
 }
 
+impl<'a> fmt::Display for EvaluationError<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            EvaluationError::DivisionByZero { operator } => write!(
+                f,
+                "Column {} :: Divison by zero on right side of '{}'",
+                operator.col,
+                &operator.lexeme
+            ),
+            EvaluationError::IncorrectFunctionArgumentCount {
+                paren,
+                name,
+                received,
+                required,
+            } => write!(
+                f,
+                "Column {} :: Function '{}' requires {} argument(s) but received {}",
+                paren.col, name, required, received,
+            ),
+            EvaluationError::NoMatchingSignature { paren, name } => write!(
+                f,
+                "Column {} :: Incorrect argument signature for function '{}'. Type '{}' to see list of signatures",
+                paren.col,
+                name,
+                name
+            ),
+            EvaluationError::UnsupportedBinaryOperator {
+                operator,
+                constraint
+            } => write!(
+                f,
+                "Column {} :: Cannot apply binary operator '{}' as one or more operands does not meet value constraint '{}'",
+                operator.col,
+                &operator.lexeme,
+                constraint
+            ),
+            EvaluationError::UnsupportedUnaryOperator { operator, constraint} => write!(
+                f,
+                "Column {} :: Cannot apply unary operator '{}' as operand does not meet value constraint '{}'",
+                operator.col,
+                &operator.lexeme,
+                constraint
+            ),
+            EvaluationError::InvalidCallable { paren } => write!(
+                f,
+                "Column {} :: Callee does not meet value constraint '{}'",
+                paren.col,
+                ValueConstraint::Function
+            ),
+            EvaluationError::GroupingValueConstraintNotMet { paren, kind, constraint } => {
+                let grouping_str = match kind {
+                    GroupingKind::Grouping => "grouping",
+                    GroupingKind::Absolute => "absolute grouping",
+                    GroupingKind::Ceil => "ceil grouping",
+                    GroupingKind::Floor => "floor grouping"
+                };
+                write!(
+                    f,
+                    "Column {} :: Value in {grouping_str} does meet value constraint '{}'",
+                    paren.col,
+                    constraint
+                )
+            },
+            EvaluationError::IncorrectFunctionArgumentType {
+                function_name,
+                function_col,
+                idx,
+                name,
+                constraint
+            } => write!(
+                f,
+                "Column {} :: Argument {} ({}) for function '{}' does not meet value constraint '{}'",
+                function_col,
+                idx,
+                name,
+                function_name,
+                constraint,
+            ),
+            EvaluationError::ConstantAssignment { name } => write!(
+                f,
+                "Column {} :: Cannot assign to '{}' as it is constant",
+                name.col,
+                &name.lexeme
+            ),
+            EvaluationError::UnknownVariable { name } => write!(
+                f,
+                "Column {} :: Unknown variable '{}'",
+                name.col,
+                &name.lexeme
+            ),
+            EvaluationError::EquivalentSignatureFound { name } => write!(
+                f,
+                "Column {} :: An equivalent signature for function '{}' function already exists",
+                name.col,
+                &name.lexeme
+            ),
+        }
+    }
+}
+
 impl<'a> Expr {
     pub fn evaluate(
         self,
-        constants: &ValueMap<'a>,
-        variables: &mut ValueMap<'a>,
+        variables: &mut VariableMap<'a>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         match self {
-            Expr::Assign { name, new_value } => {
-                Self::evaluate_assign(name, new_value, constants, variables)
-            }
-            Expr::FunctionAssign {
-                name,
-                signature,
-                body,
-            } => Self::evaluate_function_assign(name, signature, body, constants, variables),
             Expr::Binary {
                 left,
                 operator,
                 right,
-            } => Self::evaluate_binary(left, operator, right, constants, variables),
+            } => Self::evaluate_binary(left, operator, right, variables),
             Expr::Unary { operator, operand } => {
-                Self::evaluate_unary(operand, operator, constants, variables)
+                Self::evaluate_unary(operand, operator, variables)
             }
             Expr::Grouping { paren, kind, expr } => {
-                Self::evaluate_grouping(paren, kind, expr, constants, variables)
+                Self::evaluate_grouping(paren, kind, expr, variables)
             }
             Expr::Number { number } => Ok(Value::Number(number)),
-            Expr::Identifier { name } => Self::evaluate_identifier(name, constants, variables),
+            Expr::Identifier { name } => Self::evaluate_identifier(name, variables),
             Expr::Call {
                 callee,
                 paren,
                 arguments,
-            } => Self::evaluate_call(callee, paren, arguments, constants, variables),
+            } => Self::evaluate_call(callee, paren, arguments, variables),
         }
-    }
-
-    fn evaluate_assign(
-        name: Token,
-        new_value: Box<Expr>,
-        constants: &ValueMap<'a>,
-        variables: &mut ValueMap<'a>,
-    ) -> Result<Value<'a>, EvaluationError<'a>> {
-        let new_value = new_value.evaluate(constants, variables)?;
-        if constants.contains_key(&name.lexeme) {
-            return Err(EvaluationError::ConstantAssignment { name: name });
-        }
-        variables.insert(name.lexeme, new_value.clone());
-        Ok(new_value)
-    }
-
-    fn evaluate_function_assign(
-        name: Token,
-        signature: Vec<Expr>,
-        body: Box<Expr>,
-        constants: &ValueMap<'a>,
-        variables: &mut ValueMap<'a>,
-    ) -> Result<Value<'a>, EvaluationError<'a>> {
-        if constants.contains_key(&name.lexeme) {
-            return Err(EvaluationError::ConstantAssignment { name: name });
-        }
-        // create signature
-        let mut final_signature = Vec::new();
-        for (idx, expr) in signature.into_iter().enumerate() {
-            match expr {
-                Expr::Number { number } => {
-                    final_signature.push(UserDefinedFunctionArgType::Number(number))
-                }
-                Expr::Identifier { name } => {
-                    final_signature.push(UserDefinedFunctionArgType::Identifier(name.lexeme))
-                }
-                _ => {
-                    return Err(EvaluationError::InvalidFunctionSignatureArgument {
-                        name: name,
-                        idx: idx,
-                        expr: expr,
-                    })
-                }
-            }
-        }
-        // If already a user-defined function check an equivalent signature does not exist and then add it
-        if let Some(value) = variables.get(&name.lexeme).cloned() {
-            if let Value::Function(func) = value.clone() {
-                let mut func = func.borrow_mut();
-                match &mut *func {
-                    Function::UserDefinedFunction(ref mut func) => {
-                        if func
-                            .signatures
-                            .iter()
-                            .any(|sig| Self::are_signatures_equivalent(&sig.0, &final_signature))
-                        {
-                            return Err(EvaluationError::EquivalentSignatureFound { name: name });
-                        }
-                        func.signatures.push((final_signature, *body));
-                        return Ok(value);
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        // otherwise just completely replace as new user defined function
-        let function = Value::Function(Rc::new(RefCell::new(Function::UserDefinedFunction(
-            UserDefinedFunction {
-                name: name.lexeme.clone(),
-                signatures: vec![(final_signature, *body)],
-            },
-        ))));
-        variables.insert(name.lexeme, function.clone());
-        Ok(function)
     }
 
     fn evaluate_binary(
         left: Box<Expr>,
         operator: Token,
         right: Box<Expr>,
-        constants: &ValueMap<'a>,
-        variables: &mut ValueMap<'a>,
+        variables: &mut VariableMap<'a>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
-        let left = left.evaluate(constants, variables)?;
-        let right = right.evaluate(constants, variables)?;
+        let left = left.evaluate(variables)?;
+        let right = right.evaluate(variables)?;
         match operator.kind {
             TokenKind::Plus => match (&left, &right) {
                 (Value::Number(left), Value::Number(right)) => {
@@ -288,10 +285,9 @@ impl<'a> Expr {
     fn evaluate_unary(
         operand: Box<Expr>,
         operator: Token,
-        constants: &ValueMap<'a>,
-        variables: &mut ValueMap<'a>,
+        variables: &mut VariableMap<'a>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
-        let operand = operand.evaluate(constants, variables)?;
+        let operand = operand.evaluate(variables)?;
         match operator.kind {
             TokenKind::Minus => match &operand {
                 Value::Number(right) => {
@@ -334,13 +330,12 @@ impl<'a> Expr {
         paren: Token,
         kind: GroupingKind,
         expr: Box<Expr>,
-        constants: &ValueMap<'a>,
-        variables: &mut ValueMap<'a>,
+        variables: &mut VariableMap<'a>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         match kind {
-            GroupingKind::Grouping => expr.evaluate(constants, variables),
+            GroupingKind::Grouping => expr.evaluate(variables),
             GroupingKind::Absolute => {
-                let result = expr.evaluate(constants, variables)?;
+                let result = expr.evaluate(variables)?;
                 match result {
                     Value::Number(result) => Ok(Value::Number(result.norm().into())),
                     _ => Err(EvaluationError::GroupingValueConstraintNotMet {
@@ -351,7 +346,7 @@ impl<'a> Expr {
                 }
             }
             GroupingKind::Ceil => {
-                let result = expr.evaluate(constants, variables)?;
+                let result = expr.evaluate(variables)?;
                 match result {
                     Value::Number(num) if result.fits_value_constraint(ValueConstraint::Real) => {
                         return Ok(Value::Number(num.re.ceil().into()));
@@ -364,7 +359,7 @@ impl<'a> Expr {
                 }
             }
             GroupingKind::Floor => {
-                let result = expr.evaluate(constants, variables)?;
+                let result = expr.evaluate(variables)?;
                 match result {
                     Value::Number(num) if result.fits_value_constraint(ValueConstraint::Real) => {
                         return Ok(Value::Number(num.re.floor().into()));
@@ -381,18 +376,12 @@ impl<'a> Expr {
 
     fn evaluate_identifier(
         name: Token,
-        constants: &ValueMap<'a>,
-        variables: &mut ValueMap<'a>,
+        variables: &mut VariableMap<'a>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         match variables.get(name.lexeme.as_str()) {
-            Some(value) => return Ok(value.clone()),
-            None => {}
+            Some(variable) => Ok(variable.value.clone()),
+            _ => Err(EvaluationError::UnknownVariable { name: name })
         }
-        match constants.get(name.lexeme.as_str()) {
-            Some(value) => return Ok(value.clone()),
-            None => {}
-        }
-        Err(EvaluationError::UnknownVariable { name: name })
     }
 
     fn matches_signature(
@@ -422,45 +411,18 @@ impl<'a> Expr {
         true
     }
 
-    fn are_signatures_equivalent(
-        signature1: &Vec<UserDefinedFunctionArgType>,
-        signature2: &Vec<UserDefinedFunctionArgType>,
-    ) -> bool {
-        if signature1.len() != signature2.len() {
-            return false;
-        }
-        for (arg_type_1, arg_type_2) in signature1.iter().zip(signature2.iter()) {
-            if std::mem::discriminant(arg_type_1) != std::mem::discriminant(arg_type_2) {
-                return false;
-            }
-            match (arg_type_1, arg_type_2) {
-                (
-                    UserDefinedFunctionArgType::Number(one),
-                    UserDefinedFunctionArgType::Number(two),
-                ) => {
-                    if one != two {
-                        return false;
-                    }
-                }
-                _ => {}
-            }
-        }
-        true
-    }
-
     fn evaluate_call(
         callee: Box<Expr>,
         paren: Token,
         arguments: Vec<Expr>,
-        constants: &ValueMap<'a>,
-        variables: &mut ValueMap<'a>,
+        variables: &mut VariableMap<'a>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
-        let callee = callee.evaluate(constants, variables)?;
+        let callee = callee.evaluate(variables)?;
         match callee {
             Value::Function(function) => {
                 let mut evaluated_arguments = Vec::with_capacity(arguments.len());
                 for argument in arguments {
-                    evaluated_arguments.push(argument.evaluate(constants, variables)?);
+                    evaluated_arguments.push(argument.evaluate(variables)?);
                 }
                 let function = function.borrow();
                 match &*function {
@@ -485,10 +447,10 @@ impl<'a> Expr {
                                     if let UserDefinedFunctionArgType::Identifier(identifier) =
                                         arg_type
                                     {
-                                        inputs.insert(identifier.clone(), val);
+                                        inputs.insert(identifier.clone(), Variable::as_variable(val));
                                     }
                                 }
-                                return expr.clone().evaluate(constants, &mut inputs);
+                                return expr.clone().evaluate(&mut inputs);
                             }
                         }
                         Err(EvaluationError::NoMatchingSignature {
@@ -504,15 +466,6 @@ impl<'a> Expr {
 
     pub fn get_type_string(&self) -> &'static str {
         match self {
-            Expr::Assign {
-                name: _,
-                new_value: _,
-            } => "assignment expression",
-            Expr::FunctionAssign {
-                name: _,
-                signature: _,
-                body: _,
-            } => "function assignment expression",
             Expr::Binary {
                 left: _,
                 operator: _,
@@ -541,18 +494,6 @@ impl<'a> Expr {
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Expr::Assign { name, new_value } => {
-                write!(f, "{}={}", name.lexeme, new_value)
-            }
-            Expr::FunctionAssign {
-                name,
-                signature,
-                body,
-            } => {
-                let args: Vec<String> = signature.iter().map(|arg| format!("{}", arg)).collect();
-                let args_str = args.join(", ");
-                write!(f, "{}({}) = {}", &name.lexeme, args_str, body)
-            }
             Expr::Binary {
                 left,
                 operator,

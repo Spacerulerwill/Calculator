@@ -1,10 +1,10 @@
 use common::{
     num::integer::{gcd as _gcd, lcm as _lcm},
     num_complex::Complex64,
-    value::{Value, ValueMap},
+    value::Value, variable::Variable,
 };
 use proc_macros::define_calculator_builtin_function;
-use std::{cell::RefCell, f64::consts::{E, PI, TAU}, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, f64::consts::{E, PI, TAU}, rc::Rc};
 
 const C: f64 = 299792458_f64;
 const G: f64 = 9.80665_f64;
@@ -41,42 +41,42 @@ define_calculator_builtin_function!(gcd, (first: integer, second: integer), Ok(V
 define_calculator_builtin_function!(lcm, (first: integer, second: integer), Ok(Value::Number(Complex64::from(_lcm(first as i64, second as i64) as f64))));
 
 #[rustfmt::skip]
-pub fn get_constants() -> ValueMap<'static>{
-    ValueMap::from([
-        (String::from("i"), Value::Number(Complex64::I)),
-        (String::from("e"), Value::Number(Complex64::from(E))),
-        (String::from("pi"), Value::Number(Complex64::from(PI))),
-        (String::from("π"), Value::Number(Complex64::from(PI))),
-        (String::from("phi"), Value::Number(Complex64::from(PHI))),
-        (String::from("ϕ"), Value::Number(Complex64::from(PHI))),
-        (String::from("tau"), Value::Number(Complex64::from(TAU))),
-        (String::from("c"), Value::Number(Complex64::from(C))),
-        (String::from("g"), Value::Number(Complex64::from(G))),
-        (String::from("sin"), Value::Function(Rc::new(RefCell::new(sin)))),
-        (String::from("cos"), Value::Function(Rc::new(RefCell::new(cos)))),
-        (String::from("tan"), Value::Function(Rc::new(RefCell::new(tan)))),
-        (String::from("asin"), Value::Function(Rc::new(RefCell::new(asin)))),
-        (String::from("acos"), Value::Function(Rc::new(RefCell::new(acos)))),
-        (String::from("atan"), Value::Function(Rc::new(RefCell::new(atan)))),
-        (String::from("sinh"), Value::Function(Rc::new(RefCell::new(sinh)))),
-        (String::from("cosh"), Value::Function(Rc::new(RefCell::new(cosh)))),
-        (String::from("tanh"), Value::Function(Rc::new(RefCell::new(tanh)))),
-        (String::from("asinh"), Value::Function(Rc::new(RefCell::new(asinh)))),
-        (String::from("acosh"), Value::Function(Rc::new(RefCell::new(acosh)))),
-        (String::from("atanh"), Value::Function(Rc::new(RefCell::new(atanh)))),
-        (String::from("re"), Value::Function(Rc::new(RefCell::new(re)))),
-        (String::from("im"), Value::Function(Rc::new(RefCell::new(im)))),
-        (String::from("arg"), Value::Function(Rc::new(RefCell::new(arg)))),
-        (String::from("conj"), Value::Function(Rc::new(RefCell::new(conj)))),
-        (String::from("abs"), Value::Function(Rc::new(RefCell::new(abs)))),
-        (String::from("ceil"), Value::Function(Rc::new(RefCell::new(ceil)))),
-        (String::from("floor"), Value::Function(Rc::new(RefCell::new(floor)))),
-        (String::from("log"), Value::Function(Rc::new(RefCell::new(log)))),
-        (String::from("log2"), Value::Function(Rc::new(RefCell::new(log2)))),
-        (String::from("log10"), Value::Function(Rc::new(RefCell::new(log10)))),
-        (String::from("ln"), Value::Function(Rc::new(RefCell::new(ln)))),
-        (String::from("sqrt"), Value::Function(Rc::new(RefCell::new(sqrt)))),
-        (String::from("gcd"), Value::Function(Rc::new(RefCell::new(gcd)))),
-        (String::from("lcm"), Value::Function(Rc::new(RefCell::new(lcm)))),
+pub fn get_constants() -> HashMap<String, Variable<'static>> {
+    HashMap::from([
+        (String::from("i"), Variable::as_constant(Value::Number(Complex64::I))),
+        (String::from("e"), Variable::as_constant(Value::Number(Complex64::from(E)))),
+        (String::from("pi"), Variable::as_constant(Value::Number(Complex64::from(PI)))),
+        (String::from("π"), Variable::as_constant(Value::Number(Complex64::from(PI)))),
+        (String::from("phi"), Variable::as_constant(Value::Number(Complex64::from(PHI)))),
+        (String::from("ϕ"), Variable::as_constant(Value::Number(Complex64::from(PHI)))),
+        (String::from("tau"), Variable::as_constant(Value::Number(Complex64::from(TAU)))),
+        (String::from("c"), Variable::as_constant(Value::Number(Complex64::from(C)))),
+        (String::from("g"), Variable::as_constant(Value::Number(Complex64::from(G)))),
+        (String::from("sin"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(sin))))),
+        (String::from("cos"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(cos))))),
+        (String::from("tan"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(tan))))),
+        (String::from("asin"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(asin))))),
+        (String::from("acos"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(acos))))),
+        (String::from("atan"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(atan))))),
+        (String::from("sinh"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(sinh))))),
+        (String::from("cosh"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(cosh))))),
+        (String::from("tanh"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(tanh))))),
+        (String::from("asinh"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(asinh))))),
+        (String::from("acosh"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(acosh))))),
+        (String::from("atanh"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(atanh))))),
+        (String::from("re"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(re))))),
+        (String::from("im"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(im))))),
+        (String::from("arg"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(arg))))),
+        (String::from("conj"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(conj))))),
+        (String::from("abs"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(abs))))),
+        (String::from("ceil"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(ceil))))),
+        (String::from("floor"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(floor))))),
+        (String::from("log"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(log))))),
+        (String::from("log2"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(log2))))),
+        (String::from("log10"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(log10))))),
+        (String::from("ln"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(ln))))),
+        (String::from("sqrt"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(sqrt))))),
+        (String::from("gcd"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(gcd))))),
+        (String::from("lcm"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(lcm))))),
     ])
 }

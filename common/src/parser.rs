@@ -1,7 +1,13 @@
 /*
-<expression> ::= <assignment>
+<statement> ::= <expression>
+              | <assignment>
+              | <function_>
 
-<assignment> ::= <IDENTIFIER> "=" <assignment> | <term>
+<assignment> ::= <IDENTIFIER> "=" <expression>
+
+<function_declaration> ::= <call> "=" <expression>
+
+<expression> ::= <term>
 
 <term> ::= <factor> ( ( "-" | "+" ) <factor> )*
 
@@ -26,11 +32,10 @@
 <arguments> ::= <expression> ( "," <expression> )*
 */
 
-use std::{iter::Peekable, vec::IntoIter};
+use std::{fmt, iter::Peekable, vec::IntoIter};
 
 use crate::{
-    expr::{Expr, GroupingKind},
-    tokenizer::{Token, TokenKind},
+    expr::{Expr, GroupingKind}, function::UserDefinedFunctionArgType, stmt::Statement, tokenizer::{Token, TokenKind}
 };
 
 #[derive(Debug)]
@@ -50,64 +55,109 @@ pub enum ParserError {
     },
 }
 
+impl fmt::Display for ParserError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ParserError::ExpectedExpression { found } => {
+                if let Some(found) = found {
+                    write!(
+                        f,
+                        "Position {} :: Expected expression next but found '{}'",
+                        found.col,
+                        &found.lexeme
+                    )
+                } else {
+                    write!(f, "Expected expression next but found EOF")
+                }
+            }
+            ParserError::ExpectedToken { expected, found } => {
+                if let Some(found) = found {
+                    write!(
+                        f,
+                        "Column {} :: Expected {:?} but found '{}'",
+                        found.col,
+                        expected,
+                        found.lexeme
+                    )
+                } else {
+                    write!(f, "Expected {:?} but found EOF", expected)
+                }
+            }
+            ParserError::ExpectedEOF { found } => write!(f, "Expected EOF but found '{}'", &found.lexeme),
+            ParserError::InvalidAssignmentTarget { equal } => write!(f, "Column {} :: Invalid assignment target", equal.col)
+
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Parser {
     iter: Peekable<IntoIter<Token>>,
 }
 
 impl Parser {
-    pub fn parse(tokens: Vec<Token>) -> Result<Expr, ParserError> {
+    pub fn parse(tokens: Vec<Token>) -> Result<Statement, ParserError> {
         let mut parser = Parser {
             iter: tokens.into_iter().peekable(),
         };
-        let expr = parser.expression()?;
+        let statement = parser.statement()?;
         if let Some(token) = parser.iter.next() {
             return Err(ParserError::ExpectedEOF { found: token });
         }
-        Ok(expr)
+        Ok(statement)
     }
 
-    fn expression(&mut self) -> Result<Expr, ParserError> {
-        self.assignment()
-    }
-
-    fn assignment(&mut self) -> Result<Expr, ParserError> {
-        let expr = self.term()?;
-        match self.iter.peek() {
-            Some(Token {
-                kind: TokenKind::Equal,
-                ..
-            }) => {
-                let equal = self.iter.next().unwrap();
-                let value = self.assignment()?;
-                match expr {
-                    Expr::Identifier { name } => {
-                        return Ok(Expr::Assign {
-                            name: name,
-                            new_value: Box::new(value),
-                        })
-                    }
-                    Expr::Call {
-                        callee,
-                        paren: _,
-                        arguments,
-                    } => {
-                        let name = match *callee {
-                            Expr::Identifier { name } => name,
-                            _ => return Err(ParserError::InvalidAssignmentTarget { equal: equal }),
-                        };
-                        return Ok(Expr::FunctionAssign {
-                            name: name,
-                            signature: arguments,
-                            body: Box::new(value),
-                        });
-                    }
-                    _ => return Err(ParserError::InvalidAssignmentTarget { equal: equal }),
+    fn statement(&mut self) -> Result<Statement, ParserError> {
+        let expr = self.expression()?;
+    
+        match expr.clone() {
+            Expr::Identifier { name } => {
+                if let Some(statement) = self.try_assignment_statement(name)? {
+                    return Ok(statement);
+                }
+            }
+            Expr::Call { callee, paren: _, arguments } => {
+                if let Some(statement) = self.try_function_assignment_statement(callee, arguments)? {
+                    return Ok(statement);
                 }
             }
             _ => {}
         }
-        Ok(expr)
+
+        return Ok(Statement::Expression(expr))
+    }
+    
+
+    fn try_assignment_statement(&mut self, name: Token) -> Result<Option<Statement>, ParserError> {
+        if self.check(TokenKind::Equal) {
+            self.iter.next();
+            let right = self.expression()?;
+            return Ok(Some(Statement::Assignment { identifier: name, expr: right }))
+        }
+        Ok(None)
+    }
+
+    fn try_function_assignment_statement(&mut self, callee: Box<Expr>, args: Vec<Expr>) -> Result<Option<Statement>, ParserError> {
+        if self.check(TokenKind::Equal) {
+            let equal = self.iter.next().unwrap();
+            let function_body = self.expression()?;
+            if let Expr::Identifier { name } = *callee {
+                let mut signature = Vec::with_capacity(args.len());
+                for arg in args {
+                    match arg {
+                        Expr::Identifier { name } => signature.push(UserDefinedFunctionArgType::Identifier(name.lexeme)),
+                        Expr::Number { number } => signature.push(UserDefinedFunctionArgType::Number(number)),
+                        _ => return Err(ParserError::InvalidAssignmentTarget { equal: equal }),
+                    }
+                }
+                return Ok(Some(Statement::FunctionDeclaration { name: name, signature: signature, expr: function_body }))
+            }
+        } 
+        Ok(None)
+    }
+
+    fn expression(&mut self) -> Result<Expr, ParserError> {
+        self.term()
     }
 
     fn term(&mut self) -> Result<Expr, ParserError> {

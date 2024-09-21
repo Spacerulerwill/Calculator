@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use num_complex::Complex64;
 use proc_macro2::TokenStream;
@@ -63,8 +63,6 @@ pub enum Value<'a> {
     Function(Rc<RefCell<Function<'a>>>),
     Number(Complex64),
 }
-
-pub type ValueMap<'a> = HashMap<String, Value<'a>>;
 
 impl fmt::Display for Value<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
