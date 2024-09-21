@@ -1,11 +1,12 @@
 /*
-<statement> ::= <expression>
+<statement> ::= <expression_statement>
               | <assignment>
-              | <function_>
+              | <function_declaration>
 
-<assignment> ::= <IDENTIFIER> "=" <expression>
+<expression_statement> ::= <expression> "\n"
+<assignment> ::= <IDENTIFIER> "=" <expression> "\n"
 
-<function_declaration> ::= <call> "=" <expression>
+<function_declaration> ::= <call> "=" <expression> "\n"
 
 <expression> ::= <term>
 
@@ -96,15 +97,15 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn parse(tokens: Vec<Token>) -> Result<Statement, ParserError> {
+    pub fn parse(tokens: Vec<Token>) -> Result<Vec<Statement>, ParserError> {
         let mut parser = Parser {
             iter: tokens.into_iter().peekable(),
         };
-        let statement = parser.statement()?;
-        if let Some(token) = parser.iter.next() {
-            return Err(ParserError::ExpectedEOF { found: token });
+        let mut statements = Vec::new();
+        while parser.iter.peek().is_some() {
+            statements.push(parser.statement()?);
         }
-        Ok(statement)
+        Ok(statements)
     }
 
     fn statement(&mut self) -> Result<Statement, ParserError> {
@@ -124,6 +125,8 @@ impl Parser {
             _ => {}
         }
 
+        // Expression statement
+        self.consume(TokenKind::Newline)?;
         return Ok(Statement::Expression(expr))
     }
     
@@ -132,6 +135,7 @@ impl Parser {
         if self.check(TokenKind::Equal) {
             self.iter.next();
             let right = self.expression()?;
+            self.consume(TokenKind::Newline)?;
             return Ok(Some(Statement::Assignment { identifier: name, expr: right }))
         }
         Ok(None)
@@ -141,6 +145,7 @@ impl Parser {
         if self.check(TokenKind::Equal) {
             let equal = self.iter.next().unwrap();
             let function_body = self.expression()?;
+            self.consume(TokenKind::Newline)?;
             if let Expr::Identifier { name } = *callee {
                 let mut signature = Vec::with_capacity(args.len());
                 for arg in args {

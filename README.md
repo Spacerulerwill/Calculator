@@ -7,3 +7,4 @@ A simple command line calculator I'm working on
 * Groupings: `()`, `|absolute|`, `⌈ceil⌉`,  `⌊floor⌋`
 * Pre-defined functions and constants
 * User defined variables and functions
+* Pre-load constants, functions and pre-run expressions from a file

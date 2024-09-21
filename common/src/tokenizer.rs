@@ -24,6 +24,7 @@ pub enum TokenKind {
     Comma,
     Equal,
     Sqrt,
+    Newline,
     Identifier(String),
     Number(Complex64),
 }
@@ -85,6 +86,7 @@ impl<'a> Tokenizer<'a> {
                     self.next();
                     self.prev_pos = self.current_pos.clone();
                 }
+                '\n' => self.add_single_char_token(TokenKind::Newline),
                 '(' => self.add_single_char_token(TokenKind::LeftParen),
                 ')' => self.add_single_char_token(TokenKind::RightParen),
                 '⌈' => self.add_single_char_token(TokenKind::LeftCeiling),
