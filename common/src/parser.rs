@@ -1,12 +1,15 @@
 /*
 <statement> ::= <expression_statement>
-              | <simplfiy_statement>
+              | <delete_statement>
               | <assignment>
               | <function_declaration>
 
 <expression_statement> ::= <expression> "\n"
-<simplify_statement> ::= "simplify" <expression> "\n"
+
+<delete_statement> ::= "delete" (<IDENTIFIER> | <call>) "\n"
+
 <assignment> ::= <IDENTIFIER> "=" <expression> "\n"
+
 <function_declaration> ::= <call> "=" <expression> "\n"
 
 <expression> ::= <term>
@@ -38,7 +41,7 @@ use std::{fmt, iter::Peekable, vec::IntoIter};
 
 use crate::{
     expr::{Expr, GroupingKind},
-    function::UserDefinedFunctionArgType,
+    function::Signature,
     stmt::Statement,
     tokenizer::{Token, TokenKind},
 };
@@ -58,6 +61,7 @@ pub enum ParserError {
     InvalidAssignmentTarget {
         equal: Token,
     },
+    CannotDelete(Token, Expr),
 }
 
 impl fmt::Display for ParserError {
@@ -91,6 +95,12 @@ impl fmt::Display for ParserError {
             ParserError::InvalidAssignmentTarget { equal } => {
                 write!(f, "Column {} :: Invalid assignment target", equal.col)
             }
+            ParserError::CannotDelete(token, expr) => write!(
+                f,
+                "Column {} :: Cannot delete {}",
+                token.col,
+                expr.get_type_string()
+            ),
         }
     }
 }
@@ -113,24 +123,15 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Statement, ParserError> {
-        if self.check(TokenKind::Simplify) {
-            self.iter.next();
-            let expr = self.expression()?;
-            self.consume(TokenKind::Newline)?;
-            return Ok(Statement::SimplifyStatement(expr));
+        if self.check(TokenKind::Delete) {
+            return self.delete_statement();
         }
 
         let expr = self.expression()?;
         match expr.clone() {
             Expr::Identifier { name } => {
-                if self.check(TokenKind::Equal) {
-                    self.iter.next();
-                    let right = self.expression()?;
-                    self.consume(TokenKind::Newline)?;
-                    return Ok(Statement::Assignment {
-                        identifier: name,
-                        expr: right,
-                    });
+                if let Some(statement) = self.assignment(name)? {
+                    return Ok(statement);
                 }
             }
             Expr::Call {
@@ -138,38 +139,82 @@ impl Parser {
                 paren: _,
                 arguments,
             } => {
-                if self.check(TokenKind::Equal) {
-                    let equal = self.iter.next().unwrap();
-                    let function_body = self.expression()?;
-                    self.consume(TokenKind::Newline)?;
-                    if let Expr::Identifier { name } = *callee {
-                        let mut signature = Vec::with_capacity(arguments.len());
-                        for arg in arguments {
-                            match arg {
-                                Expr::Identifier { name } => signature
-                                    .push(UserDefinedFunctionArgType::Identifier(name.lexeme)),
-                                Expr::Number { number } => {
-                                    signature.push(UserDefinedFunctionArgType::Number(number))
-                                }
-                                _ => {
-                                    return Err(ParserError::InvalidAssignmentTarget {
-                                        equal: equal,
-                                    })
-                                }
-                            }
-                        }
-                        return Ok(Statement::FunctionDeclaration {
-                            name: name,
-                            signature: signature,
-                            expr: function_body,
-                        });
-                    }
+                if let Some(statement) = self.function_declaration(*callee, arguments)? {
+                    return Ok(statement);
                 }
             }
             _ => {}
         }
+
+        self.expression_statement(expr)
+    }
+
+    fn expression_statement(&mut self, expr: Expr) -> Result<Statement, ParserError> {
         self.consume(TokenKind::Newline)?;
-        return Ok(Statement::ExpressionStatement(expr));
+        Ok(Statement::ExpressionStatement(expr))
+    }
+
+    fn delete_statement(&mut self) -> Result<Statement, ParserError> {
+        let delete = self.iter.next().unwrap();
+        let expr = self.expression()?;
+        match expr.clone() {
+            Expr::Identifier { name } => {
+                self.consume(TokenKind::Newline)?;
+                return Ok(Statement::DeleteVariable(name));
+            }
+            Expr::Call {
+                callee,
+                paren: _,
+                arguments,
+            } => {
+                self.consume(TokenKind::Newline)?;
+                match Signature::from_call_expression(*callee, arguments) {
+                    Ok((name, signature)) => {
+                        return Ok(Statement::DeleteFunctionSignature {
+                            name: name,
+                            signature: signature,
+                        })
+                    }
+                    Err(_) => return Err(ParserError::CannotDelete(delete, expr)),
+                }
+            }
+            expr => return Err(ParserError::CannotDelete(delete, expr)),
+        }
+    }
+
+    fn assignment(&mut self, name: Token) -> Result<Option<Statement>, ParserError> {
+        if self.check(TokenKind::Equal) {
+            self.iter.next();
+            let right = self.expression()?;
+            self.consume(TokenKind::Newline)?;
+            return Ok(Some(Statement::Assignment {
+                identifier: name,
+                expr: right,
+            }));
+        }
+        Ok(None)
+    }
+
+    fn function_declaration(
+        &mut self,
+        callee: Expr,
+        arguments: Vec<Expr>,
+    ) -> Result<Option<Statement>, ParserError> {
+        if self.check(TokenKind::Equal) {
+            let equal = self.iter.next().unwrap();
+            let function_body = self.expression()?;
+            self.consume(TokenKind::Newline)?;
+            let (name, signature) = match Signature::from_call_expression(callee, arguments) {
+                Ok(result) => result,
+                Err(_) => return Err(ParserError::InvalidAssignmentTarget { equal: equal }),
+            };
+            return Ok(Some(Statement::FunctionDeclaration {
+                name: name,
+                signature: signature,
+                expr: function_body,
+            }));
+        }
+        Ok(None)
     }
 
     fn expression(&mut self) -> Result<Expr, ParserError> {

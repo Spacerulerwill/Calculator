@@ -4,3 +4,4 @@ members = [
     "common",
     "proc_macros",
 ]
+resolver = "2"

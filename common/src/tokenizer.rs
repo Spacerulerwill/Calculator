@@ -27,7 +27,7 @@ pub enum TokenKind {
     Newline,
     Identifier(String),
     Number(Complex64),
-    Simplify,
+    Delete,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -85,7 +85,7 @@ impl<'a> Tokenizer<'a> {
 
     fn get_keyword_token_kind(lexeme: &str) -> Option<TokenKind> {
         match lexeme {
-            "simplify" => Some(TokenKind::Simplify),
+            "delete" => Some(TokenKind::Delete),
             _ => None,
         }
     }
@@ -298,7 +298,7 @@ mod tests {
                 "2.5e-6",
                 TokenKind::Number(Complex64::new(2.5e-6 as f64, 0.0)),
             ),
-            ("simplify", TokenKind::Simplify),
+            ("delete", TokenKind::Delete),
         ] {
             let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
             assert_eq!(extract_token_types(tokens), vec![result]);

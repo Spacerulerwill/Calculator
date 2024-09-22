@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt};
+use std::fmt;
 
 use crate::{
     function::{Function, UserDefinedFunctionArgType},
@@ -47,20 +47,16 @@ pub enum Expr {
 
 #[derive(Debug)]
 pub enum EvaluationError<'a> {
-    DivisionByZero {
-        operator: Token,
-    },
+    /// Division by zero is naughty (noughty)
+    DivisionByZero { operator: Token },
+    /// Only applicable to native functions
     IncorrectFunctionArgumentCount {
         paren: Token,
         name: &'a str,
         received: usize,
         required: usize,
     },
-    /// No matching signature found for a function call
-    NoMatchingSignature {
-        paren: Token,
-        name: String,
-    },
+    /// Only applicable to native functions
     IncorrectFunctionArgumentType {
         function_name: String,
         function_col: usize,
@@ -68,28 +64,40 @@ pub enum EvaluationError<'a> {
         name: String,
         constraint: ValueConstraint,
     },
+    /// If the user tries to add a new signature to a native function
+    CantAddSignatureToNativeFunction {
+        name: Token,
+    },
+    /// If the user tries to delete a signature from a native function
+    CantDeleteSignatureFromNativeFunction {
+        name: Token,
+    },
+    /// No matching signature found for a function
+    NoMatchingSignature { col: usize, name: String },
+    /// Operands of binary operator don't meet value constraint
     UnsupportedBinaryOperator {
         operator: Token,
         constraint: ValueConstraint,
     },
+    /// Operand of unary operator doesn't meet value constraint
     UnsupportedUnaryOperator {
         operator: Token,
         constraint: ValueConstraint,
     },
+    /// Grouping operand does not meet value constraint
     GroupingValueConstraintNotMet {
         paren: Token,
         kind: GroupingKind,
         constraint: ValueConstraint,
     },
-    InvalidCallable {
-        paren: Token,
-    },
-    ConstantAssignment {
-        name: Token,
-    },
-    UnknownVariable {
-        name: Token,
-    },
+    /// Try to perform function call on a non function value
+    InvalidCallable { col: usize },
+    /// Not allowed to assign value to constants
+    ConstantAssignment { name: Token },
+    /// Not allowed to delete constants
+    ConstantDeletion { name: Token },
+    /// Tried to access or use a non-existant variable
+    UnknownVariable { name: Token },
 }
 
 impl<'a> fmt::Display for EvaluationError<'a> {
@@ -111,10 +119,10 @@ impl<'a> fmt::Display for EvaluationError<'a> {
                 "Column {} :: Function '{}' requires {} argument(s) but received {}",
                 paren.col, name, required, received,
             ),
-            EvaluationError::NoMatchingSignature { paren, name } => write!(
+            EvaluationError::NoMatchingSignature { col, name } => write!(
                 f,
-                "Column {} :: Incorrect argument signature for function '{}'. Type '{}' to see list of signatures",
-                paren.col,
+                "Column {} :: No matching parameter signature for function '{}'. Type '{}' to see list of signatures",
+                col,
                 name,
                 name
             ),
@@ -135,10 +143,10 @@ impl<'a> fmt::Display for EvaluationError<'a> {
                 &operator.lexeme,
                 constraint
             ),
-            EvaluationError::InvalidCallable { paren } => write!(
+            EvaluationError::InvalidCallable { col } => write!(
                 f,
                 "Column {} :: Callee does not meet value constraint '{}'",
-                paren.col,
+                *col,
                 ValueConstraint::Function
             ),
             EvaluationError::GroupingValueConstraintNotMet { paren, kind, constraint } => {
@@ -176,12 +184,30 @@ impl<'a> fmt::Display for EvaluationError<'a> {
                 name.col,
                 &name.lexeme
             ),
+            EvaluationError::ConstantDeletion { name } => write!(
+                f,
+                "Column {} :: Cannot delete '{}' as it is constant",
+                name.col,
+                &name.lexeme
+            ),
             EvaluationError::UnknownVariable { name } => write!(
                 f,
                 "Column {} :: Unknown variable '{}'",
                 name.col,
                 &name.lexeme
             ),
+            EvaluationError::CantAddSignatureToNativeFunction { name } => write!(
+                f,
+                "Column {} :: Can't add signature to native function '{}'",
+                name.col,
+                &name.lexeme
+            ),
+            EvaluationError::CantDeleteSignatureFromNativeFunction { name } => write!(
+                f,
+                "Column {} :: Can't delete signature from native function '{}'",
+                name.col,
+                &name.lexeme
+            )
         }
     }
 }
@@ -379,33 +405,6 @@ impl<'a> Expr {
         }
     }
 
-    fn matches_signature(
-        signature: &Vec<UserDefinedFunctionArgType>,
-        arguments: &Vec<Value>,
-    ) -> bool {
-        if signature.len() != arguments.len() {
-            return false;
-        }
-
-        for (param, arg) in signature.iter().zip(arguments.iter()) {
-            match param {
-                UserDefinedFunctionArgType::Identifier(_) => continue, // Identifier matches any number
-                UserDefinedFunctionArgType::Number(expected) => {
-                    match arg {
-                        Value::Function(_) => return false,
-                        Value::Number(num) => {
-                            if num != expected {
-                                return false;
-                            }
-                        }
-                    };
-                }
-            }
-        }
-
-        true
-    }
-
     fn evaluate_call(
         callee: &Expr,
         paren: &Token,
@@ -434,10 +433,12 @@ impl<'a> Expr {
                     }
                     Function::UserDefinedFunction(func) => {
                         for (signature, expr) in func.signatures.iter() {
-                            if Self::matches_signature(&signature, &evaluated_arguments) {
+                            if signature.matches_parameters(&evaluated_arguments) {
                                 let mut inputs = variables.clone();
-                                for (arg_type, val) in
-                                    signature.into_iter().zip(evaluated_arguments.into_iter())
+                                for (arg_type, val) in signature
+                                    .parameters
+                                    .iter()
+                                    .zip(evaluated_arguments.into_iter())
                                 {
                                     if let UserDefinedFunctionArgType::Identifier(identifier) =
                                         arg_type
@@ -450,7 +451,7 @@ impl<'a> Expr {
                             }
                         }
                         Err(EvaluationError::NoMatchingSignature {
-                            paren: paren.clone(),
+                            col: paren.col,
                             name: func.name.clone(),
                         })
                     }
@@ -458,7 +459,7 @@ impl<'a> Expr {
             }
             _ => {
                 return Err(EvaluationError::InvalidCallable {
-                    paren: paren.clone(),
+                    col: paren.col,
                 })
             }
         }
@@ -489,163 +490,6 @@ impl<'a> Expr {
             } => "function call expression",
         }
     }
-
-    pub fn simplify(self) -> Expr {
-        match self {
-            Expr::Binary {
-                left,
-                operator,
-                right,
-            } => {
-                let left_simplified = left.simplify();
-                let right_simplified = right.simplify();
-
-                match (&left_simplified, &right_simplified, &operator.kind) {
-                    // Simplify 0+x
-                    (Expr::Number { number: left_num }, r, TokenKind::Plus)
-                        if *left_num == Complex64::from(0.0) =>
-                    {
-                        return r.clone()
-                    }
-                    // Simplify x+0
-                    (l, Expr::Number { number: right_num }, TokenKind::Plus)
-                        if *right_num == Complex64::from(0.0) =>
-                    {
-                        return l.clone()
-                    }
-                    // Simplify 1*x
-                    (Expr::Number { number: left_num }, r, TokenKind::Star)
-                        if *left_num == Complex64::from(1.0) =>
-                    {
-                        return r.clone()
-                    }
-                    // Simplify x*1
-                    (l, Expr::Number { number: right_num }, TokenKind::Star)
-                        if *right_num == Complex64::from(1.0) =>
-                    {
-                        return l.clone()
-                    }
-                    // Simplify x-0
-                    (l, Expr::Number { number: right_num }, TokenKind::Minus)
-                        if *right_num == Complex64::from(0.0) =>
-                    {
-                        return l.clone()
-                    }
-                    // Simplify 0-x
-                    (Expr::Number { number: left_num }, r, TokenKind::Minus)
-                        if *left_num == Complex64::from(0.0) =>
-                    {
-                        return Expr::Unary {
-                            operator: Token {
-                                kind: TokenKind::Minus,
-                                lexeme: String::from("-"),
-                                col: 0,
-                            },
-                            operand: Box::new(r.clone()),
-                        }
-                    }
-                    // Simplify x/1
-                    (l, Expr::Number { number: right_num }, TokenKind::Slash)
-                        if *right_num == Complex64::from(1.0) =>
-                    {
-                        return l.clone()
-                    }
-                    // Simplify x^1
-                    (l, Expr::Number { number: right_num }, TokenKind::Caret)
-                        if *right_num == Complex64::from(1.0) =>
-                    {
-                        return l.clone()
-                    }
-                    // Simplify 1^x
-                    (Expr::Number { number: left_num }, _, TokenKind::Caret)
-                        if *left_num == Complex64::from(1.0) =>
-                    {
-                        return Expr::Number {
-                            number: Complex64::from(1.0),
-                        }
-                    }
-                    // Simplify x^0
-                    (_, Expr::Number { number: right_num }, TokenKind::Caret)
-                        if *right_num == Complex64::from(0.0) =>
-                    {
-                        return Expr::Number {
-                            number: Complex64::from(1.0),
-                        }
-                    }
-                    // Simplify 0^x
-                    (Expr::Number { number: left_num }, _, TokenKind::Caret)
-                        if *left_num == Complex64::from(0.0) =>
-                    {
-                        return Expr::Number {
-                            number: Complex64::from(0.0),
-                        }
-                    }
-                    // Evaluate two numbers with a binary operator
-                    (Expr::Number { number: num1 }, Expr::Number { number: num2 }, _) => {
-                        let result = Self::evaluate_binary(
-                            &Expr::Number { number: *num1 },
-                            &operator,
-                            &Expr::Number { number: *num2 },
-                            &mut HashMap::new(),
-                        )
-                        .unwrap();
-                        if let Value::Number(num) = result {
-                            return Expr::Number { number: num };
-                        }
-                        panic!()
-                    }
-                    // We can't simplify further, return the binary expression
-                    _ => {}
-                }
-
-                Expr::Binary {
-                    left: Box::new(left_simplified),
-                    operator,
-                    right: Box::new(right_simplified),
-                }
-            }
-            Expr::Unary { operator, operand } => {
-                let operand_simplified = operand.simplify();
-
-                match (&operand_simplified, &operator) {
-                    (Expr::Number { number: _ }, _) => {
-                        let result = Self::evaluate_unary(
-                            &operand_simplified,
-                            &operator,
-                            &mut HashMap::new(),
-                        )
-                        .unwrap();
-                        if let Value::Number(num) = result {
-                            return Expr::Number { number: num };
-                        }
-                        panic!()
-                    }
-                    _ => {}
-                }
-
-                Expr::Unary {
-                    operator: operator,
-                    operand: Box::new(operand_simplified),
-                }
-            }
-            Expr::Grouping { paren, kind, expr } => Expr::Grouping {
-                paren,
-                kind,
-                expr: Box::new(expr.simplify()),
-            },
-            Expr::Number { number } => Expr::Number { number },
-            Expr::Identifier { name } => Expr::Identifier { name },
-            Expr::Call {
-                callee,
-                paren,
-                arguments,
-            } => Expr::Call {
-                callee: callee,
-                paren: paren,
-                arguments: arguments,
-            },
-        }
-    }
 }
 
 impl fmt::Display for Expr {
@@ -658,8 +502,7 @@ impl fmt::Display for Expr {
             } => write!(f, "{left}{}{right}", &operator.lexeme),
             Expr::Unary { operator, operand } => match &operator.kind {
                 TokenKind::Bang => write!(f, "{operand}{}", &operator.lexeme),
-                TokenKind::Minus => write!(f, "{}{operand}", &operator.lexeme),
-                kind => panic!("Invalid operator for unary expression {:?}", kind),
+                _ => write!(f, "{}{operand}", &operator.lexeme),
             },
             Expr::Grouping {
                 paren: _,

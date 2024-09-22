@@ -8,3 +8,4 @@ A simple command line calculator I'm working on
 * Pre-defined functions and constants
 * User defined variables and functions
 * Pre-load constants, functions and pre-run expressions from a file
+* `delete` operator for managing functions and variables

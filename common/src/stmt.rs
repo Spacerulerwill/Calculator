@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     expr::{EvaluationError, Expr},
-    function::{Function, UserDefinedFunction, UserDefinedFunctionArgType},
+    function::{Function, Signature, UserDefinedFunction},
     tokenizer::Token,
     value::Value,
     variable::{Variable, VariableMap},
@@ -11,39 +11,20 @@ use crate::{
 #[derive(Debug)]
 pub enum Statement {
     ExpressionStatement(Expr),
-    SimplifyStatement(Expr),
+    DeleteVariable(Token),
+    DeleteFunctionSignature {
+        name: Token,
+        signature: Signature,
+    },
     Assignment {
         identifier: Token,
         expr: Expr,
     },
     FunctionDeclaration {
         name: Token,
-        signature: Vec<UserDefinedFunctionArgType>,
+        signature: Signature,
         expr: Expr,
     },
-}
-
-fn are_signatures_equivalent(
-    signature1: &Vec<UserDefinedFunctionArgType>,
-    signature2: &Vec<UserDefinedFunctionArgType>,
-) -> bool {
-    if signature1.len() != signature2.len() {
-        return false;
-    }
-    for (arg_type_1, arg_type_2) in signature1.iter().zip(signature2.iter()) {
-        if std::mem::discriminant(arg_type_1) != std::mem::discriminant(arg_type_2) {
-            return false;
-        }
-        match (arg_type_1, arg_type_2) {
-            (UserDefinedFunctionArgType::Number(one), UserDefinedFunctionArgType::Number(two)) => {
-                if one != two {
-                    return false;
-                }
-            }
-            _ => {}
-        }
-    }
-    true
 }
 
 impl Statement {
@@ -56,9 +37,54 @@ impl Statement {
                 };
                 Ok(())
             }
-            Statement::SimplifyStatement(expr) => {
-                println!("{}", expr.simplify());
+            Statement::DeleteVariable(name) => {
+                if let Some(variable) = variables.get(&name.lexeme) {
+                    if variable.constant {
+                        return Err(EvaluationError::ConstantDeletion { name: name });
+                    } else {
+                        variables.remove(&name.lexeme);
+                    }
+                } else {
+                    return Err(EvaluationError::UnknownVariable { name: name });
+                }
                 Ok(())
+            }
+            Statement::DeleteFunctionSignature { name, signature } => {
+                let variable_option = variables.get(&name.lexeme).cloned();
+
+                if let Some(variable) = variable_option{
+                    if variable.constant {
+                        return Err(EvaluationError::ConstantDeletion { name: name })
+                    }
+                    if let Value::Function(func) = &variable.value{
+                        let mut func = func.borrow_mut();
+                        match &mut *func {
+                            Function::NativeFunction(_) => return Err(EvaluationError::CantDeleteSignatureFromNativeFunction { name: name }),
+                            Function::UserDefinedFunction(func) => {
+                                // Remove the signature if it exists
+                                let length_before_removal = func.signatures.len();
+                                func.signatures.retain(|(sig, _)| *sig != signature);
+                                let length_after_removal = func.signatures.len();
+                                
+                                // We couldn't find the signature to remove
+                                if length_after_removal == length_before_removal {
+                                    return Err(EvaluationError::NoMatchingSignature { col: name.col, name: func.name.clone() })
+                                }
+
+                                // If there are no signatures left, remove the function from variables
+                                if func.signatures.is_empty() {
+                                    variables.remove(&name.lexeme);
+                                }
+                                return Ok(());
+                            }
+                        }
+                    } else {
+                        // Not a function, cannot delete signature
+                        return Err(EvaluationError::InvalidCallable { col: name.col })
+                    }
+                } else {
+                    return Err(EvaluationError::UnknownVariable { name: name });
+                }
             }
             Statement::Assignment { identifier, expr } => {
                 if let Some(variable) = variables.get(&identifier.lexeme) {
@@ -75,18 +101,16 @@ impl Statement {
                 signature,
                 expr,
             } => {
-                if let Some(variable) = variables.get(&name.lexeme) {
+                if let Some(variable) = variables.get(&name.lexeme).cloned() {
                     if variable.constant {
                         return Err(EvaluationError::ConstantAssignment { name: name });
                     }
-                }
-                if let Some(variable) = variables.get(&name.lexeme).cloned() {
                     if let Value::Function(func) = variable.value.clone() {
                         let mut func = func.borrow_mut();
                         match &mut *func {
                             Function::UserDefinedFunction(ref mut func) => {
                                 for sig in func.signatures.iter_mut() {
-                                    if are_signatures_equivalent(&sig.0, &signature) {
+                                    if sig.0 == signature {
                                         *sig = (signature, expr);
                                         return Ok(());
                                     }
@@ -94,7 +118,7 @@ impl Statement {
                                 func.signatures.push((signature, expr));
                                 return Ok(());
                             }
-                            _ => {}
+                            Function::NativeFunction(_) => return Err(EvaluationError::CantAddSignatureToNativeFunction { name: name }),
                         }
                     }
                 }

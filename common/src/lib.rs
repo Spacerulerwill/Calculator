@@ -1,4 +1,3 @@
-#![feature(box_patterns)]
 pub mod expr;
 pub mod function;
 pub mod parser;
