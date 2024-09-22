@@ -48,10 +48,10 @@ pub enum Expr {
 #[derive(Debug)]
 pub enum EvaluationError<'a> {
     /// Division by zero is naughty (noughty)
-    DivisionByZero { operator: Token },
+    DivisionByZero { col: usize },
     /// Only applicable to native functions
     IncorrectFunctionArgumentCount {
-        paren: Token,
+        col: usize,
         name: &'a str,
         received: usize,
         required: usize,
@@ -86,7 +86,7 @@ pub enum EvaluationError<'a> {
     },
     /// Grouping operand does not meet value constraint
     GroupingValueConstraintNotMet {
-        paren: Token,
+        col: usize,
         kind: GroupingKind,
         constraint: ValueConstraint,
     },
@@ -103,21 +103,20 @@ pub enum EvaluationError<'a> {
 impl<'a> fmt::Display for EvaluationError<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            EvaluationError::DivisionByZero { operator } => write!(
+            EvaluationError::DivisionByZero { col } => write!(
                 f,
-                "Column {} :: Divison by zero on right side of '{}'",
-                operator.col,
-                &operator.lexeme
+                "Column {} :: Divison by zero",
+                col
             ),
             EvaluationError::IncorrectFunctionArgumentCount {
-                paren,
+                col,
                 name,
                 received,
                 required,
             } => write!(
                 f,
                 "Column {} :: Function '{}' requires {} argument(s) but received {}",
-                paren.col, name, required, received,
+                col, name, required, received,
             ),
             EvaluationError::NoMatchingSignature { col, name } => write!(
                 f,
@@ -149,7 +148,7 @@ impl<'a> fmt::Display for EvaluationError<'a> {
                 *col,
                 ValueConstraint::Function
             ),
-            EvaluationError::GroupingValueConstraintNotMet { paren, kind, constraint } => {
+            EvaluationError::GroupingValueConstraintNotMet { col, kind, constraint } => {
                 let grouping_str = match kind {
                     GroupingKind::Grouping => "grouping",
                     GroupingKind::Absolute => "absolute grouping",
@@ -159,7 +158,7 @@ impl<'a> fmt::Display for EvaluationError<'a> {
                 write!(
                     f,
                     "Column {} :: Value in {grouping_str} does meet value constraint '{}'",
-                    paren.col,
+                    col,
                     constraint
                 )
             },
@@ -270,7 +269,7 @@ impl<'a> Expr {
                 (Value::Number(left), Value::Number(right)) => {
                     if right.norm() == 0.0 {
                         return Err(EvaluationError::DivisionByZero {
-                            operator: operator.clone(),
+                            col: operator.col,
                         });
                     }
                     return Ok(Value::Number(left / right));
@@ -287,7 +286,7 @@ impl<'a> Expr {
                 (Value::Number(left), Value::Number(right)) => {
                     if right.norm() == 0.0 {
                         return Err(EvaluationError::DivisionByZero {
-                            operator: operator.clone(),
+                            col: operator.col,
                         });
                     }
                     return Ok(Value::Number(left % right));
@@ -360,7 +359,7 @@ impl<'a> Expr {
                 match result {
                     Value::Number(result) => Ok(Value::Number(result.norm().into())),
                     _ => Err(EvaluationError::GroupingValueConstraintNotMet {
-                        paren: paren.clone(),
+                        col: paren.col,
                         kind: kind,
                         constraint: ValueConstraint::Number,
                     }),
@@ -373,7 +372,7 @@ impl<'a> Expr {
                         return Ok(Value::Number(num.re.ceil().into()));
                     }
                     _ => Err(EvaluationError::GroupingValueConstraintNotMet {
-                        paren: paren.clone(),
+                        col: paren.col,
                         kind: kind,
                         constraint: ValueConstraint::Real,
                     }),
@@ -386,7 +385,7 @@ impl<'a> Expr {
                         return Ok(Value::Number(num.re.floor().into()));
                     }
                     _ => Err(EvaluationError::GroupingValueConstraintNotMet {
-                        paren: paren.clone(),
+                        col: paren.col,
                         kind: kind,
                         constraint: ValueConstraint::Real,
                     }),
@@ -423,7 +422,7 @@ impl<'a> Expr {
                     Function::NativeFunction(func) => {
                         if func.arity != evaluated_arguments.len() {
                             return Err(EvaluationError::IncorrectFunctionArgumentCount {
-                                paren: paren.clone(),
+                                col: paren.col,
                                 name: func.name,
                                 received: evaluated_arguments.len(),
                                 required: func.arity,
