@@ -3,6 +3,7 @@ A simple command line calculator I'm working on
 
 ## Features
 * Real and complex number arithmetic
+* Scientific notation for numbers
 * Operators: `+`, `-`, `*`, `/`, `%`, `^`, `!`, `√`
 * Groupings: `()`, `|absolute|`, `⌈ceil⌉`,  `⌊floor⌋`
 * Pre-defined functions and constants

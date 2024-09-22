@@ -2,12 +2,11 @@ use common::{
     num::integer::{gcd as _gcd, lcm as _lcm},
     num_complex::Complex64,
     value::Value,
-    variable::Variable,
+    variable::{Variable, VariableMap},
 };
 use proc_macros::define_calculator_builtin_function;
 use std::{
     cell::RefCell,
-    collections::HashMap,
     f64::consts::{E, PI, TAU},
     rc::Rc,
 };
@@ -47,8 +46,8 @@ define_calculator_builtin_function!(gcd, (first: integer, second: integer), Ok(V
 define_calculator_builtin_function!(lcm, (first: integer, second: integer), Ok(Value::Number(Complex64::from(_lcm(first as i64, second as i64) as f64))));
 
 #[rustfmt::skip]
-pub fn get_constants() -> HashMap<String, Variable<'static>> {
-    HashMap::from([
+pub fn get_constants() -> VariableMap<'static> {
+    VariableMap::from([
         (String::from("i"), Variable::as_constant(Value::Number(Complex64::I))),
         (String::from("e"), Variable::as_constant(Value::Number(Complex64::from(E)))),
         (String::from("pi"), Variable::as_constant(Value::Number(Complex64::from(PI)))),
