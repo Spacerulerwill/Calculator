@@ -1,3 +1,7 @@
+![Build](https://github.com/Spacerulerwill/Calculator/actions/workflows/build.yml/badge.svg)
+![Tests](https://github.com/Spacerulerwill/Calculator/actions/workflows/tests.yml/badge.svg)
+
+
 # Calculator
 A simple command line calculator I'm working on
 
