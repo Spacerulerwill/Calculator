@@ -1,4 +1,4 @@
-name: Tests
+name: tests
 
 on:
   push:
@@ -16,5 +16,5 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Run tests
+    - name: tests
       run: cargo test --verbose
