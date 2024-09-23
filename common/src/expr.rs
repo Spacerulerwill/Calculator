@@ -520,5 +520,5 @@ pub fn complex_to_string(num: &Complex64) -> String {
 
 // Computes factorial of a non-negative integer
 fn factorial(n: u64) -> f64 {
-    (1..=n).map(|x| x as f64).product()
+    (2..=n).map(|x| x as f64).product()
 }
