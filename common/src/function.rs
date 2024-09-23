@@ -5,7 +5,7 @@ use num_complex::Complex64;
 use crate::{
     expr::{complex_to_string, EvaluationError, Expr},
     tokenizer::Token,
-    value::Value,
+    value::Value, variable::{Variable, VariableMap},
 };
 
 #[derive(Debug, Clone)]
@@ -28,6 +28,46 @@ impl<'a> Function<'a> {
         match self {
             Function::NativeFunction(f) => f.name,
             Function::UserDefinedFunction(f) => &f.name,
+        }
+    }
+
+    pub fn call(&self, col: usize, arguments: Vec<Value<'a>>, variables: &mut VariableMap<'a>) -> Result<Value<'a>, EvaluationError<'a>> {
+        match self {
+            Function::NativeFunction(func) => {
+                if func.arity != arguments.len() {
+                    return Err(EvaluationError::IncorrectFunctionArgumentCount {
+                        col: col,
+                        name: func.name,
+                        received: arguments.len(),
+                        required: func.arity,
+                    });
+                }
+                Ok((func.function)(col, arguments)?)
+            }
+            Function::UserDefinedFunction(func) => {
+                for (signature, expr) in func.signatures.iter() {
+                    if signature.matches_parameters(&arguments) {
+                        let mut inputs = variables.clone();
+                        for (arg_type, val) in signature
+                            .parameters
+                            .iter()
+                            .zip(arguments.into_iter())
+                        {
+                            if let UserDefinedFunctionArgType::Identifier(identifier) =
+                                arg_type
+                            {
+                                inputs
+                                    .insert(identifier.clone(), Variable::as_variable(val));
+                            }
+                        }
+                        return expr.clone().evaluate(&mut inputs);
+                    }
+                }
+                Err(EvaluationError::NoMatchingSignature {
+                    col: col,
+                    name: func.name.clone(),
+                })
+            },
         }
     }
 }

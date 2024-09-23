@@ -1,14 +1,9 @@
 use common::{
-    num::integer::{gcd as _gcd, lcm as _lcm},
-    num_complex::Complex64,
-    value::Value,
-    variable::{Variable, VariableMap},
+    num::integer::{gcd as _gcd, lcm as _lcm}, num_complex::Complex64, value::Value, variable::{Variable, VariableMap}
 };
 use proc_macros::define_calculator_builtin_function;
 use std::{
-    cell::RefCell,
-    f64::consts::{E, PI, TAU},
-    rc::Rc,
+    cell::RefCell, f64::consts::{E, PI, TAU}, rc::Rc
 };
 
 const C: f64 = 299792458_f64;
@@ -82,6 +77,6 @@ pub fn get_constants() -> VariableMap<'static> {
         (String::from("ln"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(ln))))),
         (String::from("sqrt"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(sqrt))))),
         (String::from("gcd"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(gcd))))),
-        (String::from("lcm"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(lcm))))),
+        (String::from("lcm"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(lcm)))))
     ])
 }

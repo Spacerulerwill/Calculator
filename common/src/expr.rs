@@ -1,11 +1,10 @@
 use std::fmt;
 
 use crate::{
-    function::{Function, UserDefinedFunctionArgType},
     num_complex::Complex64,
     tokenizer::{Token, TokenKind},
     value::{Value, ValueConstraint},
-    variable::{Variable, VariableMap},
+    variable::VariableMap,
 };
 
 #[derive(Debug, Copy, Clone)]
@@ -418,43 +417,7 @@ impl<'a> Expr {
                     evaluated_arguments.push(argument.evaluate(variables)?);
                 }
                 let function = function.borrow();
-                match &*function {
-                    Function::NativeFunction(func) => {
-                        if func.arity != evaluated_arguments.len() {
-                            return Err(EvaluationError::IncorrectFunctionArgumentCount {
-                                col: paren.col,
-                                name: func.name,
-                                received: evaluated_arguments.len(),
-                                required: func.arity,
-                            });
-                        }
-                        Ok((func.function)(paren.col, evaluated_arguments)?)
-                    }
-                    Function::UserDefinedFunction(func) => {
-                        for (signature, expr) in func.signatures.iter() {
-                            if signature.matches_parameters(&evaluated_arguments) {
-                                let mut inputs = variables.clone();
-                                for (arg_type, val) in signature
-                                    .parameters
-                                    .iter()
-                                    .zip(evaluated_arguments.into_iter())
-                                {
-                                    if let UserDefinedFunctionArgType::Identifier(identifier) =
-                                        arg_type
-                                    {
-                                        inputs
-                                            .insert(identifier.clone(), Variable::as_variable(val));
-                                    }
-                                }
-                                return expr.clone().evaluate(&mut inputs);
-                            }
-                        }
-                        Err(EvaluationError::NoMatchingSignature {
-                            col: paren.col,
-                            name: func.name.clone(),
-                        })
-                    }
-                }
+                function.call(paren.col, evaluated_arguments, variables)
             }
             _ => {
                 return Err(EvaluationError::InvalidCallable {
@@ -537,6 +500,8 @@ pub fn complex_to_string(num: &Complex64) -> String {
             return format!("{} + i", num.re);
         } else if num.im == -1.0 {
             return format!("{} - i", num.re);
+        } else if num.im < 0.0 {
+            return format!("{} - {}i", num.re, num.im.abs());
         } else {
             return format!("{} + {}i", num.re, num.im);
         }
