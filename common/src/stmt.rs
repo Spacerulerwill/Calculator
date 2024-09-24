@@ -75,6 +75,7 @@ impl Statement {
                                 // We couldn't find the signature to remove
                                 if length_after_removal == length_before_removal {
                                     return Err(EvaluationError::NoMatchingSignature {
+                                        line: name.line,
                                         col: name.col,
                                         name: func.name.clone(),
                                     });
@@ -89,7 +90,10 @@ impl Statement {
                         }
                     } else {
                         // Not a function, cannot delete signature
-                        return Err(EvaluationError::InvalidCallable { col: name.col });
+                        return Err(EvaluationError::InvalidCallable {
+                            line: name.line,
+                            col: name.col,
+                        });
                     }
                 } else {
                     return Err(EvaluationError::UnknownVariable { name: name });

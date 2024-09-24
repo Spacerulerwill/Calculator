@@ -47,9 +47,10 @@ pub enum Expr {
 #[derive(Debug)]
 pub enum EvaluationError<'a> {
     /// Division by zero is naughty (noughty)
-    DivisionByZero { col: usize },
+    DivisionByZero { line: usize, col: usize },
     /// Only applicable to native functions
     IncorrectFunctionArgumentCount {
+        line: usize,
         col: usize,
         name: &'a str,
         received: usize,
@@ -58,7 +59,8 @@ pub enum EvaluationError<'a> {
     /// Only applicable to native functions
     IncorrectFunctionArgumentType {
         function_name: String,
-        function_col: usize,
+        line: usize,
+        col: usize,
         idx: usize,
         name: String,
         constraint: ValueConstraint,
@@ -68,7 +70,11 @@ pub enum EvaluationError<'a> {
     /// If the user tries to delete a signature from a native function
     CantDeleteSignatureFromNativeFunction { name: Token },
     /// No matching signature found for a function
-    NoMatchingSignature { col: usize, name: String },
+    NoMatchingSignature {
+        line: usize,
+        col: usize,
+        name: String,
+    },
     /// Operands of binary operator don't meet value constraint
     UnsupportedBinaryOperator {
         operator: Token,
@@ -81,12 +87,13 @@ pub enum EvaluationError<'a> {
     },
     /// Grouping operand does not meet value constraint
     GroupingValueConstraintNotMet {
+        line: usize,
         col: usize,
         kind: GroupingKind,
         constraint: ValueConstraint,
     },
     /// Try to perform function call on a non function value
-    InvalidCallable { col: usize },
+    InvalidCallable { line: usize, col: usize },
     /// Not allowed to assign value to constants
     ConstantAssignment { name: Token },
     /// Not allowed to delete constants
@@ -98,24 +105,27 @@ pub enum EvaluationError<'a> {
 impl<'a> fmt::Display for EvaluationError<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            EvaluationError::DivisionByZero { col } => write!(
+            EvaluationError::DivisionByZero { line, col } => write!(
                 f,
-                "Column {} :: Divison by zero",
+                "Line {}, Column {} :: Divison by zero",
+                line,
                 col
             ),
             EvaluationError::IncorrectFunctionArgumentCount {
+                line,
                 col,
                 name,
                 received,
                 required,
             } => write!(
                 f,
-                "Column {} :: Function '{}' requires {} argument(s) but received {}",
-                col, name, required, received,
+                "Line {}, Column {} :: Function '{}' requires {} argument(s) but received {}",
+                line, col, name, required, received,
             ),
-            EvaluationError::NoMatchingSignature { col, name } => write!(
+            EvaluationError::NoMatchingSignature { line, col, name } => write!(
                 f,
-                "Column {} :: No matching parameter signature for function '{}'. Type '{}' to see list of signatures",
+                "Line {}, Column {} :: No matching parameter signature for function '{}'. Type '{}' to see list of signatures",
+                line,
                 col,
                 name,
                 name
@@ -125,25 +135,28 @@ impl<'a> fmt::Display for EvaluationError<'a> {
                 constraint
             } => write!(
                 f,
-                "Column {} :: Cannot apply binary operator '{}' as one or more operands does not meet value constraint '{}'",
+                "Line {}, Column {} :: Cannot apply binary operator '{}' as one or more operands does not meet value constraint '{}'",
+                operator.line,
                 operator.col,
                 &operator.lexeme,
                 constraint
             ),
             EvaluationError::UnsupportedUnaryOperator { operator, constraint} => write!(
                 f,
-                "Column {} :: Cannot apply unary operator '{}' as operand does not meet value constraint '{}'",
+                "Line {}, Column {} :: Cannot apply unary operator '{}' as operand does not meet value constraint '{}'",
+                operator.line,
                 operator.col,
                 &operator.lexeme,
                 constraint
             ),
-            EvaluationError::InvalidCallable { col } => write!(
+            EvaluationError::InvalidCallable { line, col } => write!(
                 f,
-                "Column {} :: Callee does not meet value constraint '{}'",
-                *col,
+                "Line {}, Column {} :: Callee does not meet value constraint '{}'",
+                line,
+                col,
                 ValueConstraint::Function
             ),
-            EvaluationError::GroupingValueConstraintNotMet { col, kind, constraint } => {
+            EvaluationError::GroupingValueConstraintNotMet { line, col, kind, constraint } => {
                 let grouping_str = match kind {
                     GroupingKind::Grouping => "grouping",
                     GroupingKind::Absolute => "absolute grouping",
@@ -152,21 +165,24 @@ impl<'a> fmt::Display for EvaluationError<'a> {
                 };
                 write!(
                     f,
-                    "Column {} :: Value in {grouping_str} does meet value constraint '{}'",
+                    "Line {}, Column {} :: Value in {grouping_str} does meet value constraint '{}'",
+                    line,
                     col,
                     constraint
                 )
             },
             EvaluationError::IncorrectFunctionArgumentType {
                 function_name,
-                function_col,
+                line,
+                col,
                 idx,
                 name,
                 constraint
             } => write!(
                 f,
-                "Column {} :: Argument {} ({}) for function '{}' does not meet value constraint '{}'",
-                function_col,
+                "Line {}, Column {} :: Argument {} ({}) for function '{}' does not meet value constraint '{}'",
+                line,
+                col,
                 idx,
                 name,
                 function_name,
@@ -174,31 +190,36 @@ impl<'a> fmt::Display for EvaluationError<'a> {
             ),
             EvaluationError::ConstantAssignment { name } => write!(
                 f,
-                "Column {} :: Cannot assign to '{}' as it is constant",
+                "Line {}, Column {} :: Cannot assign to '{}' as it is constant",
+                name.line,
                 name.col,
                 &name.lexeme
             ),
             EvaluationError::ConstantDeletion { name } => write!(
                 f,
-                "Column {} :: Cannot delete '{}' as it is constant",
+                "Line {}, Column {} :: Cannot delete '{}' as it is constant",
+                name.line,
                 name.col,
                 &name.lexeme
             ),
             EvaluationError::UnknownVariable { name } => write!(
                 f,
-                "Column {} :: Unknown variable '{}'",
+                "Line {}, Column {} :: Unknown variable '{}'",
+                name.line,
                 name.col,
                 &name.lexeme
             ),
             EvaluationError::CantAddSignatureToNativeFunction { name } => write!(
                 f,
-                "Column {} :: Can't add signature to native function '{}'",
+                "Line {}, Column {} :: Can't add signature to native function '{}'",
+                name.line,
                 name.col,
                 &name.lexeme
             ),
             EvaluationError::CantDeleteSignatureFromNativeFunction { name } => write!(
                 f,
-                "Column {} :: Can't delete signature from native function '{}'",
+                "Line {}, Column {} :: Can't delete signature from native function '{}'",
+                name.line,
                 name.col,
                 &name.lexeme
             )
@@ -263,7 +284,10 @@ impl<'a> Expr {
             TokenKind::Slash => match (&left, &right) {
                 (Value::Number(left), Value::Number(right)) => {
                     if right.norm() == 0.0 {
-                        return Err(EvaluationError::DivisionByZero { col: operator.col });
+                        return Err(EvaluationError::DivisionByZero {
+                            line: operator.line,
+                            col: operator.col,
+                        });
                     }
                     return Ok(Value::Number(left / right));
                 }
@@ -278,7 +302,10 @@ impl<'a> Expr {
             TokenKind::Percent => match (&left, &right) {
                 (Value::Number(left), Value::Number(right)) => {
                     if right.norm() == 0.0 {
-                        return Err(EvaluationError::DivisionByZero { col: operator.col });
+                        return Err(EvaluationError::DivisionByZero {
+                            line: operator.line,
+                            col: operator.col,
+                        });
                     }
                     return Ok(Value::Number(left % right));
                 }
@@ -350,6 +377,7 @@ impl<'a> Expr {
                 match result {
                     Value::Number(result) => Ok(Value::Number(result.norm().into())),
                     _ => Err(EvaluationError::GroupingValueConstraintNotMet {
+                        line: paren.line,
                         col: paren.col,
                         kind: kind,
                         constraint: ValueConstraint::Number,
@@ -363,6 +391,7 @@ impl<'a> Expr {
                         return Ok(Value::Number(num.re.ceil().into()));
                     }
                     _ => Err(EvaluationError::GroupingValueConstraintNotMet {
+                        line: paren.line,
                         col: paren.col,
                         kind: kind,
                         constraint: ValueConstraint::Real,
@@ -376,6 +405,7 @@ impl<'a> Expr {
                         return Ok(Value::Number(num.re.floor().into()));
                     }
                     _ => Err(EvaluationError::GroupingValueConstraintNotMet {
+                        line: paren.line,
                         col: paren.col,
                         kind: kind,
                         constraint: ValueConstraint::Real,
@@ -409,9 +439,14 @@ impl<'a> Expr {
                     evaluated_arguments.push(argument.evaluate(variables)?);
                 }
                 let function = function.borrow();
-                function.call(paren.col, evaluated_arguments, variables)
+                function.call(paren.line, paren.col, evaluated_arguments, variables)
             }
-            _ => return Err(EvaluationError::InvalidCallable { col: paren.col }),
+            _ => {
+                return Err(EvaluationError::InvalidCallable {
+                    line: paren.line,
+                    col: paren.col,
+                })
+            }
         }
     }
 

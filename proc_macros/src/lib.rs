@@ -72,7 +72,8 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
             if !#name.fits_value_constraint(#constraint) {
                 return Err(common::expr::EvaluationError::IncorrectFunctionArgumentType {
                     function_name: stringify!(#function_name).to_string(),
-                    function_col: col,
+                    line: line,
+                    col: col,
                     idx: #i + 1,
                     name: stringify!(#name).to_string(),
                     constraint: #constraint,
@@ -113,7 +114,7 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         #[allow(non_upper_case_globals)]
         pub const #function_name: common::function::Function = {
-            fn internal_builtin_function(col: usize, args: Vec<common::value::Value>) -> Result<common::value::Value, common::expr::EvaluationError> {
+            fn internal_builtin_function(line:usize, col: usize, args: Vec<common::value::Value>) -> Result<common::value::Value, common::expr::EvaluationError> {
                 // TODO :: determine why this line is neccesary?
                 use common::value::ValueConstraint;
                 use common::num_complex::ComplexFloat;

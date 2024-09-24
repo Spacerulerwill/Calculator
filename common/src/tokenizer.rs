@@ -34,26 +34,28 @@ pub enum TokenKind {
 pub struct Token {
     pub kind: TokenKind,
     pub lexeme: String,
+    pub line: usize,
     pub col: usize,
 }
 
 #[derive(Debug, Clone)]
 pub struct TokenPosition {
+    pub line: usize,
     pub col: usize,
     pub idx: usize,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum TokenizerError {
-    BadChar { col: usize, char: char },
+    BadChar { line: usize, col: usize, char: char },
 }
 
 impl fmt::Display for TokenizerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TokenizerError::BadChar { col, char } => write!(
+            TokenizerError::BadChar { line, col, char } => write!(
                 f,
-                "Column {col} :: Unexpected or invalid character '{char}'"
+                "Line {line}, Column {col} :: Unexpected or invalid character '{char}'"
             ),
         }
     }
@@ -74,8 +76,16 @@ impl<'a> Tokenizer<'a> {
         let mut tokenizer = Tokenizer {
             input: input,
             iter: input.chars().peekable(),
-            prev_pos: TokenPosition { col: 1, idx: 0 },
-            current_pos: TokenPosition { col: 1, idx: 0 },
+            prev_pos: TokenPosition {
+                line: 1,
+                col: 1,
+                idx: 0,
+            },
+            current_pos: TokenPosition {
+                line: 1,
+                col: 1,
+                idx: 0,
+            },
             tokens: Vec::new(),
             tabsize: tabsize,
         };
@@ -93,7 +103,7 @@ impl<'a> Tokenizer<'a> {
     pub fn tokenize_internal(&mut self) -> Result<(), TokenizerError> {
         while let Some(&ch) = self.iter.peek() {
             match ch {
-                ' ' | '\t' => {
+                ' ' | '\t' | '\r' => {
                     self.next();
                     self.prev_pos = self.current_pos.clone();
                 }
@@ -119,6 +129,7 @@ impl<'a> Tokenizer<'a> {
                 '0'..='9' => self.tokenize_number(),
                 ch => {
                     return Err(TokenizerError::BadChar {
+                        line: self.current_pos.line,
                         col: self.current_pos.col,
                         char: ch,
                     })
@@ -227,6 +238,7 @@ impl<'a> Tokenizer<'a> {
         self.tokens.push(Token {
             kind: kind,
             lexeme: lexeme,
+            line: self.prev_pos.line,
             col: self.prev_pos.col,
         });
         self.prev_pos = self.current_pos.clone();
@@ -235,6 +247,10 @@ impl<'a> Tokenizer<'a> {
     fn next(&mut self) -> Option<char> {
         if let Some(ch) = self.iter.next() {
             match ch {
+                '\n' => {
+                    self.current_pos.line += 1;
+                    self.current_pos.col = 1;
+                }
                 '\t' => self.current_pos.col += self.tabsize as usize,
                 _ => self.current_pos.col += 1,
             }
@@ -260,8 +276,11 @@ mod tests {
             .collect()
     }
 
-    fn extract_token_cols(tokens: Vec<Token>) -> Vec<usize> {
-        tokens.into_iter().map(|token| token.col).collect()
+    fn extract_token_positions(tokens: Vec<Token>) -> Vec<(usize, usize)> {
+        tokens
+            .into_iter()
+            .map(|token| (token.line, token.col))
+            .collect()
     }
 
     #[test]
@@ -389,17 +408,47 @@ mod tests {
     }
 
     #[test]
-    fn test_col_calculations() {
-        let input =
-            "(  )⌈ ⌉⌊⌋+  -/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01 1e6 1e-6 2.5e6 2.5e-6";
+    fn test_line_col_calculations() {
+        let input = "(  )⌈ ⌉⌊⌋+
+-/*^!|%,=√foo\tbar  baz
+3.14 0.0001\t0.045    10.01
+1e6 1e-6 2.5e6 2.5e-6";
         let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
-        dbg!(&tokens);
-        let cols = extract_token_cols(tokens);
+        let positions = extract_token_positions(tokens);
         assert_eq!(
-            cols,
+            positions,
             vec![
-                1, 4, 5, 7, 8, 9, 10, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 30, 35, 39, 44,
-                54, 63, 69, 73, 78, 84
+                (1, 1),
+                (1, 4),
+                (1, 5),
+                (1, 7),
+                (1, 8),
+                (1, 9),
+                (1, 10),
+                (1, 11),
+                (2, 1),
+                (2, 2),
+                (2, 3),
+                (2, 4),
+                (2, 5),
+                (2, 6),
+                (2, 7),
+                (2, 8),
+                (2, 9),
+                (2, 10),
+                (2, 11),
+                (2, 18),
+                (2, 23),
+                (2, 26),
+                (3, 1),
+                (3, 6),
+                (3, 16),
+                (3, 25),
+                (3, 30),
+                (4, 1),
+                (4, 5),
+                (4, 10),
+                (4, 16)
             ]
         )
     }
@@ -415,6 +464,7 @@ mod tests {
             assert_eq!(
                 Tokenizer::tokenize(input, 4).unwrap_err(),
                 TokenizerError::BadChar {
+                    line: 1,
                     col: col,
                     char: bad_char
                 }

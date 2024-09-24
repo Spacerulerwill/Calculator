@@ -34,6 +34,7 @@ impl<'a> Function<'a> {
 
     pub fn call(
         &self,
+        line: usize,
         col: usize,
         arguments: Vec<Value<'a>>,
         variables: &mut VariableMap<'a>,
@@ -42,13 +43,14 @@ impl<'a> Function<'a> {
             Function::NativeFunction(func) => {
                 if func.arity != arguments.len() {
                     return Err(EvaluationError::IncorrectFunctionArgumentCount {
+                        line: line,
                         col: col,
                         name: func.name,
                         received: arguments.len(),
                         required: func.arity,
                     });
                 }
-                Ok((func.function)(col, arguments)?)
+                Ok((func.function)(line, col, arguments)?)
             }
             Function::UserDefinedFunction(func) => {
                 for (signature, expr) in func.signatures.iter() {
@@ -65,6 +67,7 @@ impl<'a> Function<'a> {
                     }
                 }
                 Err(EvaluationError::NoMatchingSignature {
+                    line: line,
                     col: col,
                     name: func.name.clone(),
                 })
@@ -76,7 +79,7 @@ impl<'a> Function<'a> {
 #[derive(Debug, Clone)]
 pub struct NativeFunction<'a> {
     pub name: &'a str,
-    pub function: fn(usize, Vec<Value>) -> Result<Value, EvaluationError>,
+    pub function: fn(usize, usize, Vec<Value>) -> Result<Value, EvaluationError>,
     pub arity: usize,
 }
 

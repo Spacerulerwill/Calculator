@@ -71,8 +71,8 @@ impl fmt::Display for ParserError {
                 if let Some(found) = found {
                     write!(
                         f,
-                        "Position {} :: Expected expression next but found '{}'",
-                        found.col, &found.lexeme
+                        "Line {}, Position {} :: Expected expression next but found '{}'",
+                        found.line, found.col, &found.lexeme
                     )
                 } else {
                     write!(f, "Expected expression next but found EOF")
@@ -82,8 +82,8 @@ impl fmt::Display for ParserError {
                 if let Some(found) = found {
                     write!(
                         f,
-                        "Column {} :: Expected {:?} but found '{}'",
-                        found.col, expected, found.lexeme
+                        "Line {}, Column {} :: Expected {:?} but found '{}'",
+                        found.line, found.col, expected, found.lexeme
                     )
                 } else {
                     write!(f, "Expected {:?} but found EOF", expected)
@@ -93,11 +93,16 @@ impl fmt::Display for ParserError {
                 write!(f, "Expected EOF but found '{}'", &found.lexeme)
             }
             ParserError::InvalidAssignmentTarget { equal } => {
-                write!(f, "Column {} :: Invalid assignment target", equal.col)
+                write!(
+                    f,
+                    "Line {}, Column {} :: Invalid assignment target",
+                    equal.line, equal.col
+                )
             }
             ParserError::CannotDelete(token, expr) => write!(
                 f,
-                "Column {} :: Cannot delete {}",
+                "Line {}, Column {} :: Cannot delete {}",
+                token.line,
                 token.col,
                 expr.get_type_string()
             ),
