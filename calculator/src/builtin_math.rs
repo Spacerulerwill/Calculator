@@ -1,9 +1,14 @@
 use common::{
-    num::integer::{gcd as _gcd, lcm as _lcm}, num_complex::Complex64, value::Value, variable::{Variable, VariableMap}
+    num::integer::{gcd as _gcd, lcm as _lcm},
+    num_complex::Complex64,
+    value::Value,
+    variable::{Variable, VariableMap},
 };
 use proc_macros::define_calculator_builtin_function;
 use std::{
-    cell::RefCell, f64::consts::{E, PI, TAU}, rc::Rc
+    cell::RefCell,
+    f64::consts::{E, PI, TAU},
+    rc::Rc,
 };
 
 const C: f64 = 299792458_f64;

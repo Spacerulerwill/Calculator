@@ -52,23 +52,32 @@ impl Statement {
             Statement::DeleteFunctionSignature { name, signature } => {
                 let variable_option = variables.get(&name.lexeme).cloned();
 
-                if let Some(variable) = variable_option{
+                if let Some(variable) = variable_option {
                     if variable.constant {
-                        return Err(EvaluationError::ConstantDeletion { name: name })
+                        return Err(EvaluationError::ConstantDeletion { name: name });
                     }
-                    if let Value::Function(func) = &variable.value{
+                    if let Value::Function(func) = &variable.value {
                         let mut func = func.borrow_mut();
                         match &mut *func {
-                            Function::NativeFunction(_) => return Err(EvaluationError::CantDeleteSignatureFromNativeFunction { name: name }),
+                            Function::NativeFunction(_) => {
+                                return Err(
+                                    EvaluationError::CantDeleteSignatureFromNativeFunction {
+                                        name: name,
+                                    },
+                                )
+                            }
                             Function::UserDefinedFunction(func) => {
                                 // Remove the signature if it exists
                                 let length_before_removal = func.signatures.len();
                                 func.signatures.retain(|(sig, _)| *sig != signature);
                                 let length_after_removal = func.signatures.len();
-                                
+
                                 // We couldn't find the signature to remove
                                 if length_after_removal == length_before_removal {
-                                    return Err(EvaluationError::NoMatchingSignature { col: name.col, name: func.name.clone() })
+                                    return Err(EvaluationError::NoMatchingSignature {
+                                        col: name.col,
+                                        name: func.name.clone(),
+                                    });
                                 }
 
                                 // If there are no signatures left, remove the function from variables
@@ -80,7 +89,7 @@ impl Statement {
                         }
                     } else {
                         // Not a function, cannot delete signature
-                        return Err(EvaluationError::InvalidCallable { col: name.col })
+                        return Err(EvaluationError::InvalidCallable { col: name.col });
                     }
                 } else {
                     return Err(EvaluationError::UnknownVariable { name: name });
@@ -118,7 +127,11 @@ impl Statement {
                                 func.signatures.push((signature, expr));
                                 return Ok(());
                             }
-                            Function::NativeFunction(_) => return Err(EvaluationError::CantAddSignatureToNativeFunction { name: name }),
+                            Function::NativeFunction(_) => {
+                                return Err(EvaluationError::CantAddSignatureToNativeFunction {
+                                    name: name,
+                                })
+                            }
                         }
                     }
                 }

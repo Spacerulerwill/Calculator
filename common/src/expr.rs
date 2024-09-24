@@ -64,13 +64,9 @@ pub enum EvaluationError<'a> {
         constraint: ValueConstraint,
     },
     /// If the user tries to add a new signature to a native function
-    CantAddSignatureToNativeFunction {
-        name: Token,
-    },
+    CantAddSignatureToNativeFunction { name: Token },
     /// If the user tries to delete a signature from a native function
-    CantDeleteSignatureFromNativeFunction {
-        name: Token,
-    },
+    CantDeleteSignatureFromNativeFunction { name: Token },
     /// No matching signature found for a function
     NoMatchingSignature { col: usize, name: String },
     /// Operands of binary operator don't meet value constraint
@@ -267,9 +263,7 @@ impl<'a> Expr {
             TokenKind::Slash => match (&left, &right) {
                 (Value::Number(left), Value::Number(right)) => {
                     if right.norm() == 0.0 {
-                        return Err(EvaluationError::DivisionByZero {
-                            col: operator.col,
-                        });
+                        return Err(EvaluationError::DivisionByZero { col: operator.col });
                     }
                     return Ok(Value::Number(left / right));
                 }
@@ -284,9 +278,7 @@ impl<'a> Expr {
             TokenKind::Percent => match (&left, &right) {
                 (Value::Number(left), Value::Number(right)) => {
                     if right.norm() == 0.0 {
-                        return Err(EvaluationError::DivisionByZero {
-                            col: operator.col,
-                        });
+                        return Err(EvaluationError::DivisionByZero { col: operator.col });
                     }
                     return Ok(Value::Number(left % right));
                 }
@@ -419,11 +411,7 @@ impl<'a> Expr {
                 let function = function.borrow();
                 function.call(paren.col, evaluated_arguments, variables)
             }
-            _ => {
-                return Err(EvaluationError::InvalidCallable {
-                    col: paren.col,
-                })
-            }
+            _ => return Err(EvaluationError::InvalidCallable { col: paren.col }),
         }
     }
 

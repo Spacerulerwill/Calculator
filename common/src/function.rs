@@ -5,7 +5,8 @@ use num_complex::Complex64;
 use crate::{
     expr::{complex_to_string, EvaluationError, Expr},
     tokenizer::Token,
-    value::Value, variable::{Variable, VariableMap},
+    value::Value,
+    variable::{Variable, VariableMap},
 };
 
 #[derive(Debug, Clone)]
@@ -31,7 +32,12 @@ impl<'a> Function<'a> {
         }
     }
 
-    pub fn call(&self, col: usize, arguments: Vec<Value<'a>>, variables: &mut VariableMap<'a>) -> Result<Value<'a>, EvaluationError<'a>> {
+    pub fn call(
+        &self,
+        col: usize,
+        arguments: Vec<Value<'a>>,
+        variables: &mut VariableMap<'a>,
+    ) -> Result<Value<'a>, EvaluationError<'a>> {
         match self {
             Function::NativeFunction(func) => {
                 if func.arity != arguments.len() {
@@ -48,16 +54,11 @@ impl<'a> Function<'a> {
                 for (signature, expr) in func.signatures.iter() {
                     if signature.matches_parameters(&arguments) {
                         let mut inputs = variables.clone();
-                        for (arg_type, val) in signature
-                            .parameters
-                            .iter()
-                            .zip(arguments.into_iter())
+                        for (arg_type, val) in
+                            signature.parameters.iter().zip(arguments.into_iter())
                         {
-                            if let UserDefinedFunctionArgType::Identifier(identifier) =
-                                arg_type
-                            {
-                                inputs
-                                    .insert(identifier.clone(), Variable::as_variable(val));
+                            if let UserDefinedFunctionArgType::Identifier(identifier) = arg_type {
+                                inputs.insert(identifier.clone(), Variable::as_variable(val));
                             }
                         }
                         return expr.clone().evaluate(&mut inputs);
@@ -67,7 +68,7 @@ impl<'a> Function<'a> {
                     col: col,
                     name: func.name.clone(),
                 })
-            },
+            }
         }
     }
 }
