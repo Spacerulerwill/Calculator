@@ -45,11 +45,7 @@ fn main() {
     }
 }
 
-fn process_text<'a>(mut expression: String, variables: &mut VariableMap<'a>, tabsize: u8) {
-    if !expression.ends_with('\n') {
-        expression.push('\n');
-    }
-
+fn process_text<'a>(expression: String, variables: &mut VariableMap<'a>, tabsize: u8) {
     let tokens = match Tokenizer::tokenize(&expression, tabsize) {
         Ok(tokenizer) => tokenizer.tokens,
         Err(err) => {

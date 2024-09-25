@@ -25,6 +25,7 @@ pub enum TokenKind {
     Equal,
     Sqrt,
     Newline,
+    Semicolon,
     Identifier(String),
     Number(Complex64),
     Delete,
@@ -108,6 +109,7 @@ impl<'a> Tokenizer<'a> {
                     self.prev_pos = self.current_pos.clone();
                 }
                 '\n' => self.add_single_char_token(TokenKind::Newline),
+                ';' => self.add_single_char_token(TokenKind::Semicolon),
                 '(' => self.add_single_char_token(TokenKind::LeftParen),
                 ')' => self.add_single_char_token(TokenKind::RightParen),
                 '⌈' => self.add_single_char_token(TokenKind::LeftCeiling),
@@ -318,6 +320,8 @@ mod tests {
                 TokenKind::Number(Complex64::new(2.5e-6 as f64, 0.0)),
             ),
             ("delete", TokenKind::Delete),
+            ("\n", TokenKind::Newline),
+            (";", TokenKind::Semicolon)
         ] {
             let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
             assert_eq!(extract_token_types(tokens), vec![result]);
@@ -328,7 +332,7 @@ mod tests {
     fn test_samples() {
         for (input, expected_tokens) in [
             (
-                "(√(5 + 3) * 2 - foo) / ⌊bar⌋",
+                "(√(5 + 3) * 2 - foo) / ⌊bar⌋;",
                 vec![
                     TokenKind::LeftParen,
                     TokenKind::Sqrt,
@@ -346,6 +350,7 @@ mod tests {
                     TokenKind::LeftFloor,
                     TokenKind::Identifier(String::from("bar")),
                     TokenKind::RightFloor,
+                    TokenKind::Semicolon
                 ],
             ),
             (
@@ -363,7 +368,7 @@ mod tests {
                 ],
             ),
             (
-                "|foo^2| + √(bar - 1)",
+                "|foo^2| + √(bar - 1);",
                 vec![
                     TokenKind::Pipe,
                     TokenKind::Identifier(String::from("foo")),
@@ -377,6 +382,7 @@ mod tests {
                     TokenKind::Minus,
                     TokenKind::Number(Complex64::new(1.0, 0.0)),
                     TokenKind::RightParen,
+                    TokenKind::Semicolon
                 ],
             ),
         ] {
@@ -395,14 +401,14 @@ mod tests {
     #[test]
     fn test_lexeme_extraction() {
         let input =
-            "()⌈⌉⌊⌋+-/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01 1e6 1e-6 2.5e6 2.5e-6";
+            "()⌈⌉⌊⌋+-/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01 1e6 1e-6 2.5e6 2.5e-6;";
         let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
         assert_eq!(
             extract_lexemes(&tokens),
             vec![
                 "(", ")", "⌈", "⌉", "⌊", "⌋", "+", "-", "/", "*", "^", "!", "|", "%", ",", "=",
                 "√", "foo", "bar", "baz", "3.14", "0.0001", "0.045", "10.01", "1e6", "1e-6",
-                "2.5e6", "2.5e-6"
+                "2.5e6", "2.5e-6", ";"
             ]
         )
     }
@@ -412,7 +418,7 @@ mod tests {
         let input = "(  )⌈ ⌉⌊⌋+
 -/*^!|%,=√foo\tbar  baz
 3.14 0.0001\t0.045    10.01
-1e6 1e-6 2.5e6 2.5e-6";
+1e6 1e-6 2.5e6 2.5e-6;";
         let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
         let positions = extract_token_positions(tokens);
         assert_eq!(
@@ -448,7 +454,8 @@ mod tests {
                 (4, 1),
                 (4, 5),
                 (4, 10),
-                (4, 16)
+                (4, 16),
+                (4, 22)
             ]
         )
     }

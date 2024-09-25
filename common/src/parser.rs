@@ -1,16 +1,19 @@
 /*
+<program>  ::= ( <statement>? <delimeter> )*
+
+<delimeter> ::= "\n" | ";"
 <statement> ::= <expression_statement>
               | <delete_statement>
               | <assignment>
               | <function_declaration>
 
-<expression_statement> ::= <expression> "\n"
+<expression_statement> ::= <expression>
 
-<delete_statement> ::= "delete" (<IDENTIFIER> | <call>) "\n"
+<delete_statement> ::= "delete" (<IDENTIFIER> | <call>) 
 
-<assignment> ::= <IDENTIFIER> "=" <expression> "\n"
+<assignment> ::= <IDENTIFIER> "=" <expression>
 
-<function_declaration> ::= <call> "=" <expression> "\n"
+<function_declaration> ::= <call> "=" <expression>
 
 <expression> ::= <term>
 
@@ -51,6 +54,9 @@ pub enum ParserError {
     ExpectedExpression {
         found: Option<Token>,
     },
+    ExpectedDelimeter {
+        found: Option<Token>
+    },
     ExpectedToken {
         expected: TokenKind,
         found: Option<Token>,
@@ -76,6 +82,19 @@ impl fmt::Display for ParserError {
                     )
                 } else {
                     write!(f, "Expected expression next but found EOF")
+                }
+            }
+            ParserError::ExpectedDelimeter { found } => {
+                if let Some(found) = found {
+                    write!(
+                        f,
+                        "Line {}, Position {} :: Expected demileter (semicolon or newline) next but found '{}'",
+                        found.line,
+                        found.col,
+                        &found.lexeme
+                    )
+                } else {
+                    write!(f, "Expected delimeter (semicolon or newline) but found EOF")
                 }
             }
             ParserError::ExpectedToken { expected, found } => {
@@ -121,8 +140,13 @@ impl Parser {
             iter: tokens.into_iter().peekable(),
         };
         let mut statements = Vec::new();
-        while parser.iter.peek().is_some() {
-            statements.push(parser.statement()?);
+        while let Some(token) = parser.iter.peek() {
+            match token.kind {
+                TokenKind::Newline | TokenKind::Semicolon => {
+                    parser.iter.next();
+                }
+                _ => statements.push(parser.statement()?)
+            }
         }
         Ok(statements)
     }
@@ -155,7 +179,7 @@ impl Parser {
     }
 
     fn expression_statement(&mut self, expr: Expr) -> Result<Statement, ParserError> {
-        self.consume(TokenKind::Newline)?;
+        self.consume_line_delimeter()?;
         Ok(Statement::ExpressionStatement(expr))
     }
 
@@ -164,7 +188,7 @@ impl Parser {
         let expr = self.expression()?;
         match expr.clone() {
             Expr::Identifier { name } => {
-                self.consume(TokenKind::Newline)?;
+                self.consume_line_delimeter()?;
                 return Ok(Statement::DeleteVariable(name));
             }
             Expr::Call {
@@ -172,7 +196,7 @@ impl Parser {
                 paren: _,
                 arguments,
             } => {
-                self.consume(TokenKind::Newline)?;
+                self.consume_line_delimeter()?;
                 match Signature::from_call_expression(*callee, arguments) {
                     Ok((name, signature)) => {
                         return Ok(Statement::DeleteFunctionSignature {
@@ -191,7 +215,7 @@ impl Parser {
         if self.check(TokenKind::Equal) {
             self.iter.next();
             let right = self.expression()?;
-            self.consume(TokenKind::Newline)?;
+            self.consume_line_delimeter()?;
             return Ok(Some(Statement::Assignment {
                 identifier: name,
                 expr: right,
@@ -208,7 +232,7 @@ impl Parser {
         if self.check(TokenKind::Equal) {
             let equal = self.iter.next().unwrap();
             let function_body = self.expression()?;
-            self.consume(TokenKind::Newline)?;
+            self.consume_line_delimeter()?;
             let (name, signature) = match Signature::from_call_expression(callee, arguments) {
                 Ok(result) => result,
                 Err(_) => return Err(ParserError::InvalidAssignmentTarget { equal: equal }),
@@ -415,6 +439,24 @@ impl Parser {
         } else {
             Err(ParserError::ExpectedToken {
                 expected: expected_kind,
+                found: None,
+            })
+        }
+    }
+
+    fn consume_line_delimeter(&mut self) -> Result<Token, ParserError> {
+        if let Some(token) = self.iter.peek() {
+            match token.kind {
+                TokenKind::Newline | TokenKind::Semicolon => {
+                    let token = self.iter.next().unwrap();
+                    Ok(token)
+                }
+                _ =>  Err(ParserError::ExpectedDelimeter {
+                    found: Some(token.clone()),
+                })
+            }
+        } else {
+            Err(ParserError::ExpectedDelimeter {
                 found: None,
             })
         }
