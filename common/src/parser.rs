@@ -9,7 +9,7 @@
 
 <expression_statement> ::= <expression>
 
-<delete_statement> ::= "delete" (<IDENTIFIER> | <call>) 
+<delete_statement> ::= "delete" (<IDENTIFIER> | <call>)
 
 <assignment> ::= <IDENTIFIER> "=" <expression>
 
@@ -35,6 +35,7 @@
               | "|" <expression> "|"
               | "⌈" <expression> "⌉"
               | "⌊" <expression> "⌋"
+              | "[" <arguments> "]"
 
 // helper rules
 <arguments> ::= <expression> ( "," <expression> )*
@@ -55,7 +56,7 @@ pub enum ParserError {
         found: Option<Token>,
     },
     ExpectedDelimeter {
-        found: Option<Token>
+        found: Option<Token>,
     },
     ExpectedToken {
         expected: TokenKind,
@@ -145,7 +146,7 @@ impl Parser {
                 TokenKind::Newline | TokenKind::Semicolon => {
                     parser.iter.next();
                 }
-                _ => statements.push(parser.statement()?)
+                _ => statements.push(parser.statement()?),
             }
         }
         Ok(statements)
@@ -364,12 +365,12 @@ impl Parser {
                 }
             }
         }
-        self.consume(TokenKind::RightParen)?;
         Ok(arguments)
     }
 
     fn finish_call(&mut self, callee: Expr, left_paren: Token) -> Result<Expr, ParserError> {
         let arguments = self.consume_comma_seperated_arguments()?;
+        self.consume(TokenKind::RightParen)?;
         Ok(Expr::Call {
             callee: Box::new(callee),
             paren: left_paren,
@@ -418,6 +419,11 @@ impl Parser {
                         expr: Box::new(expr),
                     });
                 }
+                TokenKind::LeftBracket => {
+                    let experssions = self.consume_comma_seperated_arguments()?;
+                    self.consume(TokenKind::RightBracket)?;
+                    return Ok(Expr::Vector(experssions));
+                }
                 _ => return Err(ParserError::ExpectedExpression { found: Some(token) }),
             }
         } else {
@@ -451,14 +457,12 @@ impl Parser {
                     let token = self.iter.next().unwrap();
                     Ok(token)
                 }
-                _ =>  Err(ParserError::ExpectedDelimeter {
+                _ => Err(ParserError::ExpectedDelimeter {
                     found: Some(token.clone()),
-                })
+                }),
             }
         } else {
-            Err(ParserError::ExpectedDelimeter {
-                found: None,
-            })
+            Err(ParserError::ExpectedDelimeter { found: None })
         }
     }
 

@@ -131,12 +131,12 @@ impl Signature {
                 UserDefinedFunctionArgType::Identifier(_) => continue,
                 UserDefinedFunctionArgType::Number(expected) => {
                     match arg {
-                        Value::Function(_) => return false,
                         Value::Number(num) => {
                             if num != expected {
                                 return false;
                             }
                         }
+                        _ => return false,
                     };
                 }
             }

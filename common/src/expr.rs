@@ -34,6 +34,7 @@ pub enum Expr {
     Number {
         number: Complex64,
     },
+    Vector(Vec<Expr>),
     Identifier {
         name: Token,
     },
@@ -245,6 +246,19 @@ impl<'a> Expr {
                 Self::evaluate_grouping(paren, *kind, &*expr, variables)
             }
             Expr::Number { number } => Ok(Value::Number(*number)),
+            Expr::Vector(args) => {
+                let mut values = Vec::with_capacity(args.len());
+                for arg in args {
+                    let value = arg.evaluate(variables)?;
+                    match value {
+                        Value::Number(num) => {
+                            values.push(num);
+                        }
+                        _ => panic!("Non number in vector"),
+                    }
+                }
+                Ok(Value::Vector(values))
+            }
             Expr::Identifier { name } => Self::evaluate_identifier(name, variables),
             Expr::Call {
                 callee,
@@ -467,6 +481,7 @@ impl<'a> Expr {
                 expr: _,
             } => "grouping",
             Expr::Number { number: _ } => "number",
+            Expr::Vector(_) => "vector",
             Expr::Identifier { name: _ } => "identifier",
             Expr::Call {
                 callee: _,
@@ -500,6 +515,15 @@ impl fmt::Display for Expr {
                 GroupingKind::Floor => write!(f, "⌊{expr}⌋"),
             },
             Expr::Number { number } => write!(f, "{}", complex_to_string(number)),
+            Expr::Vector(expressions) => write!(
+                f,
+                "[{}]",
+                expressions
+                    .iter()
+                    .map(|e| format!("{}", e))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             Expr::Identifier { name } => write!(f, "{}", &name.lexeme),
             Expr::Call {
                 callee,

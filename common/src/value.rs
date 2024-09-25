@@ -62,6 +62,7 @@ impl ToTokens for ValueConstraint {
 pub enum Value<'a> {
     Function(Rc<RefCell<Function<'a>>>),
     Number(Complex64),
+    Vector(Vec<Complex64>),
 }
 
 impl fmt::Display for Value<'_> {
@@ -69,6 +70,14 @@ impl fmt::Display for Value<'_> {
         match self {
             Value::Function(func) => write!(f, "{}", func.borrow()),
             Value::Number(num) => write!(f, "{}", complex_to_string(&num)),
+            Value::Vector(vec) => write!(
+                f,
+                "[{}]",
+                vec.iter()
+                    .map(|e| complex_to_string(e))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
         }
     }
 }

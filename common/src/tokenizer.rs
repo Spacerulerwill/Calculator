@@ -9,6 +9,8 @@ use std::{
 pub enum TokenKind {
     LeftParen,
     RightParen,
+    LeftBracket,
+    RightBracket,
     LeftCeiling,
     RightCeiling,
     LeftFloor,
@@ -112,6 +114,8 @@ impl<'a> Tokenizer<'a> {
                 ';' => self.add_single_char_token(TokenKind::Semicolon),
                 '(' => self.add_single_char_token(TokenKind::LeftParen),
                 ')' => self.add_single_char_token(TokenKind::RightParen),
+                '[' => self.add_single_char_token(TokenKind::LeftBracket),
+                ']' => self.add_single_char_token(TokenKind::RightBracket),
                 '⌈' => self.add_single_char_token(TokenKind::LeftCeiling),
                 '⌉' => self.add_single_char_token(TokenKind::RightCeiling),
                 '⌊' => self.add_single_char_token(TokenKind::LeftFloor),
@@ -290,6 +294,8 @@ mod tests {
         for (input, result) in [
             ("(", TokenKind::LeftParen),
             (")", TokenKind::RightParen),
+            ("[", TokenKind::LeftBracket),
+            ("]", TokenKind::RightBracket),
             ("⌈", TokenKind::LeftCeiling),
             ("⌉", TokenKind::RightCeiling),
             ("⌊", TokenKind::LeftFloor),
@@ -321,7 +327,7 @@ mod tests {
             ),
             ("delete", TokenKind::Delete),
             ("\n", TokenKind::Newline),
-            (";", TokenKind::Semicolon)
+            (";", TokenKind::Semicolon),
         ] {
             let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
             assert_eq!(extract_token_types(tokens), vec![result]);
@@ -350,7 +356,7 @@ mod tests {
                     TokenKind::LeftFloor,
                     TokenKind::Identifier(String::from("bar")),
                     TokenKind::RightFloor,
-                    TokenKind::Semicolon
+                    TokenKind::Semicolon,
                 ],
             ),
             (
@@ -382,7 +388,30 @@ mod tests {
                     TokenKind::Minus,
                     TokenKind::Number(Complex64::new(1.0, 0.0)),
                     TokenKind::RightParen,
-                    TokenKind::Semicolon
+                    TokenKind::Semicolon,
+                ],
+            ),
+            (
+                "[1 + i,2,3] + [2,3,4];",
+                vec![
+                    TokenKind::LeftBracket,
+                    TokenKind::Number(Complex64::from(1.0)),
+                    TokenKind::Plus,
+                    TokenKind::Identifier(String::from("i")),
+                    TokenKind::Comma,
+                    TokenKind::Number(Complex64::from(2.0)),
+                    TokenKind::Comma,
+                    TokenKind::Number(Complex64::from(3.0)),
+                    TokenKind::RightBracket,
+                    TokenKind::Plus,
+                    TokenKind::LeftBracket,
+                    TokenKind::Number(Complex64::from(2.0)),
+                    TokenKind::Comma,
+                    TokenKind::Number(Complex64::from(3.0)),
+                    TokenKind::Comma,
+                    TokenKind::Number(Complex64::from(4.0)),
+                    TokenKind::RightBracket,
+                    TokenKind::Semicolon,
                 ],
             ),
         ] {
