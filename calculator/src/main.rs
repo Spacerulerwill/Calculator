@@ -87,7 +87,7 @@ fn start_repl<'a>(tabsize: u8, variables: &mut VariableMap<'a>) {
             continue;
         }
 
-        if input.eq_ignore_ascii_case("exit") {
+        if input.trim().eq_ignore_ascii_case("exit") {
             break;
         }
 
