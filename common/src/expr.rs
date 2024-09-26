@@ -292,17 +292,33 @@ impl<'a> Expr {
                 (Value::Number(left), Value::Number(right)) => {
                     return Ok(Value::Number(left + right))
                 }
+                (Value::Vector(vec1), Value::Vector(vec2)) if vec1.len() == vec2.len() => {
+                    return Ok(Value::Vector(
+                        vec1.iter().zip(vec2.iter()).map(|(x,y)| x + y).collect()
+                    ))
+                }
                 _ => {}
             },
             TokenKind::Minus => match (&left, &right) {
                 (Value::Number(left), Value::Number(right)) => {
                     return Ok(Value::Number(left - right))
                 }
+                (Value::Vector(vec1), Value::Vector(vec2)) if vec1.len() == vec2.len() => {
+                    return Ok(Value::Vector(
+                        vec1.iter().zip(vec2.iter()).map(|(x,y)| x - y).collect()
+                    ))
+                }
                 _ => {}
             },
             TokenKind::Star => match (&left, &right) {
                 (Value::Number(left), Value::Number(right)) => {
                     return Ok(Value::Number(left * right))
+                }
+                (Value::Number(scalar), Value::Vector(vec)) => {
+                    return Ok(Value::Vector(vec.iter().map(|x| x * scalar).collect()))
+                }
+                (Value::Vector(vec), Value::Number(scalar)) => {
+                    return Ok(Value::Vector(vec.iter().map(|x| x * scalar).collect()))
                 }
                 _ => {}
             },
