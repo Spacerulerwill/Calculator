@@ -107,4 +107,12 @@ impl Value<'_> {
             },
         }
     }
+
+    pub fn get_type_string(&self) -> String {
+        match self {
+            Value::Function(_) => String::from("function"),
+            Value::Number(_) => String::from("number"),
+            Value::Vector(vec) => format!("{}D vector", vec.len()),
+        }
+    }
 }

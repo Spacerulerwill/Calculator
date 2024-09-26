@@ -76,14 +76,18 @@ pub enum EvaluationError<'a> {
         col: usize,
         name: String,
     },
-    /// Operands of binary operator don't meet value constraint
+    /// Operands of binary operator are incorrect types
     UnsupportedBinaryOperator {
+        left: Value<'a>,
         operator: Token,
-        constraint: ValueConstraint,
+        right: Value<'a>,
     },
     /// Operand of unary operator doesn't meet value constraint
-    UnsupportedUnaryOperator {
+    UnsupportedUnaryOperator { operator: Token, operand: Value<'a> },
+    /// Operand of unary operator is correct type, but does not meet correct value constraint
+    UnaryOperatorValueConstraintNotMet {
         operator: Token,
+        value: Value<'a>,
         constraint: ValueConstraint,
     },
     /// Grouping operand does not meet value constraint
@@ -130,25 +134,6 @@ impl<'a> fmt::Display for EvaluationError<'a> {
                 col,
                 name,
                 name
-            ),
-            EvaluationError::UnsupportedBinaryOperator {
-                operator,
-                constraint
-            } => write!(
-                f,
-                "Line {}, Column {} :: Cannot apply binary operator '{}' as one or more operands does not meet value constraint '{}'",
-                operator.line,
-                operator.col,
-                &operator.lexeme,
-                constraint
-            ),
-            EvaluationError::UnsupportedUnaryOperator { operator, constraint} => write!(
-                f,
-                "Line {}, Column {} :: Cannot apply unary operator '{}' as operand does not meet value constraint '{}'",
-                operator.line,
-                operator.col,
-                &operator.lexeme,
-                constraint
             ),
             EvaluationError::InvalidCallable { line, col } => write!(
                 f,
@@ -223,6 +208,32 @@ impl<'a> fmt::Display for EvaluationError<'a> {
                 name.line,
                 name.col,
                 &name.lexeme
+            ),
+            EvaluationError::UnsupportedBinaryOperator { left, operator, right } => write!(
+                f,
+                "Line {}, Column {} :: Binary operator '{}' not supported between types '{}' and '{}'",
+                operator.line,
+                operator.col,
+                &operator.lexeme,
+                &left.get_type_string(),
+                &right.get_type_string()
+            ),
+            EvaluationError::UnsupportedUnaryOperator { operator, operand } => write!(
+                f,
+                "Line {}, Column {} :: Unary operator '{}' not supported for type '{}'",
+                operator.line,
+                operator.col,
+                &operator.lexeme,
+                &operand.get_type_string()
+            ),
+            EvaluationError::UnaryOperatorValueConstraintNotMet { operator, value,  constraint } => write!(
+                f,
+                "Line {}, Col {} :: Cannot perform unary operator '{}' on type '{}' as it does not meet value constraint '{}'",
+                operator.line,
+                operator.col,
+                &operator.lexeme,
+                &value.get_type_string(),
+                constraint
             )
         }
     }
@@ -329,8 +340,9 @@ impl<'a> Expr {
         }
         // None were matched, unsupported
         Err(EvaluationError::UnsupportedBinaryOperator {
+            left: left,
             operator: operator.clone(),
-            constraint: ValueConstraint::Number,
+            right: right,
         })
     }
 
@@ -345,37 +357,34 @@ impl<'a> Expr {
                 Value::Number(right) => {
                     return Ok(Value::Number(right * Complex64::new(-1.0, 0.0)));
                 }
-                _ => {
-                    return Err(EvaluationError::UnsupportedUnaryOperator {
-                        operator: operator.clone(),
-                        constraint: ValueConstraint::Number,
-                    })
-                }
+                _ => {}
             },
             TokenKind::Sqrt => match &operand {
                 Value::Number(right) => {
                     return Ok(Value::Number(right.sqrt()));
                 }
-                _ => {
-                    return Err(EvaluationError::UnsupportedUnaryOperator {
-                        operator: operator.clone(),
-                        constraint: ValueConstraint::Number,
-                    })
-                }
+                _ => {}
             },
             TokenKind::Bang => match &operand {
-                Value::Number(right) if operand.fits_value_constraint(ValueConstraint::Natural) => {
-                    return Ok(Value::Number(factorial(right.re as u64).into()))
+                Value::Number(right) => {
+                    if operand.fits_value_constraint(ValueConstraint::Natural) {
+                        return Ok(Value::Number(factorial(right.re as u64).into()));
+                    } else {
+                        return Err(EvaluationError::UnaryOperatorValueConstraintNotMet {
+                            operator: operator.clone(),
+                            value: operand,
+                            constraint: ValueConstraint::Natural,
+                        });
+                    }
                 }
-                _ => {
-                    return Err(EvaluationError::UnsupportedUnaryOperator {
-                        operator: operator.clone(),
-                        constraint: ValueConstraint::Natural,
-                    })
-                }
+                _ => {}
             },
             kind => panic!("Invalid token kind for unary operation: {:?}", kind),
         }
+        Err(EvaluationError::UnsupportedUnaryOperator {
+            operator: operator.clone(),
+            operand: operand,
+        })
     }
 
     fn evaluate_grouping(
