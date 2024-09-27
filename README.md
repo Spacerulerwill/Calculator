@@ -14,3 +14,11 @@ A simple command line calculator I'm working on
 * User defined variables and functions
 * Pre-load constants, functions and pre-run expressions from a file
 * `delete` operator for managing functions and variables
+
+## Todo
+* Vector and matrix arithmetic
+* Different number bases (1-16, 32 and 64)
+* `clear` operator to reset session
+* Expression history and recall using the `ans` operator
+* Support for different units and dimensions (e.g. `3m + 5ft`
+* Graph plots
