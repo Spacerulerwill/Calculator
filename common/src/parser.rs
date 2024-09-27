@@ -230,7 +230,7 @@ impl Parser {
     }
 
     fn function_declaration(
-        &mut self,
+        &mut self,                    
         callee: Expr,
         arguments: Vec<Expr>,
     ) -> Result<Option<Statement>, ParserError> {
@@ -462,9 +462,9 @@ impl Parser {
                     });
                 }
                 TokenKind::LeftBracket => {
-                    let experssions = self.consume_comma_seperated_arguments()?;
-                    self.consume(TokenKind::RightBracket)?;
-                    return Ok(Expr::Vector(experssions));
+                    let parameters = self.consume_comma_seperated_arguments()?;
+                    let bracket = self.consume(TokenKind::RightBracket)?;
+                    return Ok(Expr::Vector{bracket: bracket, parameters: parameters});
                 }
                 _ => return Err(ParserError::ExpectedExpression { found: Some(token) }),
             }

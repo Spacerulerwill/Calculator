@@ -15,6 +15,17 @@ pub enum GroupingKind {
     Floor,
 }
 
+impl GroupingKind {
+    pub fn get_type_string(&self) -> &'static str {
+        match self {
+            GroupingKind::Grouping => "grouping",
+            GroupingKind::Absolute => "absolute grouping",
+            GroupingKind::Ceil => "ceil grouping",
+            GroupingKind::Floor => "floor grouping"
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Expr {
     Binary {
@@ -34,7 +45,7 @@ pub enum Expr {
     Number {
         number: Complex64,
     },
-    Vector(Vec<Expr>),
+    Vector{bracket: Token, parameters: Vec<Expr>},
     Identifier {
         name: Token,
     },
@@ -82,7 +93,7 @@ pub enum EvaluationError<'a> {
         operator: Token,
         right: Value<'a>,
     },
-    /// Operand of unary operator doesn't meet value constraint
+    /// Operand of unary operator is incorrect type
     UnsupportedUnaryOperator { operator: Token, operand: Value<'a> },
     /// Operand of unary operator is correct type, but does not meet correct value constraint
     UnaryOperatorValueConstraintNotMet {
@@ -91,6 +102,12 @@ pub enum EvaluationError<'a> {
         constraint: ValueConstraint,
     },
     /// Grouping operand does not meet value constraint
+    InvalidGroupingOperand {
+        line: usize,
+        col: usize,
+        kind: GroupingKind,
+        value: Value<'a>
+    },
     GroupingValueConstraintNotMet {
         line: usize,
         col: usize,
@@ -105,6 +122,8 @@ pub enum EvaluationError<'a> {
     ConstantDeletion { name: Token },
     /// Tried to access or use a non-existant variable
     UnknownVariable { name: Token },
+    /// Vector parmaters can only be numbers
+    InvalidVectorParameter { line: usize, col: usize, parameter_idx: usize, provided: Value<'a> }
 }
 
 impl<'a> fmt::Display for EvaluationError<'a> {
@@ -142,21 +161,23 @@ impl<'a> fmt::Display for EvaluationError<'a> {
                 col,
                 ValueConstraint::Function
             ),
-            EvaluationError::GroupingValueConstraintNotMet { line, col, kind, constraint } => {
-                let grouping_str = match kind {
-                    GroupingKind::Grouping => "grouping",
-                    GroupingKind::Absolute => "absolute grouping",
-                    GroupingKind::Ceil => "ceil grouping",
-                    GroupingKind::Floor => "floor grouping"
-                };
-                write!(
-                    f,
-                    "Line {}, Column {} :: Value in {grouping_str} does meet value constraint '{}'",
-                    line,
-                    col,
-                    constraint
-                )
+            EvaluationError::InvalidGroupingOperand { line, col, kind, value } => write! {
+                f,
+                "Line {}, Column {} :: '{}' is a not a supported type for a '{}'",
+                line,
+                col,
+                value.get_type_string(),
+                kind.get_type_string()
             },
+            EvaluationError::GroupingValueConstraintNotMet { line, col, kind, constraint } => write!(
+                f,
+                "Line {}, Column {} :: Value in {} does meet value constraint '{}'",
+                line,
+                col,
+                kind.get_type_string(),
+                constraint
+            ),
+            
             EvaluationError::IncorrectFunctionArgumentType {
                 function_name,
                 line,
@@ -228,13 +249,21 @@ impl<'a> fmt::Display for EvaluationError<'a> {
             ),
             EvaluationError::UnaryOperatorValueConstraintNotMet { operator, value,  constraint } => write!(
                 f,
-                "Line {}, Col {} :: Cannot perform unary operator '{}' on type '{}' as it does not meet value constraint '{}'",
+                "Line {}, Column {} :: Cannot perform unary operator '{}' on type '{}' as it does not meet value constraint '{}'",
                 operator.line,
                 operator.col,
                 &operator.lexeme,
                 &value.get_type_string(),
                 constraint
-            )
+            ),
+            EvaluationError::InvalidVectorParameter { line, col, parameter_idx, provided } => write!(
+                f,
+                "Line {}, Column {} :: At index {}, a value of type '{}' was provided, but vectors can only take numbers",
+                line,
+                col,
+                parameter_idx + 1,
+                &provided.get_type_string()
+            ),
         }
     }
 }
@@ -257,15 +286,15 @@ impl<'a> Expr {
                 Self::evaluate_grouping(paren, *kind, &*expr, variables)
             }
             Expr::Number { number } => Ok(Value::Number(*number)),
-            Expr::Vector(args) => {
-                let mut values = Vec::with_capacity(args.len());
-                for arg in args {
+            Expr::Vector {bracket, parameters} => {
+                let mut values = Vec::with_capacity(parameters.len());
+                for (idx, arg) in parameters.iter().enumerate() {
                     let value = arg.evaluate(variables)?;
                     match value {
                         Value::Number(num) => {
                             values.push(num);
                         }
-                        _ => panic!("Non number in vector"),
+                        _ => return Err(EvaluationError::InvalidVectorParameter { line: bracket.line, col: bracket.col, parameter_idx: idx, provided: value }),
                     }
                 }
                 Ok(Value::Vector(values))
@@ -448,49 +477,36 @@ impl<'a> Expr {
         expr: &Expr,
         variables: &mut VariableMap<'a>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
+        let value = expr.evaluate(variables)?;
         match kind {
-            GroupingKind::Grouping => expr.evaluate(variables),
-            GroupingKind::Absolute => {
-                let result = expr.evaluate(variables)?;
-                match result {
-                    Value::Number(result) => Ok(Value::Number(result.norm().into())),
-                    _ => Err(EvaluationError::GroupingValueConstraintNotMet {
-                        line: paren.line,
-                        col: paren.col,
-                        kind: kind,
-                        constraint: ValueConstraint::Number,
-                    }),
-                }
+            GroupingKind::Grouping => return Ok(value),
+            GroupingKind::Absolute => match value {
+                Value::Number(result) => return Ok(Value::Number(result.norm().into())),
+                Value::Vector(vec) => return Ok(Value::Number(vec.iter().map(|x| x * x).sum::<Complex64>().sqrt() )),
+                _ => {},
             }
-            GroupingKind::Ceil => {
-                let result = expr.evaluate(variables)?;
-                match result {
-                    Value::Number(num) if result.fits_value_constraint(ValueConstraint::Real) => {
+            GroupingKind::Ceil => match value {
+                Value::Number(num) => {
+                    if value.fits_value_constraint(ValueConstraint::Real) {
                         return Ok(Value::Number(num.re.ceil().into()));
+                    } else {
+                        return Err(EvaluationError::GroupingValueConstraintNotMet { line: paren.line, col: paren.col, kind: kind, constraint: ValueConstraint::Real })
                     }
-                    _ => Err(EvaluationError::GroupingValueConstraintNotMet {
-                        line: paren.line,
-                        col: paren.col,
-                        kind: kind,
-                        constraint: ValueConstraint::Real,
-                    }),
                 }
+                _ => {}
             }
-            GroupingKind::Floor => {
-                let result = expr.evaluate(variables)?;
-                match result {
-                    Value::Number(num) if result.fits_value_constraint(ValueConstraint::Real) => {
+            GroupingKind::Floor => match value {
+                Value::Number(num) => {
+                    if value.fits_value_constraint(ValueConstraint::Real) {
                         return Ok(Value::Number(num.re.floor().into()));
+                    } else {
+                        return Err(EvaluationError::GroupingValueConstraintNotMet { line: paren.line, col: paren.col, kind: kind, constraint: ValueConstraint::Real })
                     }
-                    _ => Err(EvaluationError::GroupingValueConstraintNotMet {
-                        line: paren.line,
-                        col: paren.col,
-                        kind: kind,
-                        constraint: ValueConstraint::Real,
-                    }),
                 }
+                _ => {},
             }
-        }
+        };
+        Err(EvaluationError::InvalidGroupingOperand { line: paren.line, col: paren.col, kind: kind, value: value })
     }
 
     fn evaluate_identifier(
@@ -545,7 +561,7 @@ impl<'a> Expr {
                 expr: _,
             } => "grouping",
             Expr::Number { number: _ } => "number",
-            Expr::Vector(_) => "vector",
+            Expr::Vector{bracket: _, parameters: _} => "vector",
             Expr::Identifier { name: _ } => "identifier",
             Expr::Call {
                 callee: _,
@@ -579,10 +595,10 @@ impl fmt::Display for Expr {
                 GroupingKind::Floor => write!(f, "⌊{expr}⌋"),
             },
             Expr::Number { number } => write!(f, "{}", complex_to_string(number)),
-            Expr::Vector(expressions) => write!(
+            Expr::Vector{bracket: _, parameters} => write!(
                 f,
                 "[{}]",
-                expressions
+                parameters
                     .iter()
                     .map(|e| format!("{}", e))
                     .collect::<Vec<_>>()
