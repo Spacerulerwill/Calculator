@@ -19,7 +19,11 @@
 
 <term> ::= <factor> ( ( "-" | "+" ) <factor> )*
 
-<factor> ::= <exponent> ( ( "/" | "*" | "%" ) <exponent> )*
+<factor> ::= <dot> ( ( "/" | "*" | "%" | "dot" ) <dot> )*
+
+<dot> ::= <cross> ( "dot" <cross> )*
+
+<cross> ::= <exponent> ( "cross" <exponent>)*
 
 <exponent> ::= <unary> ( "^" <unary> )*
 
@@ -273,10 +277,48 @@ impl Parser {
     }
 
     fn factor(&mut self) -> Result<Expr, ParserError> {
-        let mut expr = self.exponent()?;
+        let mut expr = self.dot()?;
         while let Some(token) = self.iter.peek() {
             match token.kind {
                 TokenKind::Star | TokenKind::Slash | TokenKind::Percent => {
+                    let token = self.iter.next().unwrap();
+                    let right = self.dot()?;
+                    expr = Expr::Binary {
+                        left: Box::new(expr),
+                        operator: token,
+                        right: Box::new(right),
+                    };
+                }
+                _ => break,
+            }
+        }
+        Ok(expr)
+    }
+
+    fn dot(&mut self) -> Result<Expr, ParserError> {
+        let mut expr = self.cross()?;
+        while let Some(token) = self.iter.peek() {
+            match token.kind {
+                TokenKind::Dot => {
+                    let token = self.iter.next().unwrap();
+                    let right = self.cross()?;
+                    expr = Expr::Binary {
+                        left: Box::new(expr),
+                        operator: token,
+                        right: Box::new(right),
+                    };
+                }
+                _ => break,
+            }
+        }
+        Ok(expr)
+    }
+
+    fn cross(&mut self) -> Result<Expr, ParserError> {
+        let mut expr = self.exponent()?;
+        while let Some(token) = self.iter.peek() {
+            match token.kind {
+                TokenKind::Cross => {
                     let token = self.iter.next().unwrap();
                     let right = self.exponent()?;
                     expr = Expr::Binary {

@@ -294,7 +294,7 @@ impl<'a> Expr {
                 }
                 (Value::Vector(vec1), Value::Vector(vec2)) if vec1.len() == vec2.len() => {
                     return Ok(Value::Vector(
-                        vec1.iter().zip(vec2.iter()).map(|(x,y)| x + y).collect()
+                        vec1.iter().zip(vec2.iter()).map(|(x, y)| x + y).collect(),
                     ))
                 }
                 _ => {}
@@ -305,7 +305,7 @@ impl<'a> Expr {
                 }
                 (Value::Vector(vec1), Value::Vector(vec2)) if vec1.len() == vec2.len() => {
                     return Ok(Value::Vector(
-                        vec1.iter().zip(vec2.iter()).map(|(x,y)| x - y).collect()
+                        vec1.iter().zip(vec2.iter()).map(|(x, y)| x - y).collect(),
                     ))
                 }
                 _ => {}
@@ -352,6 +352,36 @@ impl<'a> Expr {
                 }
                 _ => {}
             },
+            TokenKind::Dot => match (&left, &right) {
+                (Value::Vector(vec1), Value::Vector(vec2)) if vec1.len() == vec2.len() => {
+                    return Ok(Value::Number(
+                        vec1.iter().zip(vec2.iter()).map(|(a, b)| a * b).sum(),
+                    ))
+                }
+                _ => {}
+            },
+            TokenKind::Cross => match (&left, &right) {
+                (Value::Vector(vec1), Value::Vector(vec2))
+                    if vec1.len() == 3 && vec2.len() == 3 => {
+                    let a1 = vec1[0];
+                    let a2 = vec1[1];
+                    let a3 = vec1[2];
+            
+                    let b1 = vec2[0];
+                    let b2 = vec2[1];
+                    let b3 = vec2[2];
+            
+                    let cross_product = Value::Vector(vec![
+                        a2 * b3 - a3 * b2,
+                        a3 * b1 - a1 * b3,
+                        a1 * b2 - a2 * b1,
+                    ]);
+                    
+                    return Ok(cross_product);
+                }
+                _ => {}
+            }
+
             kind => panic!("Invalid token kind for binary operation: {:?}", kind),
         }
         // None were matched, unsupported

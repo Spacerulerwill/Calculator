@@ -28,6 +28,8 @@ pub enum TokenKind {
     Sqrt,
     Newline,
     Semicolon,
+    Dot,
+    Cross,
     Identifier(String),
     Number(Complex64),
     Delete,
@@ -99,6 +101,8 @@ impl<'a> Tokenizer<'a> {
     fn get_keyword_token_kind(lexeme: &str) -> Option<TokenKind> {
         match lexeme {
             "delete" => Some(TokenKind::Delete),
+            "cross" => Some(TokenKind::Cross),
+            "dot" => Some(TokenKind::Dot),
             _ => None,
         }
     }
@@ -131,6 +135,8 @@ impl<'a> Tokenizer<'a> {
                 ',' => self.add_single_char_token(TokenKind::Comma),
                 '=' => self.add_single_char_token(TokenKind::Equal),
                 '√' => self.add_single_char_token(TokenKind::Sqrt),
+                '•' => self.add_single_char_token(TokenKind::Dot),
+                '×' => self.add_single_char_token(TokenKind::Cross),
                 'a'..='z' | 'A'..='Z' | '_' | 'π' | 'ϕ' => self.tokenize_identifier(),
                 '0'..='9' => self.tokenize_number(),
                 ch => {
@@ -326,6 +332,10 @@ mod tests {
                 TokenKind::Number(Complex64::new(2.5e-6 as f64, 0.0)),
             ),
             ("delete", TokenKind::Delete),
+            ("cross", TokenKind::Cross),
+            ("×", TokenKind::Cross),
+            ("dot", TokenKind::Dot),
+            ("•", TokenKind::Dot),
             ("\n", TokenKind::Newline),
             (";", TokenKind::Semicolon),
         ] {
@@ -430,14 +440,14 @@ mod tests {
     #[test]
     fn test_lexeme_extraction() {
         let input =
-            "()⌈⌉⌊⌋+-/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01 1e6 1e-6 2.5e6 2.5e-6;";
+            "()⌈⌉⌊⌋+-/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01 1e6 1e-6 2.5e6 2.5e-6; cross dot";
         let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
         assert_eq!(
             extract_lexemes(&tokens),
             vec![
                 "(", ")", "⌈", "⌉", "⌊", "⌋", "+", "-", "/", "*", "^", "!", "|", "%", ",", "=",
                 "√", "foo", "bar", "baz", "3.14", "0.0001", "0.045", "10.01", "1e6", "1e-6",
-                "2.5e6", "2.5e-6", ";"
+                "2.5e6", "2.5e-6", ";", "cross", "dot"
             ]
         )
     }
