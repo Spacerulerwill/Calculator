@@ -332,6 +332,15 @@ impl<'a> Expr {
                     }
                     return Ok(Value::Number(left / right));
                 }
+                (Value::Vector(vec), Value::Number(num)) => {
+                    if num.norm() == 0.0 {
+                        return Err(EvaluationError::DivisionByZero {
+                            line: operator.line,
+                            col: operator.col,
+                        });
+                    }
+                    return Ok(Value::Vector(vec.iter().map(|x| x / num).collect()))
+                }
                 _ => {}
             },
             TokenKind::Caret => match (&left, &right) {
