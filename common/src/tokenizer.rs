@@ -33,6 +33,7 @@ pub enum TokenKind {
     Identifier(String),
     Number(Complex64),
     Delete,
+    Clear,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -103,6 +104,7 @@ impl<'a> Tokenizer<'a> {
             "delete" => Some(TokenKind::Delete),
             "cross" => Some(TokenKind::Cross),
             "dot" => Some(TokenKind::Dot),
+            "clear" => Some(TokenKind::Clear),
             _ => None,
         }
     }
@@ -338,6 +340,7 @@ mod tests {
             ("•", TokenKind::Dot),
             ("\n", TokenKind::Newline),
             (";", TokenKind::Semicolon),
+            ("clear", TokenKind::Clear),
         ] {
             let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
             assert_eq!(extract_token_types(tokens), vec![result]);
@@ -440,14 +443,14 @@ mod tests {
     #[test]
     fn test_lexeme_extraction() {
         let input =
-            "()⌈⌉⌊⌋+-/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01 1e6 1e-6 2.5e6 2.5e-6; cross dot";
+            "()⌈⌉⌊⌋+-/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01 1e6 1e-6 2.5e6 2.5e-6; delete cross dot clear";
         let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
         assert_eq!(
             extract_lexemes(&tokens),
             vec![
                 "(", ")", "⌈", "⌉", "⌊", "⌋", "+", "-", "/", "*", "^", "!", "|", "%", ",", "=",
                 "√", "foo", "bar", "baz", "3.14", "0.0001", "0.045", "10.01", "1e6", "1e-6",
-                "2.5e6", "2.5e-6", ";", "cross", "dot"
+                "2.5e6", "2.5e-6", ";", "delete", "cross", "dot", "clear"
             ]
         )
     }

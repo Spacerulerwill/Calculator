@@ -7,13 +7,15 @@
               | <assignment>
               | <function_declaration>
 
-<expression_statement> ::= <expression>
+<expression_statement> ::= <expression> <delimeter>
 
-<delete_statement> ::= "delete" (<IDENTIFIER> | <call>)
+<delete_statement> ::= "delete" (<IDENTIFIER> | <call>) <delimeter>
 
-<assignment> ::= <IDENTIFIER> "=" <expression>
+<clear_statement> ::= "clear" <delimeter>
 
-<function_declaration> ::= <call> "=" <expression>
+<assignment> ::= <IDENTIFIER> "=" <expression> <delimeter>
+
+<function_declaration> ::= <call> "=" <expression> <delimeter>
 
 <expression> ::= <term>
 
@@ -43,6 +45,8 @@
 
 // helper rules
 <arguments> ::= <expression> ( "," <expression> )*
+
+<delimeter> ::= ";" | "\n"
 */
 
 use std::{fmt, iter::Peekable, vec::IntoIter};
@@ -157,8 +161,12 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Statement, ParserError> {
-        if self.check(TokenKind::Delete) {
-            return self.delete_statement();
+        if let Some(token) = self.iter.peek() {
+            match token.kind {
+                TokenKind::Delete => return self.delete_statement(),
+                TokenKind::Clear => return self.clear_statement(),
+                _ => {}
+            }
         }
 
         let expr = self.expression()?;
@@ -214,6 +222,12 @@ impl Parser {
             }
             expr => return Err(ParserError::CannotDelete(delete, expr)),
         }
+    }
+
+    fn clear_statement(&mut self) -> Result<Statement, ParserError> {
+        self.iter.next();
+        self.consume_line_delimeter()?;
+        Ok(Statement::Clear)
     }
 
     fn assignment(&mut self, name: Token) -> Result<Option<Statement>, ParserError> {

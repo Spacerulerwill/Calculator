@@ -23,13 +23,25 @@ struct Args {
     file: Option<String>,
 }
 
+/// Ensure input always ends with a newline
+fn ensure_trailing_newline(mut string: String) -> String {
+    if !string.ends_with('\n') {
+        string.push('\n');
+    }
+    string
+}
+
 fn main() {
     let args = Args::parse();
     let mut variables = get_constants();
 
     if let Some(filepath) = args.file {
         match fs::read_to_string(&filepath) {
-            Ok(contents) => process_text(contents + "\n", &mut variables, args.tabsize),
+            Ok(contents) => process_text(
+                ensure_trailing_newline(contents),
+                &mut variables,
+                args.tabsize,
+            ),
             Err(err) => {
                 eprintln!("Can't find file '{filepath}': {err}");
                 return;
@@ -38,7 +50,11 @@ fn main() {
     }
 
     if let Some(expression) = args.expression {
-        process_text(expression + "\n", &mut variables, args.tabsize);
+        process_text(
+            ensure_trailing_newline(expression),
+            &mut variables,
+            args.tabsize,
+        );
     } else {
         start_repl(args.tabsize, &mut variables);
     }
@@ -71,7 +87,13 @@ fn process_text<'a>(expression: String, variables: &mut VariableMap<'a>, tabsize
 fn start_repl<'a>(tabsize: u8, variables: &mut VariableMap<'a>) {
     println!("Enter mathematical expressions to evaluate. Type 'exit' to quit.");
 
-    let mut rl = DefaultEditor::new().expect("Failed to create readline");
+    let mut rl = match DefaultEditor::new() {
+        Ok(editor) => editor,
+        Err(e) => {
+            eprintln!("Failed to create readline: {}", e);
+            return;
+        }
+    };
 
     loop {
         match rl.readline("> ") {
@@ -79,9 +101,11 @@ fn start_repl<'a>(tabsize: u8, variables: &mut VariableMap<'a>) {
                 if line.trim().eq_ignore_ascii_case("exit") {
                     break;
                 }
-                rl.add_history_entry(line.clone())
-                    .expect("Failed to add to history");
-                process_text(line + "\n", variables, tabsize);
+                if let Err(err) = rl.add_history_entry(line.clone()) {
+                    eprintln!("Failed to add readline history entry: {}", err);
+                    return;
+                }
+                process_text(ensure_trailing_newline(line), variables, tabsize);
             }
             Err(ReadlineError::Interrupted) => {
                 break;
@@ -90,7 +114,7 @@ fn start_repl<'a>(tabsize: u8, variables: &mut VariableMap<'a>) {
                 break;
             }
             Err(err) => {
-                println!("Error: {:?}", err);
+                eprintln!("Failed to read line: {:?}", err);
                 break;
             }
         }

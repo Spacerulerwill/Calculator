@@ -25,6 +25,7 @@ pub enum Statement {
         signature: Signature,
         expr: Expr,
     },
+    Clear,
 }
 
 impl Statement {
@@ -148,6 +149,10 @@ impl Statement {
                     }),
                 )));
                 variables.insert(name.lexeme, Variable::as_variable(function));
+                Ok(())
+            }
+            Statement::Clear => {
+                variables.retain(|_, val| val.constant);
                 Ok(())
             }
         }
