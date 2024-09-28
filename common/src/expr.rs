@@ -21,7 +21,7 @@ impl GroupingKind {
             GroupingKind::Grouping => "grouping",
             GroupingKind::Absolute => "absolute grouping",
             GroupingKind::Ceil => "ceil grouping",
-            GroupingKind::Floor => "floor grouping"
+            GroupingKind::Floor => "floor grouping",
         }
     }
 }
@@ -45,7 +45,10 @@ pub enum Expr {
     Number {
         number: Complex64,
     },
-    Vector{bracket: Token, parameters: Vec<Expr>},
+    Vector {
+        bracket: Token,
+        parameters: Vec<Expr>,
+    },
     Identifier {
         name: Token,
     },
@@ -106,7 +109,7 @@ pub enum EvaluationError<'a> {
         line: usize,
         col: usize,
         kind: GroupingKind,
-        value: Value<'a>
+        value: Value<'a>,
     },
     GroupingValueConstraintNotMet {
         line: usize,
@@ -123,7 +126,12 @@ pub enum EvaluationError<'a> {
     /// Tried to access or use a non-existant variable
     UnknownVariable { name: Token },
     /// Vector parmaters can only be numbers
-    InvalidVectorParameter { line: usize, col: usize, parameter_idx: usize, provided: Value<'a> }
+    InvalidVectorParameter {
+        line: usize,
+        col: usize,
+        parameter_idx: usize,
+        provided: Value<'a>,
+    },
 }
 
 impl<'a> fmt::Display for EvaluationError<'a> {
@@ -177,7 +185,6 @@ impl<'a> fmt::Display for EvaluationError<'a> {
                 kind.get_type_string(),
                 constraint
             ),
-            
             EvaluationError::IncorrectFunctionArgumentType {
                 function_name,
                 line,
@@ -286,7 +293,10 @@ impl<'a> Expr {
                 Self::evaluate_grouping(paren, *kind, &*expr, variables)
             }
             Expr::Number { number } => Ok(Value::Number(*number)),
-            Expr::Vector {bracket, parameters} => {
+            Expr::Vector {
+                bracket,
+                parameters,
+            } => {
                 let mut values = Vec::with_capacity(parameters.len());
                 for (idx, arg) in parameters.iter().enumerate() {
                     let value = arg.evaluate(variables)?;
@@ -294,7 +304,14 @@ impl<'a> Expr {
                         Value::Number(num) => {
                             values.push(num);
                         }
-                        _ => return Err(EvaluationError::InvalidVectorParameter { line: bracket.line, col: bracket.col, parameter_idx: idx, provided: value }),
+                        _ => {
+                            return Err(EvaluationError::InvalidVectorParameter {
+                                line: bracket.line,
+                                col: bracket.col,
+                                parameter_idx: idx,
+                                provided: value,
+                            })
+                        }
                     }
                 }
                 Ok(Value::Vector(values))
@@ -368,7 +385,7 @@ impl<'a> Expr {
                             col: operator.col,
                         });
                     }
-                    return Ok(Value::Vector(vec.iter().map(|x| x / num).collect()))
+                    return Ok(Value::Vector(vec.iter().map(|x| x / num).collect()));
                 }
                 _ => {}
             },
@@ -400,25 +417,26 @@ impl<'a> Expr {
             },
             TokenKind::Cross => match (&left, &right) {
                 (Value::Vector(vec1), Value::Vector(vec2))
-                    if vec1.len() == 3 && vec2.len() == 3 => {
+                    if vec1.len() == 3 && vec2.len() == 3 =>
+                {
                     let a1 = vec1[0];
                     let a2 = vec1[1];
                     let a3 = vec1[2];
-            
+
                     let b1 = vec2[0];
                     let b2 = vec2[1];
                     let b3 = vec2[2];
-            
+
                     let cross_product = Value::Vector(vec![
                         a2 * b3 - a3 * b2,
                         a3 * b1 - a1 * b3,
                         a1 * b2 - a2 * b1,
                     ]);
-                    
+
                     return Ok(cross_product);
                 }
                 _ => {}
-            }
+            },
 
             kind => panic!("Invalid token kind for binary operation: {:?}", kind),
         }
@@ -482,31 +500,50 @@ impl<'a> Expr {
             GroupingKind::Grouping => return Ok(value),
             GroupingKind::Absolute => match value {
                 Value::Number(result) => return Ok(Value::Number(result.norm().into())),
-                Value::Vector(vec) => return Ok(Value::Number(vec.iter().map(|x| x * x).sum::<Complex64>().sqrt() )),
-                _ => {},
-            }
+                Value::Vector(vec) => {
+                    return Ok(Value::Number(
+                        vec.iter().map(|x| x * x).sum::<Complex64>().sqrt(),
+                    ))
+                }
+                _ => {}
+            },
             GroupingKind::Ceil => match value {
                 Value::Number(num) => {
                     if value.fits_value_constraint(ValueConstraint::Real) {
                         return Ok(Value::Number(num.re.ceil().into()));
                     } else {
-                        return Err(EvaluationError::GroupingValueConstraintNotMet { line: paren.line, col: paren.col, kind: kind, constraint: ValueConstraint::Real })
+                        return Err(EvaluationError::GroupingValueConstraintNotMet {
+                            line: paren.line,
+                            col: paren.col,
+                            kind: kind,
+                            constraint: ValueConstraint::Real,
+                        });
                     }
                 }
                 _ => {}
-            }
+            },
             GroupingKind::Floor => match value {
                 Value::Number(num) => {
                     if value.fits_value_constraint(ValueConstraint::Real) {
                         return Ok(Value::Number(num.re.floor().into()));
                     } else {
-                        return Err(EvaluationError::GroupingValueConstraintNotMet { line: paren.line, col: paren.col, kind: kind, constraint: ValueConstraint::Real })
+                        return Err(EvaluationError::GroupingValueConstraintNotMet {
+                            line: paren.line,
+                            col: paren.col,
+                            kind: kind,
+                            constraint: ValueConstraint::Real,
+                        });
                     }
                 }
-                _ => {},
-            }
+                _ => {}
+            },
         };
-        Err(EvaluationError::InvalidGroupingOperand { line: paren.line, col: paren.col, kind: kind, value: value })
+        Err(EvaluationError::InvalidGroupingOperand {
+            line: paren.line,
+            col: paren.col,
+            kind: kind,
+            value: value,
+        })
     }
 
     fn evaluate_identifier(
@@ -561,7 +598,10 @@ impl<'a> Expr {
                 expr: _,
             } => "grouping",
             Expr::Number { number: _ } => "number",
-            Expr::Vector{bracket: _, parameters: _} => "vector",
+            Expr::Vector {
+                bracket: _,
+                parameters: _,
+            } => "vector",
             Expr::Identifier { name: _ } => "identifier",
             Expr::Call {
                 callee: _,
@@ -595,7 +635,10 @@ impl fmt::Display for Expr {
                 GroupingKind::Floor => write!(f, "⌊{expr}⌋"),
             },
             Expr::Number { number } => write!(f, "{}", complex_to_string(number)),
-            Expr::Vector{bracket: _, parameters} => write!(
+            Expr::Vector {
+                bracket: _,
+                parameters,
+            } => write!(
                 f,
                 "[{}]",
                 parameters

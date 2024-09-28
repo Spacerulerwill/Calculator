@@ -7,3 +7,4 @@ edition = "2021"
 clap = { version = "4.5.16", features = ["derive"] }
 proc_macros = { path = "../proc_macros" }
 common = { path = "../common" }
+rustyline = "14.0.0"

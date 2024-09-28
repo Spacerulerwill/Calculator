@@ -3,10 +3,8 @@ mod builtin_math;
 use builtin_math::get_constants;
 use clap::Parser as ClapParser;
 use common::{parser::Parser, tokenizer::Tokenizer, variable::VariableMap};
-use std::{
-    fs,
-    io::{self, Write},
-};
+use rustyline::{error::ReadlineError, DefaultEditor};
+use std::fs;
 
 const DEFAULT_TAB_SIZE: u8 = 4;
 
@@ -28,9 +26,10 @@ struct Args {
 fn main() {
     let args = Args::parse();
     let mut variables = get_constants();
+
     if let Some(filepath) = args.file {
         match fs::read_to_string(&filepath) {
-            Ok(contents) => process_text(contents, &mut variables, args.tabsize),
+            Ok(contents) => process_text(contents + "\n", &mut variables, args.tabsize),
             Err(err) => {
                 eprintln!("Can't find file '{filepath}': {err}");
                 return;
@@ -39,7 +38,7 @@ fn main() {
     }
 
     if let Some(expression) = args.expression {
-        process_text(expression, &mut variables, args.tabsize);
+        process_text(expression + "\n", &mut variables, args.tabsize);
     } else {
         start_repl(args.tabsize, &mut variables);
     }
@@ -72,21 +71,29 @@ fn process_text<'a>(expression: String, variables: &mut VariableMap<'a>, tabsize
 fn start_repl<'a>(tabsize: u8, variables: &mut VariableMap<'a>) {
     println!("Enter mathematical expressions to evaluate. Type 'exit' to quit.");
 
+    let mut rl = DefaultEditor::new().expect("Failed to create readline");
+
     loop {
-        print!("> ");
-        io::stdout().flush().expect("Failed to flush stdout");
-
-        let mut input = String::new();
-
-        if io::stdin().read_line(&mut input).is_err() {
-            eprintln!("Failed to read input");
-            continue;
+        match rl.readline("> ") {
+            Ok(line) => {
+                if line.trim().eq_ignore_ascii_case("exit") {
+                    break;
+                }
+                rl.add_history_entry(line.clone())
+                    .expect("Failed to add to history");
+                process_text(line + "\n", variables, tabsize);
+            }
+            Err(ReadlineError::Interrupted) => {
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                break;
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break;
+            }
         }
-
-        if input.trim().eq_ignore_ascii_case("exit") {
-            break;
-        }
-
-        process_text(input, variables, tabsize);
     }
+    println!("Exiting, Goodbye!")
 }
