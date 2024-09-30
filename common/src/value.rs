@@ -7,7 +7,7 @@ use num_complex::Complex64;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
-use crate::{expr::complex_to_string, function::Function};
+use crate::{expr::complex_to_string, function::Function, matrix::Matrix};
 
 #[derive(Debug)]
 pub enum ValueConstraint {
@@ -62,7 +62,7 @@ impl ToTokens for ValueConstraint {
 pub enum Value<'a> {
     Function(Rc<RefCell<Function<'a>>>),
     Number(Complex64),
-    Vector(Vec<Complex64>),
+    Matrix(Matrix),
 }
 
 impl fmt::Display for Value<'_> {
@@ -70,14 +70,7 @@ impl fmt::Display for Value<'_> {
         match self {
             Value::Function(func) => write!(f, "{}", func.borrow()),
             Value::Number(num) => write!(f, "{}", complex_to_string(&num)),
-            Value::Vector(vec) => write!(
-                f,
-                "[{}]",
-                vec.iter()
-                    .map(|e| complex_to_string(e))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
+            Value::Matrix(matrix) => write!(f, "{matrix}"),
         }
     }
 }
@@ -112,7 +105,77 @@ impl Value<'_> {
         match self {
             Value::Function(_) => String::from("function"),
             Value::Number(_) => String::from("number"),
-            Value::Vector(vec) => format!("{}D vector", vec.len()),
+            Value::Matrix(matrix) => {
+                let one_row = matrix.rows() == 1;
+                let one_col = matrix.cols() == 1;
+                if one_row ^ one_col {
+                    if one_row {
+                        format!("{}D row vector", matrix.cols())
+                    } else {
+                        format!("{}D column vector", matrix.rows())
+                    }
+                } else {
+                    // matrix
+                    format!("{}x{} matrix", matrix.rows(), matrix.cols())
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use num::Zero;
+
+    use crate::{expr::EvaluationError, function::NativeFunction};
+
+    use super::*;
+
+    #[test]
+    fn test_value_get_type_string() {
+        fn dummy(_: usize, _: usize, _: Vec<Value>) -> Result<Value, EvaluationError> {
+            Ok(Value::Number(Complex64::zero()))
+        }
+
+        for (input, result) in &[
+            (Value::Number(Complex64::zero()), String::from("number")),
+            (
+                Value::Function(Rc::new(RefCell::new(Function::NativeFunction(
+                    NativeFunction {
+                        name: "dummy",
+                        function: dummy,
+                        arity: 0,
+                    },
+                )))),
+                String::from("function"),
+            ),
+            (
+                Value::Matrix(Matrix::from_rows(vec![vec![
+                    Complex64::zero(),
+                    Complex64::zero(),
+                ]])),
+                String::from("2D row vector"),
+            ),
+            (
+                Value::Matrix(Matrix::from_rows(vec![
+                    vec![Complex64::zero()],
+                    vec![Complex64::zero()],
+                ])),
+                String::from("2D column vector"),
+            ),
+            (
+                Value::Matrix(Matrix::from_rows(vec![vec![Complex64::zero()]])),
+                String::from("1x1 matrix"),
+            ),
+            (
+                Value::Matrix(Matrix::from_rows(vec![
+                    vec![Complex64::zero(), Complex64::zero()],
+                    vec![Complex64::zero(), Complex64::zero()],
+                ])),
+                String::from("2x2 matrix"),
+            ),
+        ] {
+            assert_eq!(input.get_type_string(), *result)
         }
     }
 }

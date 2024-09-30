@@ -70,14 +70,16 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
         let constraint_checking = quote! {
             let #name = args.get(#i).unwrap();
             if !#name.fits_value_constraint(#constraint) {
-                return Err(common::expr::EvaluationError::IncorrectFunctionArgumentType {
-                    function_name: stringify!(#function_name).to_string(),
-                    line: line,
-                    col: col,
-                    idx: #i + 1,
-                    name: stringify!(#name).to_string(),
-                    constraint: #constraint,
-                });
+                return Err(common::expr::EvaluationError::NativeFunctionIncorrectParameterType(Box::new(
+                    common::expr::NativeFunctionIncorrectParameterType {
+                        function_name: stringify!(#function_name).to_string(),
+                        line: line,
+                        col: col,
+                        idx: #i + 1,
+                        name: stringify!(#name).to_string(),
+                        constraint: #constraint,
+                    }
+                )));
             }
         };
 

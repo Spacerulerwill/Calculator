@@ -1,5 +1,6 @@
 pub mod expr;
 pub mod function;
+pub mod matrix;
 pub mod parser;
 pub mod stmt;
 pub mod tokenizer;

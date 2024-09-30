@@ -3,7 +3,10 @@ use std::fmt;
 use num_complex::Complex64;
 
 use crate::{
-    expr::{complex_to_string, EvaluationError, Expr},
+    expr::{
+        complex_to_string, EvaluationError, Expr, NativeFunctionIncorrectParameterCount,
+        UserDefinedFunctionNoMatchingSignature,
+    },
     tokenizer::Token,
     value::Value,
     variable::{Variable, VariableMap},
@@ -42,13 +45,15 @@ impl<'a> Function<'a> {
         match self {
             Function::NativeFunction(func) => {
                 if func.arity != arguments.len() {
-                    return Err(EvaluationError::IncorrectFunctionArgumentCount {
-                        line: line,
-                        col: col,
-                        name: func.name,
-                        received: arguments.len(),
-                        required: func.arity,
-                    });
+                    return Err(EvaluationError::NativeFunctionIncorrectParameterCount(
+                        Box::new(NativeFunctionIncorrectParameterCount {
+                            line: line,
+                            col: col,
+                            name: func.name,
+                            received: arguments.len(),
+                            required: func.arity,
+                        }),
+                    ));
                 }
                 Ok((func.function)(line, col, arguments)?)
             }
@@ -66,11 +71,13 @@ impl<'a> Function<'a> {
                         return expr.clone().evaluate(&mut inputs);
                     }
                 }
-                Err(EvaluationError::NoMatchingSignature {
-                    line: line,
-                    col: col,
-                    name: func.name.clone(),
-                })
+                Err(EvaluationError::UserDefinedFunctionNoMatchingSignature(
+                    Box::new(UserDefinedFunctionNoMatchingSignature {
+                        line: line,
+                        col: col,
+                        name: func.name.clone(),
+                    }),
+                ))
             }
         }
     }

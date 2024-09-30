@@ -56,6 +56,8 @@ pub enum TokenizerError {
     BadChar { line: usize, col: usize, char: char },
 }
 
+impl std::error::Error for TokenizerError {}
+
 impl fmt::Display for TokenizerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

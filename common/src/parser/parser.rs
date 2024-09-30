@@ -49,7 +49,7 @@
 <delimeter> ::= ";" | "\n"
 */
 
-use std::{fmt, iter::Peekable, vec::IntoIter};
+use std::{iter::Peekable, vec::IntoIter};
 
 use crate::{
     expr::{Expr, GroupingKind},
@@ -58,85 +58,10 @@ use crate::{
     tokenizer::{Token, TokenKind},
 };
 
-#[derive(Debug)]
-pub enum ParserError {
-    ExpectedExpression {
-        found: Option<Token>,
-    },
-    ExpectedDelimeter {
-        found: Option<Token>,
-    },
-    ExpectedToken {
-        expected: TokenKind,
-        found: Option<Token>,
-    },
-    ExpectedEOF {
-        found: Token,
-    },
-    InvalidAssignmentTarget {
-        equal: Token,
-    },
-    CannotDelete(Token, Expr),
-}
-
-impl fmt::Display for ParserError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ParserError::ExpectedExpression { found } => {
-                if let Some(found) = found {
-                    write!(
-                        f,
-                        "Line {}, Position {} :: Expected expression next but found '{}'",
-                        found.line, found.col, &found.lexeme
-                    )
-                } else {
-                    write!(f, "Expected expression next but found EOF")
-                }
-            }
-            ParserError::ExpectedDelimeter { found } => {
-                if let Some(found) = found {
-                    write!(
-                        f,
-                        "Line {}, Position {} :: Expected demileter (semicolon or newline) next but found '{}'",
-                        found.line,
-                        found.col,
-                        &found.lexeme
-                    )
-                } else {
-                    write!(f, "Expected delimeter (semicolon or newline) but found EOF")
-                }
-            }
-            ParserError::ExpectedToken { expected, found } => {
-                if let Some(found) = found {
-                    write!(
-                        f,
-                        "Line {}, Column {} :: Expected {:?} but found '{}'",
-                        found.line, found.col, expected, found.lexeme
-                    )
-                } else {
-                    write!(f, "Expected {:?} but found EOF", expected)
-                }
-            }
-            ParserError::ExpectedEOF { found } => {
-                write!(f, "Expected EOF but found '{}'", &found.lexeme)
-            }
-            ParserError::InvalidAssignmentTarget { equal } => {
-                write!(
-                    f,
-                    "Line {}, Column {} :: Invalid assignment target",
-                    equal.line, equal.col
-                )
-            }
-            ParserError::CannotDelete(token, expr) => write!(
-                f,
-                "Line {}, Column {} :: Cannot delete {}",
-                token.line,
-                token.col,
-                expr.get_type_string()
-            ),
-        }
-    }
-}
+use super::{
+    CannotDelete, ExpectedDelimeter, ExpectedExpression, ExpectedToken,
+    InconsistentMatrixRowLength, InvalidAssignmentTarget, ParserError,
+};
 
 #[derive(Debug)]
 pub struct Parser {
@@ -217,10 +142,20 @@ impl Parser {
                             signature: signature,
                         })
                     }
-                    Err(_) => return Err(ParserError::CannotDelete(delete, expr)),
+                    Err(_) => {
+                        return Err(ParserError::CannotDelete(Box::new(CannotDelete {
+                            delete: delete,
+                            expr: expr,
+                        })))
+                    }
                 }
             }
-            expr => return Err(ParserError::CannotDelete(delete, expr)),
+            expr => {
+                return Err(ParserError::CannotDelete(Box::new(CannotDelete {
+                    delete: delete,
+                    expr: expr,
+                })))
+            }
         }
     }
 
@@ -254,7 +189,11 @@ impl Parser {
             self.consume_line_delimeter()?;
             let (name, signature) = match Signature::from_call_expression(callee, arguments) {
                 Ok(result) => result,
-                Err(_) => return Err(ParserError::InvalidAssignmentTarget { equal: equal }),
+                Err(_) => {
+                    return Err(ParserError::InvalidAssignmentTarget(Box::new(
+                        InvalidAssignmentTarget { equal: equal },
+                    )))
+                }
             };
             return Ok(Some(Statement::FunctionDeclaration {
                 name: name,
@@ -476,17 +415,49 @@ impl Parser {
                     });
                 }
                 TokenKind::LeftBracket => {
-                    let parameters = self.consume_comma_seperated_arguments()?;
+                    let mut parameters: Vec<Vec<Expr>> = Vec::new();
+                    let mut idx = 0;
+                    loop {
+                        let row = self.consume_comma_seperated_arguments()?;
+                        if let Some(last_row) = parameters.last() {
+                            if last_row.len() != row.len() {
+                                return Err(ParserError::InconsistentMatrixRowLength(Box::new(
+                                    InconsistentMatrixRowLength {
+                                        line: token.line,
+                                        col: token.col,
+                                        row: idx + 1,
+                                        correct_length: last_row.len(),
+                                        length_passed: row.len(),
+                                    },
+                                )));
+                            }
+                        }
+                        parameters.push(row);
+
+                        if self.check(TokenKind::Semicolon) {
+                            self.iter.next();
+                            idx += 1;
+                        } else {
+                            break;
+                        }
+                    }
+
                     let bracket = self.consume(TokenKind::RightBracket)?;
-                    return Ok(Expr::Vector {
+                    return Ok(Expr::Matrix {
                         bracket: bracket,
                         parameters: parameters,
                     });
                 }
-                _ => return Err(ParserError::ExpectedExpression { found: Some(token) }),
+                _ => {
+                    return Err(ParserError::ExpectedExpression(Box::new(
+                        ExpectedExpression { found: Some(token) },
+                    )))
+                }
             }
         } else {
-            return Err(ParserError::ExpectedExpression { found: None });
+            return Err(ParserError::ExpectedExpression(Box::new(
+                ExpectedExpression { found: None },
+            )));
         }
     }
 
@@ -496,16 +467,16 @@ impl Parser {
                 let token = self.iter.next().unwrap();
                 Ok(token)
             } else {
-                Err(ParserError::ExpectedToken {
+                Err(ParserError::ExpectedToken(Box::new(ExpectedToken {
                     expected: expected_kind,
                     found: Some(token.clone()),
-                })
+                })))
             }
         } else {
-            Err(ParserError::ExpectedToken {
+            Err(ParserError::ExpectedToken(Box::new(ExpectedToken {
                 expected: expected_kind,
                 found: None,
-            })
+            })))
         }
     }
 
@@ -516,12 +487,16 @@ impl Parser {
                     let token = self.iter.next().unwrap();
                     Ok(token)
                 }
-                _ => Err(ParserError::ExpectedDelimeter {
-                    found: Some(token.clone()),
-                }),
+                _ => Err(ParserError::ExpectedDelimeter(Box::new(
+                    ExpectedDelimeter {
+                        found: Some(token.clone()),
+                    },
+                ))),
             }
         } else {
-            Err(ParserError::ExpectedDelimeter { found: None })
+            Err(ParserError::ExpectedDelimeter(Box::new(
+                ExpectedDelimeter { found: None },
+            )))
         }
     }
 

@@ -1,7 +1,11 @@
 use std::{cell::RefCell, rc::Rc};
 
 use crate::{
-    expr::{EvaluationError, Expr},
+    expr::{
+        ConstantAssignment, ConstantDeletion, EvaluationError, Expr, InvalidCallable,
+        NativeFunctionCantAddSignature, NativeFunctionCantDeleteSignature, UnknownVariable,
+        UserDefinedFunctionNoMatchingSignature,
+    },
     function::{Function, Signature, UserDefinedFunction},
     tokenizer::Token,
     value::Value,
@@ -41,12 +45,16 @@ impl Statement {
             Statement::DeleteVariable(name) => {
                 if let Some(variable) = variables.get(&name.lexeme) {
                     if variable.constant {
-                        return Err(EvaluationError::ConstantDeletion { name: name });
+                        return Err(EvaluationError::ConstantDeletion(Box::new(
+                            ConstantDeletion { name: name },
+                        )));
                     } else {
                         variables.remove(&name.lexeme);
                     }
                 } else {
-                    return Err(EvaluationError::UnknownVariable { name: name });
+                    return Err(EvaluationError::UnknownVariable(Box::new(
+                        UnknownVariable { name: name },
+                    )));
                 }
                 Ok(())
             }
@@ -55,17 +63,17 @@ impl Statement {
 
                 if let Some(variable) = variable_option {
                     if variable.constant {
-                        return Err(EvaluationError::ConstantDeletion { name: name });
+                        return Err(EvaluationError::ConstantDeletion(Box::new(
+                            ConstantDeletion { name: name },
+                        )));
                     }
                     if let Value::Function(func) = &variable.value {
                         let mut func = func.borrow_mut();
                         match &mut *func {
                             Function::NativeFunction(_) => {
-                                return Err(
-                                    EvaluationError::CantDeleteSignatureFromNativeFunction {
-                                        name: name,
-                                    },
-                                )
+                                return Err(EvaluationError::NativeFunctionCantDeleteSignature(
+                                    Box::new(NativeFunctionCantDeleteSignature { name: name }),
+                                ))
                             }
                             Function::UserDefinedFunction(func) => {
                                 // Remove the signature if it exists
@@ -75,11 +83,15 @@ impl Statement {
 
                                 // We couldn't find the signature to remove
                                 if length_after_removal == length_before_removal {
-                                    return Err(EvaluationError::NoMatchingSignature {
-                                        line: name.line,
-                                        col: name.col,
-                                        name: func.name.clone(),
-                                    });
+                                    return Err(
+                                        EvaluationError::UserDefinedFunctionNoMatchingSignature(
+                                            Box::new(UserDefinedFunctionNoMatchingSignature {
+                                                line: name.line,
+                                                col: name.col,
+                                                name: func.name.clone(),
+                                            }),
+                                        ),
+                                    );
                                 }
 
                                 // If there are no signatures left, remove the function from variables
@@ -91,19 +103,25 @@ impl Statement {
                         }
                     } else {
                         // Not a function, cannot delete signature
-                        return Err(EvaluationError::InvalidCallable {
-                            line: name.line,
-                            col: name.col,
-                        });
+                        return Err(EvaluationError::InvalidCallable(Box::new(
+                            InvalidCallable {
+                                line: name.line,
+                                col: name.col,
+                            },
+                        )));
                     }
                 } else {
-                    return Err(EvaluationError::UnknownVariable { name: name });
+                    return Err(EvaluationError::UnknownVariable(Box::new(
+                        UnknownVariable { name: name },
+                    )));
                 }
             }
             Statement::Assignment { identifier, expr } => {
                 if let Some(variable) = variables.get(&identifier.lexeme) {
                     if variable.constant {
-                        return Err(EvaluationError::ConstantAssignment { name: identifier });
+                        return Err(EvaluationError::ConstantAssignment(Box::new(
+                            ConstantAssignment { name: identifier },
+                        )));
                     }
                 }
                 let new_value = expr.evaluate(variables)?;
@@ -117,7 +135,9 @@ impl Statement {
             } => {
                 if let Some(variable) = variables.get(&name.lexeme).cloned() {
                     if variable.constant {
-                        return Err(EvaluationError::ConstantAssignment { name: name });
+                        return Err(EvaluationError::ConstantDeletion(Box::new(
+                            ConstantDeletion { name: name },
+                        )));
                     }
                     if let Value::Function(func) = variable.value.clone() {
                         let mut func = func.borrow_mut();
@@ -133,9 +153,9 @@ impl Statement {
                                 return Ok(());
                             }
                             Function::NativeFunction(_) => {
-                                return Err(EvaluationError::CantAddSignatureToNativeFunction {
-                                    name: name,
-                                })
+                                return Err(EvaluationError::NativeFunctionCantAddSignature(
+                                    Box::new(NativeFunctionCantAddSignature { name: name }),
+                                ))
                             }
                         }
                     }
