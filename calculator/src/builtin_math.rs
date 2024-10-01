@@ -43,6 +43,21 @@ define_calculator_builtin_function!(identity, (size: positive_integer), {
     }
     Ok(Value::Matrix(Matrix::from_rows(rows)))
 });
+define_calculator_builtin_function!(transpose, (matrix: matrix), {
+    let new_rows = matrix.cols();
+    let new_cols = matrix.rows();
+
+    let mut rows = vec![vec![Complex64::from(0.0); new_cols]; new_rows];
+
+    for row in 0..new_rows {
+        for col in 0..new_cols {
+            rows[row][col] = matrix.rows[col][row];
+        }
+    }
+
+    return Ok(Value::Matrix(Matrix::from_rows(rows)));
+});
+
 // other
 define_calculator_builtin_function!(abs, (val: number), Ok(Value::Number(Complex64::from(val.abs()))));
 define_calculator_builtin_function!(ceil, (val: real), Ok(Value::Number(Complex64::from(val.ceil()))));
@@ -93,6 +108,7 @@ pub fn get_constants() -> VariableMap<'static> {
         (String::from("sqrt"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(sqrt))))),
         (String::from("gcd"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(gcd))))),
         (String::from("lcm"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(lcm))))),
-        (String::from("identity"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(identity)))))
+        (String::from("identity"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(identity))))),
+        (String::from("transpose"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(transpose)))))
     ])
 }

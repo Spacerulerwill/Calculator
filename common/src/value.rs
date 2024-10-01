@@ -16,7 +16,8 @@ pub enum ValueConstraint {
     Real,
     Natural,
     Integer,
-    PositiveInteger
+    PositiveInteger,
+    Matrix,
 }
 
 impl FromStr for ValueConstraint {
@@ -30,6 +31,7 @@ impl FromStr for ValueConstraint {
             "natural" => Ok(ValueConstraint::Natural),
             "integer" => Ok(ValueConstraint::Integer),
             "positive_integer" => Ok(ValueConstraint::PositiveInteger),
+            "matrix" => Ok(ValueConstraint::Matrix),
             _ => Err(()),
         }
     }
@@ -43,7 +45,8 @@ impl fmt::Display for ValueConstraint {
             ValueConstraint::Real => write!(f, "real"),
             ValueConstraint::Natural => write!(f, "natural"),
             ValueConstraint::Integer => write!(f, "integer"),
-            ValueConstraint::PositiveInteger => write!(f, "positive integer")
+            ValueConstraint::PositiveInteger => write!(f, "positive integer"),
+            ValueConstraint::Matrix => write!(f, "matrix"),
         }
     }
 }
@@ -56,7 +59,8 @@ impl ToTokens for ValueConstraint {
             ValueConstraint::Real => quote! { ValueConstraint::Real },
             ValueConstraint::Natural => quote! { ValueConstraint::Natural },
             ValueConstraint::Integer => quote! { ValueConstraint::Integer },
-            ValueConstraint::PositiveInteger => quote! { ValueConstraint::PositiveInteger }
+            ValueConstraint::PositiveInteger => quote! { ValueConstraint::PositiveInteger },
+            ValueConstraint::Matrix => quote! { ValueConstraint::Matrix }
         };
         tokens.extend(token_str);
     }
@@ -104,6 +108,10 @@ impl Value<'_> {
             },
             ValueConstraint::PositiveInteger => match self {
                 Value::Number(num) => num.im == 0.0 && num.re.fract() == 0.0 && num.re > 0.0,
+                _ => false
+            },
+            ValueConstraint::Matrix => match self {
+                Value::Matrix(_) => true,
                 _ => false
             }
         }

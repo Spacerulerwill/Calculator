@@ -105,6 +105,12 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
                     _ => panic!()
                 };
             },
+            common::value::ValueConstraint::Matrix => quote! {
+                let #name = match #name {
+                    Value::Matrix(matrix) => matrix,
+                    _ => panic!()
+                };
+            }
         };
 
         quote! {

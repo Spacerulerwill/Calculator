@@ -107,10 +107,7 @@ fn start_repl<'a>(tabsize: u8, variables: &mut VariableMap<'a>) {
                 }
                 process_text(ensure_trailing_newline(line), variables, tabsize);
             }
-            Err(ReadlineError::Interrupted) => {
-                break;
-            }
-            Err(ReadlineError::Eof) => {
+            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => {
                 break;
             }
             Err(err) => {
@@ -119,5 +116,5 @@ fn start_repl<'a>(tabsize: u8, variables: &mut VariableMap<'a>) {
             }
         }
     }
-    println!("Exiting, Goodbye!")
+    println!("Exiting, goodbye!")
 }
