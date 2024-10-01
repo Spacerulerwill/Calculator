@@ -135,8 +135,8 @@ impl Statement {
             } => {
                 if let Some(variable) = variables.get(&name.lexeme).cloned() {
                     if variable.constant {
-                        return Err(EvaluationError::ConstantDeletion(Box::new(
-                            ConstantDeletion { name: name },
+                        return Err(EvaluationError::ConstantAssignment(Box::new(
+                            ConstantAssignment { name: name },
                         )));
                     }
                     if let Value::Function(func) = variable.value.clone() {

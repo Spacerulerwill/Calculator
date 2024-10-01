@@ -166,6 +166,9 @@ impl<'a> Expr {
                 (Value::Matrix(matrix), Value::Number(scalar)) => {
                     return Ok(Value::Matrix(*scalar * matrix))
                 }
+                (Value::Matrix(matrix1), Value::Matrix(matrix2)) if matrix1.cols() == matrix2.rows() => {
+                    return Ok(Value::Matrix(matrix1 * matrix2))
+                }
                 _ => {}
             },
             TokenKind::Slash => match (&left, &right) {

@@ -102,6 +102,32 @@ impl<'a> Mul<&'a Matrix> for Complex64 {
     }
 }
 
+impl<'a> Mul<&'a Matrix> for &'a Matrix {
+    type Output = Matrix;
+
+    fn mul(self, rhs: &'a Matrix) -> Self::Output {
+        if self.cols() != rhs.rows() {
+            panic!("Matrix dimensions do not match for multiplication");
+        }
+
+        let mut result_rows = Vec::with_capacity(self.rows());
+
+        for i in 0..self.rows() {
+            let mut result_row = Vec::with_capacity(rhs.cols());
+            for j in 0..rhs.cols() {
+                let mut sum = Complex64::new(0.0, 0.0);
+                for k in 0..self.cols() {
+                    sum += self.get(i, k) * rhs.get(k, j);
+                }
+                result_row.push(sum);
+            }
+            result_rows.push(result_row);
+        }
+        Matrix::from_rows(result_rows)
+    }
+}
+
+
 impl<'a> Div<Complex64> for &'a Matrix {
     type Output = Matrix;
 
