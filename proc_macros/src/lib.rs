@@ -98,6 +98,7 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
             },
             common::value::ValueConstraint::Real
             | common::value::ValueConstraint::Natural
+            | common::value::ValueConstraint::PositiveInteger 
             | common::value::ValueConstraint::Integer => quote! {
                 let #name = match #name {
                     Value::Number(num) => num.re,

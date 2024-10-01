@@ -1,8 +1,9 @@
 use common::{
-    num::integer::{gcd as _gcd, lcm as _lcm},
+    num::{integer::{gcd as _gcd, lcm as _lcm}, Zero},
     num_complex::Complex64,
     value::Value,
     variable::{Variable, VariableMap},
+    matrix::Matrix
 };
 use proc_macros::define_calculator_builtin_function;
 use std::{
@@ -33,6 +34,15 @@ define_calculator_builtin_function!(re, (val: number), Ok(Value::Number(val.re.i
 define_calculator_builtin_function!(im, (val: number), Ok(Value::Number(val.im.into())));
 define_calculator_builtin_function!(arg, (val: number), Ok(Value::Number(val.arg().into())));
 define_calculator_builtin_function!(conj, (val: number), Ok(Value::Number(val.conj())));
+// matrices
+define_calculator_builtin_function!(identity, (size: positive_integer), {
+    let size = size as usize;
+    let mut rows = vec![vec![Complex64::zero(); size]; size];
+    for i in 0..size {
+        rows[i][i] = Complex64::from(1.0);
+    }
+    Ok(Value::Matrix(Matrix::from_rows(rows)))
+});
 // other
 define_calculator_builtin_function!(abs, (val: number), Ok(Value::Number(Complex64::from(val.abs()))));
 define_calculator_builtin_function!(ceil, (val: real), Ok(Value::Number(Complex64::from(val.ceil()))));
@@ -82,6 +92,7 @@ pub fn get_constants() -> VariableMap<'static> {
         (String::from("ln"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(ln))))),
         (String::from("sqrt"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(sqrt))))),
         (String::from("gcd"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(gcd))))),
-        (String::from("lcm"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(lcm)))))
+        (String::from("lcm"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(lcm))))),
+        (String::from("identity"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(identity)))))
     ])
 }
