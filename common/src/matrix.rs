@@ -4,7 +4,7 @@ use std::{
     ops::{Add, Div, Mul, Neg, Sub},
 };
 
-use crate::expr::complex_to_string;
+use crate::value::complex_to_string;
 
 /// Matrix for use in calculator operations.
 #[derive(Debug, Clone)]
@@ -127,7 +127,6 @@ impl<'a> Mul<&'a Matrix> for &'a Matrix {
     }
 }
 
-
 impl<'a> Div<Complex64> for &'a Matrix {
     type Output = Matrix;
 
@@ -144,26 +143,68 @@ impl<'a> Neg for &'a Matrix {
     }
 }
 
+// Implementing fmt::Display for Matrix
 impl fmt::Display for Matrix {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut string = String::from("[");
-        for (idx, row) in self.rows.iter().enumerate() {
-            let mut row_str = if idx > 0 {
-                String::from(" ")
-            } else {
-                String::new()
-            };
-            row_str += &row
-                .iter()
-                .map(|e| complex_to_string(e))
-                .collect::<Vec<_>>()
-                .join(", ");
-            if idx != self.rows() - 1 {
-                row_str += "\n";
-            }
-            string.push_str(&row_str);
-        }
-        string.push(']');
-        write!(f, "{string}")
+        // Convert each Complex64 to string before formatting
+        let string_rows: Vec<Vec<String>> = self
+            .rows
+            .iter()
+            .map(|row| row.iter().map(|c| complex_to_string(c)).collect())
+            .collect();
+
+        // Use your matrix_format to format the rows
+        write!(f, "{}", matrix_format(&string_rows))
     }
+}
+
+pub fn matrix_format<T: ToString>(matrix: &Vec<Vec<T>>) -> String {
+    if matrix.is_empty() {
+        return String::from("[]");
+    }
+
+    let rows = matrix.len();
+    let cols = matrix[0].len();
+
+    // Convert the matrix elements to strings
+    let string_matrix: Vec<Vec<String>> = matrix
+        .iter()
+        .map(|row| row.iter().map(|element| element.to_string()).collect())
+        .collect();
+
+    // Calculate the maximum width of each column
+    let mut max_col_widths = Vec::with_capacity(cols);
+    for col in 0..cols {
+        let col_widths: Vec<usize> = string_matrix.iter().map(|row| row[col].len()).collect();
+        let max = *col_widths.iter().max().unwrap_or(&0);
+        max_col_widths.push(max);
+    }
+
+    let mut formatted_string = String::from("[");
+    for (row_idx, row) in string_matrix.iter().enumerate() {
+        // Create a vector to hold formatted elements for the row
+        let formatted_row: Vec<String> = row
+            .iter()
+            .enumerate()
+            .map(|(i, element)| {
+                let width = max_col_widths[i];
+                format!("{:^width$}", element, width = width)
+            })
+            .collect();
+
+        // Row starts with an extra space if not the first one
+        let mut formatted_row_string = if row_idx == 0 {
+            String::new()
+        } else {
+            String::from(" ")
+        };
+
+        formatted_row_string.push_str(&formatted_row.join(", "));
+        if row_idx != rows - 1 {
+            formatted_row_string.push('\n');
+        }
+        formatted_string.push_str(&formatted_row_string);
+    }
+    formatted_string.push(']');
+    formatted_string
 }

@@ -1,9 +1,12 @@
 use common::{
-    num::{integer::{gcd as _gcd, lcm as _lcm}, Zero},
+    matrix::Matrix,
+    num::{
+        integer::{gcd as _gcd, lcm as _lcm},
+        Zero,
+    },
     num_complex::Complex64,
     value::Value,
     variable::{Variable, VariableMap},
-    matrix::Matrix
 };
 use proc_macros::define_calculator_builtin_function;
 use std::{
@@ -57,7 +60,6 @@ define_calculator_builtin_function!(transpose, (matrix: matrix), {
 
     return Ok(Value::Matrix(Matrix::from_rows(rows)));
 });
-
 // other
 define_calculator_builtin_function!(abs, (val: number), Ok(Value::Number(Complex64::from(val.abs()))));
 define_calculator_builtin_function!(ceil, (val: real), Ok(Value::Number(Complex64::from(val.ceil()))));

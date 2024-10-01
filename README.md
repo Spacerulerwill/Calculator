@@ -7,7 +7,7 @@ A simple command line calculator I'm working on
 
 ## Features
 * Real and complex number arithmetic
-* Vector operations
+* Vector and matrix operations
 * Scientific notation for numbers
 * Operators: `+`, `-`, `*`, `/`, `%`, `^`, `!`, `√`
 * Groupings: `()`, `|absolute|`, `⌈ceil⌉`,  `⌊floor⌋`
@@ -19,7 +19,6 @@ A simple command line calculator I'm working on
 * Expression history and recall
 
 ## Todo
-* Matrix operations
 * Different number bases (1-16, 32 and 64)
 * Support for different units and dimensions (e.g. `3m + 5ft`)
 * Graph plots

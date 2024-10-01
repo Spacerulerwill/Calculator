@@ -4,11 +4,11 @@ use num_complex::Complex64;
 
 use crate::{
     expr::{
-        complex_to_string, EvaluationError, Expr, NativeFunctionIncorrectParameterCount,
+        EvaluationError, Expr, NativeFunctionIncorrectParameterCount,
         UserDefinedFunctionNoMatchingSignature,
     },
     tokenizer::Token,
-    value::Value,
+    value::{complex_to_string, Value},
     variable::{Variable, VariableMap},
 };
 

@@ -7,7 +7,7 @@ use num_complex::Complex64;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
-use crate::{expr::complex_to_string, function::Function, matrix::Matrix};
+use crate::{function::Function, matrix::Matrix};
 
 #[derive(Debug)]
 pub enum ValueConstraint {
@@ -60,7 +60,7 @@ impl ToTokens for ValueConstraint {
             ValueConstraint::Natural => quote! { ValueConstraint::Natural },
             ValueConstraint::Integer => quote! { ValueConstraint::Integer },
             ValueConstraint::PositiveInteger => quote! { ValueConstraint::PositiveInteger },
-            ValueConstraint::Matrix => quote! { ValueConstraint::Matrix }
+            ValueConstraint::Matrix => quote! { ValueConstraint::Matrix },
         };
         tokens.extend(token_str);
     }
@@ -108,12 +108,12 @@ impl Value<'_> {
             },
             ValueConstraint::PositiveInteger => match self {
                 Value::Number(num) => num.im == 0.0 && num.re.fract() == 0.0 && num.re > 0.0,
-                _ => false
+                _ => false,
             },
             ValueConstraint::Matrix => match self {
                 Value::Matrix(_) => true,
-                _ => false
-            }
+                _ => false,
+            },
         }
     }
 
@@ -193,5 +193,32 @@ mod tests {
         ] {
             assert_eq!(input.get_type_string(), *result)
         }
+    }
+}
+
+pub fn complex_to_string(num: &Complex64) -> String {
+    let has_real = num.re != 0.0;
+    let has_imaginary = num.im != 0.0;
+
+    if has_real && has_imaginary {
+        if num.im == 1.0 {
+            return format!("{} + i", num.re);
+        } else if num.im == -1.0 {
+            return format!("{} - i", num.re);
+        } else if num.im < 0.0 {
+            return format!("{} - {}i", num.re, num.im.abs());
+        } else {
+            return format!("{} + {}i", num.re, num.im);
+        }
+    } else if has_real {
+        return format!("{}", num.re);
+    } else if num.im == 1.0 {
+        return "i".to_string();
+    } else if num.im == -1.0 {
+        return "-i".to_string();
+    } else if num.im == 0.0 {
+        return String::from("0");
+    } else {
+        return format!("{}i", num.im);
     }
 }

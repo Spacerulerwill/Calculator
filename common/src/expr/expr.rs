@@ -1,10 +1,10 @@
 use std::fmt;
 
 use crate::{
-    matrix::Matrix,
+    matrix::{matrix_format, Matrix},
     num_complex::Complex64,
     tokenizer::{Token, TokenKind},
-    value::{Value, ValueConstraint},
+    value::{complex_to_string, Value, ValueConstraint},
     variable::VariableMap,
 };
 
@@ -166,7 +166,9 @@ impl<'a> Expr {
                 (Value::Matrix(matrix), Value::Number(scalar)) => {
                     return Ok(Value::Matrix(*scalar * matrix))
                 }
-                (Value::Matrix(matrix1), Value::Matrix(matrix2)) if matrix1.cols() == matrix2.rows() => {
+                (Value::Matrix(matrix1), Value::Matrix(matrix2))
+                    if matrix1.cols() == matrix2.rows() =>
+                {
                     return Ok(Value::Matrix(matrix1 * matrix2))
                 }
                 _ => {}
@@ -358,10 +360,23 @@ impl<'a> Expr {
             GroupingKind::Absolute => match &value {
                 Value::Number(result) => return Ok(Value::Number(result.norm().into())),
                 Value::Matrix(matrix) if matrix.rows() == 1 => {
-                    return Ok(Value::Number(matrix.rows[0].iter().map(|x| x*x).sum::<Complex64>().sqrt()))
-                },
+                    return Ok(Value::Number(
+                        matrix.rows[0]
+                            .iter()
+                            .map(|x| x * x)
+                            .sum::<Complex64>()
+                            .sqrt(),
+                    ))
+                }
                 Value::Matrix(matrix) if matrix.cols() == 1 => {
-                    return Ok(Value::Number(matrix.rows.iter().map(|x| x[0]*x[0]).sum::<Complex64>().sqrt()))
+                    return Ok(Value::Number(
+                        matrix
+                            .rows
+                            .iter()
+                            .map(|x| x[0] * x[0])
+                            .sum::<Complex64>()
+                            .sqrt(),
+                    ))
                 }
                 _ => {}
             },
@@ -514,9 +529,9 @@ impl fmt::Display for Expr {
             },
             Expr::Number { number } => write!(f, "{}", complex_to_string(number)),
             Expr::Matrix {
-                bracket,
+                bracket: _,
                 parameters,
-            } => todo!(),
+            } => write!(f, "{}", matrix_format(parameters)),
             Expr::Identifier { name } => write!(f, "{}", &name.lexeme),
             Expr::Call {
                 callee,
@@ -528,33 +543,6 @@ impl fmt::Display for Expr {
                 write!(f, "{}({})", callee, args_str)
             }
         }
-    }
-}
-
-pub fn complex_to_string(num: &Complex64) -> String {
-    let has_real = num.re != 0.0;
-    let has_imaginary = num.im != 0.0;
-
-    if has_real && has_imaginary {
-        if num.im == 1.0 {
-            return format!("{} + i", num.re);
-        } else if num.im == -1.0 {
-            return format!("{} - i", num.re);
-        } else if num.im < 0.0 {
-            return format!("{} - {}i", num.re, num.im.abs());
-        } else {
-            return format!("{} + {}i", num.re, num.im);
-        }
-    } else if has_real {
-        return format!("{}", num.re);
-    } else if num.im == 1.0 {
-        return "i".to_string();
-    } else if num.im == -1.0 {
-        return "-i".to_string();
-    } else if num.im == 0.0 {
-        return String::from("0");
-    } else {
-        return format!("{}i", num.im);
     }
 }
 

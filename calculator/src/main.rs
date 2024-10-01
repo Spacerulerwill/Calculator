@@ -116,5 +116,5 @@ fn start_repl<'a>(tabsize: u8, variables: &mut VariableMap<'a>) {
             }
         }
     }
-    println!("Exiting, goodbye!")
+    println!("Goodbye!")
 }
