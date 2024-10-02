@@ -18,6 +18,7 @@ pub enum ValueConstraint {
     Integer,
     PositiveInteger,
     Matrix,
+    SquareMatrix,
 }
 
 impl FromStr for ValueConstraint {
@@ -32,6 +33,7 @@ impl FromStr for ValueConstraint {
             "integer" => Ok(ValueConstraint::Integer),
             "positive_integer" => Ok(ValueConstraint::PositiveInteger),
             "matrix" => Ok(ValueConstraint::Matrix),
+            "square_matrix" => Ok(ValueConstraint::SquareMatrix),
             _ => Err(()),
         }
     }
@@ -47,6 +49,7 @@ impl fmt::Display for ValueConstraint {
             ValueConstraint::Integer => write!(f, "integer"),
             ValueConstraint::PositiveInteger => write!(f, "positive integer"),
             ValueConstraint::Matrix => write!(f, "matrix"),
+            ValueConstraint::SquareMatrix => write!(f, "square matrix"),
         }
     }
 }
@@ -61,6 +64,7 @@ impl ToTokens for ValueConstraint {
             ValueConstraint::Integer => quote! { ValueConstraint::Integer },
             ValueConstraint::PositiveInteger => quote! { ValueConstraint::PositiveInteger },
             ValueConstraint::Matrix => quote! { ValueConstraint::Matrix },
+            ValueConstraint::SquareMatrix => quote! { ValueConstraint::SquareMatrix },
         };
         tokens.extend(token_str);
     }
@@ -112,6 +116,10 @@ impl Value<'_> {
             },
             ValueConstraint::Matrix => match self {
                 Value::Matrix(_) => true,
+                _ => false,
+            },
+            ValueConstraint::SquareMatrix => match self {
+                Value::Matrix(matrix) => matrix.rows() == matrix.cols(),
                 _ => false,
             },
         }

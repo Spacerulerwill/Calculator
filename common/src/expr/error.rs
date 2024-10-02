@@ -24,6 +24,7 @@ pub enum EvaluationError<'a> {
     ConstantDeletion(Box<ConstantDeletion>),
     UnknownVariable(Box<UnknownVariable>),
     InvalidMatrixParameter(Box<InvalidMatrixParameter<'a>>),
+    NoInverseForMatrix(Box<NoInverseForMatrix>),
 }
 
 impl<'a> std::error::Error for EvaluationError<'a> {}
@@ -152,7 +153,13 @@ impl<'a> fmt::Display for EvaluationError<'a> {
                 err.parameter_row,
                 err.parameter_col,
                 &err.provided.get_type_string()
-            )
+            ),
+            EvaluationError::NoInverseForMatrix(err) => write!(
+                f,
+                "Line {}, Column {} :: Cannot invert matrix as its determinant is zero",
+                err.line,
+                err.col
+            ),
         }
     }
 }
@@ -263,4 +270,10 @@ pub struct InvalidMatrixParameter<'a> {
     pub parameter_row: usize,
     pub parameter_col: usize,
     pub provided: Value<'a>,
+}
+
+#[derive(Debug)]
+pub struct NoInverseForMatrix {
+    pub line: usize,
+    pub col: usize,
 }

@@ -25,15 +25,15 @@ impl Matrix {
         if rows.iter().any(|v| v.len() != first_len) {
             panic!("Attempt to create vector with uneven rows")
         }
-        Matrix { rows }
+        Self { rows }
     }
 
-    pub fn identity(size: usize) -> Matrix {
+    pub fn identity(size: usize) -> Self {
         let mut rows = vec![vec![Complex64::zero(); size]; size];
         for i in 0..size {
             rows[i][i] = Complex64::from(1.0);
         }
-        Matrix::from_rows(rows)
+        Self::from_rows(rows)
     }
 
     pub fn transpose(&self) -> Matrix {
@@ -48,7 +48,7 @@ impl Matrix {
             }
         }
 
-        Matrix::from_rows(rows)
+        Self::from_rows(rows)
     }
 
     pub fn rows(&self) -> usize {
@@ -67,7 +67,97 @@ impl Matrix {
         return self.rows[row][col];
     }
 
+    pub fn determinant(&self) -> Complex64 {
+        if self.rows() != self.cols() {
+            panic!("Non-square matrix passed to determinant function");
+        }
 
+        let size = self.rows();
+
+        match size {
+            1 => self.rows[0][0],
+            2 => self.rows[0][0] * self.rows[1][1] - self.rows[0][1] * self.rows[1][0],
+            _ => {
+                let mut det = Complex64::new(0.0, 0.0);
+
+                for col in 0..size {
+                    let sub_matrix = self.get_submatrix(0, col);
+                    let cofactor = self.rows[0][col]
+                        * sub_matrix.determinant()
+                        * if col % 2 == 0 {
+                            Complex64::new(1.0, 0.0)
+                        } else {
+                            Complex64::new(-1.0, 0.0)
+                        };
+                    det += cofactor;
+                }
+
+                det
+            }
+        }
+    }
+
+    /// Get a matrix by removing a row or column
+    pub fn get_submatrix(&self, row_to_remove: usize, col_to_remove: usize) -> Matrix {
+        let mut sub_rows = Vec::new();
+
+        for (i, row) in self.rows.iter().enumerate() {
+            if i == row_to_remove {
+                continue;
+            }
+            let mut new_row = Vec::new();
+            for (j, val) in row.iter().enumerate() {
+                if j == col_to_remove {
+                    continue;
+                }
+                new_row.push(*val);
+            }
+            sub_rows.push(new_row);
+        }
+
+        Matrix::from_rows(sub_rows)
+    }
+
+    pub fn inverse(&self) -> Option<Matrix> {
+        // Step 1: Ensure the matrix is square
+        if self.rows() != self.cols() {
+            panic!("Non-square matrix passed to inverse function");
+        }
+
+        // Step 2: Calculate the determinant
+        let determinant = self.determinant();
+        if determinant == Complex64::zero() {
+            // The matrix is singular, no inverse exists
+            return None;
+        }
+
+        // Step 3: Compute the cofactor matrix
+        let size = self.rows();
+        let mut cofactor_matrix = vec![vec![Complex64::zero(); size]; size];
+
+        for row in 0..size {
+            for col in 0..size {
+                // Get the submatrix without the current row and column
+                let sub_matrix = self.get_submatrix(row, col);
+
+                // Calculate the cofactor with alternating signs
+                let cofactor = sub_matrix.determinant()
+                    * if (row + col) % 2 == 0 {
+                        Complex64::new(1.0, 0.0)
+                    } else {
+                        Complex64::new(-1.0, 0.0)
+                    };
+
+                cofactor_matrix[row][col] = cofactor;
+            }
+        }
+
+        // Step 4: Transpose the cofactor matrix to get the adjugate matrix
+        let adjugate_matrix = Matrix::from_rows(cofactor_matrix).transpose();
+
+        // Step 5: Divide the adjugate matrix by the determinant
+        Some(&adjugate_matrix / determinant)
+    }
 }
 
 impl<'a> Add<&'a Matrix> for &'a Matrix {

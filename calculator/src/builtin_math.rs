@@ -1,4 +1,5 @@
 use common::{
+    expr::{EvaluationError, NoInverseForMatrix},
     matrix::Matrix,
     num::integer::{gcd as _gcd, lcm as _lcm},
     num_complex::Complex64,
@@ -37,6 +38,15 @@ define_calculator_builtin_function!(conj, (val: number), Ok(Value::Number(val.co
 // matrices
 define_calculator_builtin_function!(identity, (size: positive_integer), Ok(Value::Matrix(Matrix::identity(size as usize))));
 define_calculator_builtin_function!(transpose, (matrix: matrix), Ok(Value::Matrix(matrix.transpose())));
+define_calculator_builtin_function!(determinant, (matrix: square_matrix), Ok(Value::Number(matrix.determinant())));
+define_calculator_builtin_function!(inverse, (matrix: square_matrix), {
+    if let Some(_inverse) = matrix.inverse() {
+        Ok(Value::Matrix(_inverse))
+    } else {
+        Err(EvaluationError::NoInverseForMatrix(Box::new(NoInverseForMatrix { line: line, col: col })))
+    }
+});
+
 // other
 define_calculator_builtin_function!(abs, (val: number), Ok(Value::Number(Complex64::from(val.abs()))));
 define_calculator_builtin_function!(ceil, (val: real), Ok(Value::Number(Complex64::from(val.ceil()))));
@@ -88,6 +98,8 @@ pub fn get_constants() -> VariableMap<'static> {
         (String::from("gcd"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(gcd))))),
         (String::from("lcm"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(lcm))))),
         (String::from("identity"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(identity))))),
-        (String::from("transpose"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(transpose)))))
+        (String::from("transpose"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(transpose))))),
+        (String::from("determinant"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(determinant))))),
+        (String::from("inverse"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(inverse)))))
     ])
 }
