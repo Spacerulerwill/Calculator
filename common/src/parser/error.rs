@@ -35,7 +35,7 @@ impl fmt::Display for ParserError {
                 if let Some(found) = &err.found {
                     write!(
                         f,
-                        "Line {}, Position {} :: Expected demileter (semicolon or newline) next but found '{}'",
+                        "Line {}, Position {} :: Expected delimeter (semicolon or newline) next but found '{}'",
                         found.line,
                         found.col,
                         &found.lexeme
