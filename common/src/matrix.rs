@@ -1,3 +1,4 @@
+use num::Zero;
 use num_complex::Complex64;
 use std::{
     fmt,
@@ -27,6 +28,29 @@ impl Matrix {
         Matrix { rows }
     }
 
+    pub fn identity(size: usize) -> Matrix {
+        let mut rows = vec![vec![Complex64::zero(); size]; size];
+        for i in 0..size {
+            rows[i][i] = Complex64::from(1.0);
+        }
+        Matrix::from_rows(rows)
+    }
+
+    pub fn transpose(&self) -> Matrix {
+        let new_rows = self.cols();
+        let new_cols = self.rows();
+
+        let mut rows = vec![vec![Complex64::from(0.0); new_cols]; new_rows];
+
+        for row in 0..new_rows {
+            for col in 0..new_cols {
+                rows[row][col] = self.rows[col][row];
+            }
+        }
+
+        Matrix::from_rows(rows)
+    }
+
     pub fn rows(&self) -> usize {
         self.rows.len()
     }
@@ -42,6 +66,8 @@ impl Matrix {
     pub fn get(&self, row: usize, col: usize) -> Complex64 {
         return self.rows[row][col];
     }
+
+
 }
 
 impl<'a> Add<&'a Matrix> for &'a Matrix {

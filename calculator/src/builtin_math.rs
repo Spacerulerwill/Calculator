@@ -1,9 +1,6 @@
 use common::{
     matrix::Matrix,
-    num::{
-        integer::{gcd as _gcd, lcm as _lcm},
-        Zero,
-    },
+    num::integer::{gcd as _gcd, lcm as _lcm},
     num_complex::Complex64,
     value::Value,
     variable::{Variable, VariableMap},
@@ -38,28 +35,8 @@ define_calculator_builtin_function!(im, (val: number), Ok(Value::Number(val.im.i
 define_calculator_builtin_function!(arg, (val: number), Ok(Value::Number(val.arg().into())));
 define_calculator_builtin_function!(conj, (val: number), Ok(Value::Number(val.conj())));
 // matrices
-define_calculator_builtin_function!(identity, (size: positive_integer), {
-    let size = size as usize;
-    let mut rows = vec![vec![Complex64::zero(); size]; size];
-    for i in 0..size {
-        rows[i][i] = Complex64::from(1.0);
-    }
-    Ok(Value::Matrix(Matrix::from_rows(rows)))
-});
-define_calculator_builtin_function!(transpose, (matrix: matrix), {
-    let new_rows = matrix.cols();
-    let new_cols = matrix.rows();
-
-    let mut rows = vec![vec![Complex64::from(0.0); new_cols]; new_rows];
-
-    for row in 0..new_rows {
-        for col in 0..new_cols {
-            rows[row][col] = matrix.rows[col][row];
-        }
-    }
-
-    return Ok(Value::Matrix(Matrix::from_rows(rows)));
-});
+define_calculator_builtin_function!(identity, (size: positive_integer), Ok(Value::Matrix(Matrix::identity(size as usize))));
+define_calculator_builtin_function!(transpose, (matrix: matrix), Ok(Value::Matrix(matrix.transpose())));
 // other
 define_calculator_builtin_function!(abs, (val: number), Ok(Value::Number(Complex64::from(val.abs()))));
 define_calculator_builtin_function!(ceil, (val: real), Ok(Value::Number(Complex64::from(val.ceil()))));
