@@ -1,4 +1,5 @@
 use crate::num_complex::{Complex, Complex64};
+use crate::value::{DistanceUnit, MassUnit, MeasurementKind, TemperatureUnit};
 use std::fmt;
 use std::{
     iter::Peekable,
@@ -7,6 +8,7 @@ use std::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
+    // Groupings
     LeftParen,
     RightParen,
     LeftBracket,
@@ -15,6 +17,7 @@ pub enum TokenKind {
     RightCeiling,
     LeftFloor,
     RightFloor,
+    // Operators
     Plus,
     Minus,
     Slash,
@@ -26,14 +29,18 @@ pub enum TokenKind {
     Comma,
     Equal,
     Sqrt,
-    Newline,
-    Semicolon,
     Dot,
     Cross,
-    Identifier(String),
-    Number(Complex64),
+    // Line delimeters
+    Newline,
+    Semicolon,
+    // Keywords
     Delete,
     Clear,
+    // Other
+    Identifier(String),
+    Number(Complex64),
+    MeasurementKind(MeasurementKind),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -107,6 +114,66 @@ impl<'a> Tokenizer<'a> {
             "cross" => Some(TokenKind::Cross),
             "dot" => Some(TokenKind::Dot),
             "clear" => Some(TokenKind::Clear),
+            "nanometer" | "nanometers" | "nm" => Some(TokenKind::MeasurementKind(
+                MeasurementKind::Distance(DistanceUnit::Nanometer),
+            )),
+            "micrometer" | "micrometers" | "µs" => Some(TokenKind::MeasurementKind(
+                MeasurementKind::Distance(DistanceUnit::Micrometer),
+            )),
+            "millimeter" | "millimeters" | "ms" => Some(TokenKind::MeasurementKind(
+                MeasurementKind::Distance(DistanceUnit::Millimeter),
+            )),
+            "meters" | "meter" | "m" => Some(TokenKind::MeasurementKind(
+                MeasurementKind::Distance(DistanceUnit::Meter),
+            )),
+            "kilometer" | "kilometers" | "km" => Some(TokenKind::MeasurementKind(
+                MeasurementKind::Distance(DistanceUnit::Kilometer),
+            )),
+            "inch" | "inches" | "in" => Some(TokenKind::MeasurementKind(
+                MeasurementKind::Distance(DistanceUnit::Inch),
+            )),
+            "foot" | "feet" | "ft" => Some(TokenKind::MeasurementKind(MeasurementKind::Distance(
+                DistanceUnit::Foot,
+            ))),
+            "yard" | "yards" | "yd" => Some(TokenKind::MeasurementKind(MeasurementKind::Distance(
+                DistanceUnit::Foot,
+            ))),
+            "nanogram" | "nanograms" | "ng" => Some(TokenKind::MeasurementKind(
+                MeasurementKind::Mass(MassUnit::Nanogram),
+            )),
+            "microgram" | "micrograms" | "µg" => Some(TokenKind::MeasurementKind(
+                MeasurementKind::Mass(MassUnit::Microgram),
+            )),
+            "milligram" | "milligrams" | "mg" => Some(TokenKind::MeasurementKind(
+                MeasurementKind::Mass(MassUnit::Milligram),
+            )),
+            "gram" | "grams" | "g" => Some(TokenKind::MeasurementKind(MeasurementKind::Mass(
+                MassUnit::Gram,
+            ))),
+            "kilogram" | "kilograms" | "kg" => Some(TokenKind::MeasurementKind(
+                MeasurementKind::Mass(MassUnit::Kilogram),
+            )),
+            "tonne" | "tonnes" | "t" => Some(TokenKind::MeasurementKind(MeasurementKind::Mass(
+                MassUnit::Tonne,
+            ))),
+            "ounce" | "ounces" | "oz" => Some(TokenKind::MeasurementKind(MeasurementKind::Mass(
+                MassUnit::Ounce,
+            ))),
+            "pound" | "pounds" | "lb" | "lbs"=> Some(TokenKind::MeasurementKind(MeasurementKind::Mass(
+                MassUnit::Pound,
+            ))),
+            "stone" | "st" => Some(TokenKind::MeasurementKind(MeasurementKind::Mass(
+                MassUnit::Stone,
+            ))),
+            "°K" | "K" => Some(TokenKind::MeasurementKind(MeasurementKind::Temperature(
+                TemperatureUnit::Kelvin,
+            ))),
+            "°C" | "C" => Some(TokenKind::MeasurementKind(MeasurementKind::Temperature(
+                TemperatureUnit::Celsius,
+            ))),
+            "°F" | "F" => Some(TokenKind::MeasurementKind(MeasurementKind::Temperature(
+                TemperatureUnit::Fahrenheit,
+            ))),
             _ => None,
         }
     }
@@ -141,7 +208,7 @@ impl<'a> Tokenizer<'a> {
                 '√' => self.add_single_char_token(TokenKind::Sqrt),
                 '•' => self.add_single_char_token(TokenKind::Dot),
                 '×' => self.add_single_char_token(TokenKind::Cross),
-                'a'..='z' | 'A'..='Z' | '_' | 'π' | 'ϕ' => self.tokenize_identifier(),
+                'a'..='z' | 'A'..='Z' | '_' | 'π' | 'ϕ' | '°' => self.tokenize_identifier(),
                 '0'..='9' => self.tokenize_number(),
                 ch => {
                     return Err(TokenizerError::BadChar {
@@ -238,7 +305,7 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn tokenize_identifier(&mut self) {
-        let identifier = self.consume_while(|ch| ch.is_alphanumeric() || ch == '_');
+        let identifier = self.consume_while(|ch| ch.is_alphanumeric() || ch == '_' || ch == '°');
         if let Some(keyword) = Self::get_keyword_token_kind(&identifier) {
             self.add_token(keyword);
         } else {

@@ -70,7 +70,7 @@ pub fn get_constants() -> VariableMap<'static> {
         (String::from("ϕ"), Variable::as_constant(Value::Number(Complex64::from(PHI)))),
         (String::from("tau"), Variable::as_constant(Value::Number(Complex64::from(TAU)))),
         (String::from("c"), Variable::as_constant(Value::Number(Complex64::from(C)))),
-        (String::from("g"), Variable::as_constant(Value::Number(Complex64::from(G)))),
+        (String::from("G"), Variable::as_constant(Value::Number(Complex64::from(G)))),
         (String::from("sin"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(sin))))),
         (String::from("cos"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(cos))))),
         (String::from("tan"), Variable::as_constant(Value::Function(Rc::new(RefCell::new(tan))))),

@@ -17,8 +17,8 @@ A simple command line calculator I'm working on
 * `delete` operator for managing functions and variables
 * `clear` operator to reset all user defined variables and functions
 * Expression history and recall
+* Support for different units and dimensions (e.g. `3m + 5ft`)
 
 ## Todo
 * Different number bases (1-16, 32 and 64)
-* Support for different units and dimensions (e.g. `3m + 5ft`)
 * Graph plots

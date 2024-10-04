@@ -70,10 +70,194 @@ impl ToTokens for ValueConstraint {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum DistanceUnit {
+    // Metric
+    Nanometer,
+    Micrometer,
+    Millimeter,
+    Centimeter,
+    Meter,
+    Kilometer,
+    // Imperial
+    Inch,
+    Foot,
+    Yard,
+    Mile,
+}
+
+impl fmt::Display for DistanceUnit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DistanceUnit::Nanometer => write!(f, "nm"),
+            DistanceUnit::Micrometer => write!(f, "μm"),
+            DistanceUnit::Millimeter => write!(f, "mm"),
+            DistanceUnit::Centimeter => write!(f, "cm"),
+            DistanceUnit::Meter => write!(f, "m"),
+            DistanceUnit::Kilometer => write!(f, "km"),
+            DistanceUnit::Inch => write!(f, "in"),
+            DistanceUnit::Foot => write!(f, "ft"),
+            DistanceUnit::Yard => write!(f, "yd"),
+            DistanceUnit::Mile => write!(f, "mi"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MassUnit {
+    // Metric
+    Nanogram,
+    Microgram,
+    Milligram,
+    Gram,
+    Kilogram,
+    Tonne,
+    // Imperial
+    Ounce,
+    Pound,
+    Stone,
+}
+
+impl fmt::Display for MassUnit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MassUnit::Nanogram => write!(f, "ng"),
+            MassUnit::Microgram => write!(f, "µg"),
+            MassUnit::Milligram => write!(f, "mg"),
+            MassUnit::Gram => write!(f, "g"),
+            MassUnit::Kilogram => write!(f, "kg"),
+            MassUnit::Tonne => write!(f, "t"),
+            MassUnit::Ounce => write!(f, "oz"),
+            MassUnit::Pound => write!(f, "lb"),
+            MassUnit::Stone => write!(f, "st"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TemperatureUnit {
+    Kelvin,
+    Celsius,
+    Fahrenheit,
+}
+
+impl fmt::Display for TemperatureUnit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TemperatureUnit::Celsius => write!(f, "°C"),
+            TemperatureUnit::Kelvin => write!(f, "°K"),
+            TemperatureUnit::Fahrenheit => write!(f, "°F"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MeasurementKind {
+    Distance(DistanceUnit),
+    Mass(MassUnit),
+    Temperature(TemperatureUnit),
+}
+
+impl MeasurementKind {
+    pub fn get_type_string(&self) -> &'static str {
+        match self {
+            MeasurementKind::Distance(_) => "distance",
+            MeasurementKind::Mass(_) => "mass",
+            MeasurementKind::Temperature(_) => "temperature",
+        }
+    }
+}
+
+impl fmt::Display for MeasurementKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MeasurementKind::Distance(distance_unit) => write!(f, "{distance_unit}"),
+            MeasurementKind::Mass(mass_unit) => write!(f, "{mass_unit}"),
+            MeasurementKind::Temperature(temperature_unit) => write!(f, "{temperature_unit}"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Measurement {
+    pub num: Complex64,
+    pub kind: MeasurementKind,
+}
+
+impl fmt::Display for Measurement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // If both real and imaginary parts are non-zero (i.e., complex number), wrap in brackets
+        if self.num.re != 0.0 && self.num.im != 0.0 {
+            write!(f, "({}){}", complex_to_string(&self.num), self.kind)
+        } else {
+            write!(f, "{}{}", complex_to_string(&self.num), self.kind)
+        }
+    }
+}
+
+impl Measurement {
+    pub fn to_si_base_units(&self) -> Self {
+        let si_measurement = match self.kind {
+            MeasurementKind::Distance(distance_unit) => {
+                let value_in_meters = match distance_unit {
+                    DistanceUnit::Nanometer => self.num / Complex64::new(1e9, 0.0), // 1 nm = 1e-9 m
+                    DistanceUnit::Micrometer => self.num / Complex64::new(1e6, 0.0), // 1 µm = 1e-6 m
+                    DistanceUnit::Millimeter => self.num / Complex64::new(1e3, 0.0), // 1 mm = 1e-3 m
+                    DistanceUnit::Centimeter => self.num / Complex64::new(1e2, 0.0), // 1 cm = 1e-2 m
+                    DistanceUnit::Meter => self.num, // already in meters
+                    DistanceUnit::Kilometer => self.num * Complex64::new(1e3, 0.0), // 1 km = 1000 m
+                    DistanceUnit::Inch => self.num / Complex64::new(39.3701, 0.0), // 1 in = 0.0254 m
+                    DistanceUnit::Foot => self.num / Complex64::new(3.28084, 0.0), // 1 ft = 0.3048 m
+                    DistanceUnit::Yard => self.num / Complex64::new(1.09361, 0.0), // 1 yd = 0.9144 m
+                    DistanceUnit::Mile => self.num / Complex64::new(0.000621371, 0.0), // 1 mi = 1609.34 m
+                };
+                Measurement {
+                    num: value_in_meters,
+                    kind: MeasurementKind::Distance(DistanceUnit::Meter), // Convert to meters
+                }
+            }
+            MeasurementKind::Mass(mass_unit) => {
+                let value_in_kilograms = match mass_unit {
+                    MassUnit::Nanogram => self.num / Complex64::new(1e9, 0.0), // 1 ng = 1e-9 kg
+                    MassUnit::Microgram => self.num / Complex64::new(1e6, 0.0), // 1 µg = 1e-6 kg
+                    MassUnit::Milligram => self.num / Complex64::new(1e3, 0.0), // 1 mg = 1e-3 kg
+                    MassUnit::Gram => self.num / Complex64::new(1.0, 0.0),     // 1 g = 1 kg
+                    MassUnit::Kilogram => self.num, // already in kilograms
+                    MassUnit::Tonne => self.num * Complex64::new(1e3, 0.0), // 1 t = 1000 kg
+                    MassUnit::Ounce => self.num / Complex64::new(35.274, 0.0), // 1 oz = 0.0283495 kg
+                    MassUnit::Pound => self.num / Complex64::new(2.20462, 0.0), // 1 lb = 0.453592 kg
+                    MassUnit::Stone => self.num / Complex64::new(0.157473, 0.0), // 1 st = 6.35029 kg
+                };
+                Measurement {
+                    num: value_in_kilograms,
+                    kind: MeasurementKind::Mass(MassUnit::Kilogram), // Convert to kilograms
+                }
+            }
+            MeasurementKind::Temperature(temperature_unit) => {
+                let value_in_kelvin = match temperature_unit {
+                    TemperatureUnit::Kelvin => self.num, // already in Kelvin
+                    TemperatureUnit::Celsius => self.num + Complex64::new(273.15, 0.0), // K = °C + 273.15
+                    TemperatureUnit::Fahrenheit => {
+                        (self.num - Complex64::new(32.0, 0.0)) * Complex64::new(5.0 / 9.0, 0.0)
+                            + Complex64::new(273.15, 0.0)
+                    } // K = (°F - 32) × 5/9 + 273.15
+                };
+                Measurement {
+                    num: value_in_kelvin,
+                    kind: MeasurementKind::Temperature(TemperatureUnit::Kelvin), // Convert to Kelvin
+                }
+            }
+        };
+
+        si_measurement
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Value<'a> {
     Function(Rc<RefCell<Function<'a>>>),
     Number(Complex64),
+    Measurement(Measurement),
     Matrix(Matrix),
 }
 
@@ -82,6 +266,7 @@ impl fmt::Display for Value<'_> {
         match self {
             Value::Function(func) => write!(f, "{}", func.borrow()),
             Value::Number(num) => write!(f, "{}", complex_to_string(&num)),
+            Value::Measurement(measurement) => write!(f, "{measurement}"),
             Value::Matrix(matrix) => write!(f, "{matrix}"),
         }
     }
@@ -129,6 +314,7 @@ impl Value<'_> {
         match self {
             Value::Function(_) => String::from("function"),
             Value::Number(_) => String::from("number"),
+            Value::Measurement(measurement) => String::from(measurement.kind.get_type_string()),
             Value::Matrix(matrix) => {
                 let one_row = matrix.rows() == 1;
                 let one_col = matrix.cols() == 1;

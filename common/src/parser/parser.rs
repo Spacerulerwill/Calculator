@@ -1,7 +1,7 @@
 /*
 <program>  ::= ( <statement>? <delimeter> )*
 
-<delimeter> ::= "\n" | ";"
+// statements
 <statement> ::= <expression_statement>
               | <delete_statement>
               | <assignment>
@@ -17,6 +17,7 @@
 
 <function_declaration> ::= <call> "=" <expression> <delimeter>
 
+// expressions
 <expression> ::= <term>
 
 <term> ::= <factor> ( ( "-" | "+" ) <factor> )*
@@ -35,7 +36,7 @@
 
 <call> ::= <primary> ( "(" <arguments>? ")" )*
 
-<primary> ::= <NUMBER>
+<primary> ::= <NUMBER> <UNIT>?
               | <IDENTIFIER>
               | "(" <expression> ")"
               | "|" <expression> "|"
@@ -47,6 +48,8 @@
 <arguments> ::= <expression> ( "," <expression> )*
 
 <delimeter> ::= ";" | "\n"
+
+<UNIT> ::= <distance_unit> | <mass_unit> | <temperature_unit>
 */
 
 use std::{iter::Peekable, vec::IntoIter};
@@ -56,6 +59,7 @@ use crate::{
     function::Signature,
     stmt::Statement,
     tokenizer::{Token, TokenKind},
+    value::Measurement,
 };
 
 use super::{
@@ -376,8 +380,23 @@ impl Parser {
     fn primary(&mut self) -> Result<Expr, ParserError> {
         if let Some(token) = self.iter.next() {
             match token.kind {
-                TokenKind::Number(num) => return Ok(Expr::Number { number: num }),
-                TokenKind::Identifier(_) => return Ok(Expr::Identifier { name: token }),
+                TokenKind::Number(num) => {
+                    if let Some(peeked_token) = self.iter.peek() {
+                        if let TokenKind::MeasurementKind(measurement_kind) = peeked_token.kind {
+                            self.iter.next();
+                            return Ok(Expr::Measurement {
+                                measurement: Measurement {
+                                    num: num,
+                                    kind: measurement_kind,
+                                },
+                            });
+                        }
+                    }
+                    return Ok(Expr::Number { number: num });
+                }
+                TokenKind::Identifier(_) => {
+                    return Ok(Expr::Identifier { name: token });
+                }
                 TokenKind::LeftParen => {
                     let expr = self.expression()?;
                     self.consume(TokenKind::RightParen)?;
@@ -417,6 +436,7 @@ impl Parser {
                 TokenKind::LeftBracket => {
                     let mut parameters: Vec<Vec<Expr>> = Vec::new();
                     let mut idx = 0;
+
                     loop {
                         let row = self.consume_comma_seperated_arguments()?;
                         if let Some(last_row) = parameters.last() {
@@ -435,7 +455,7 @@ impl Parser {
                         parameters.push(row);
 
                         if self.check(TokenKind::Semicolon) {
-                            self.iter.next();
+                            self.iter.next(); // Consume the semicolon
                             idx += 1;
                         } else {
                             break;
@@ -451,7 +471,7 @@ impl Parser {
                 _ => {
                     return Err(ParserError::ExpectedExpression(Box::new(
                         ExpectedExpression { found: Some(token) },
-                    )))
+                    )));
                 }
             }
         } else {

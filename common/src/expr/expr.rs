@@ -4,7 +4,7 @@ use crate::{
     matrix::{matrix_format, Matrix},
     num_complex::Complex64,
     tokenizer::{Token, TokenKind},
-    value::{complex_to_string, Value, ValueConstraint},
+    value::{complex_to_string, Measurement, Value, ValueConstraint},
     variable::VariableMap,
 };
 
@@ -52,6 +52,9 @@ pub enum Expr {
     Number {
         number: Complex64,
     },
+    Measurement {
+        measurement: Measurement,
+    },
     Matrix {
         bracket: Token,
         parameters: Vec<Vec<Expr>>,
@@ -84,6 +87,9 @@ impl<'a> Expr {
                 Self::evaluate_grouping(paren, *kind, &*expr, variables)
             }
             Expr::Number { number } => Ok(Value::Number(*number)),
+            Expr::Measurement { measurement } => {
+                Ok(Value::Measurement(measurement.to_si_base_units()))
+            }
             Expr::Matrix {
                 bracket,
                 parameters,
@@ -138,6 +144,11 @@ impl<'a> Expr {
                 (Value::Number(left), Value::Number(right)) => {
                     return Ok(Value::Number(left + right))
                 }
+                (Value::Measurement(measurement1), Value::Measurement(measurement2))
+                    if std::mem::discriminant(&measurement1.kind)
+                        == std::mem::discriminant(&measurement2.kind) => {
+                            return Ok(Value::Measurement(Measurement { num: measurement1.num + measurement2.num, kind: measurement1.kind }))
+                        }
                 (Value::Matrix(matrix1), Value::Matrix(matrix2))
                     if matrix1.dimensions() == matrix2.dimensions() =>
                 {
@@ -149,6 +160,11 @@ impl<'a> Expr {
                 (Value::Number(left), Value::Number(right)) => {
                     return Ok(Value::Number(left - right))
                 }
+                (Value::Measurement(measurement1), Value::Measurement(measurement2))
+                    if std::mem::discriminant(&measurement1.kind)
+                        == std::mem::discriminant(&measurement2.kind) => {
+                            return Ok(Value::Measurement(Measurement { num: measurement1.num - measurement2.num, kind: measurement1.kind }))
+                        }
                 (Value::Matrix(matrix1), Value::Matrix(matrix2))
                     if matrix1.dimensions() == matrix2.dimensions() =>
                 {
@@ -171,6 +187,12 @@ impl<'a> Expr {
                 {
                     return Ok(Value::Matrix(matrix1 * matrix2))
                 }
+                (Value::Number(num), Value::Measurement(measurement)) =>{
+                    return Ok(Value::Measurement(Measurement { num: num * measurement.num, kind: measurement.kind }))
+                }
+                (Value::Measurement(measurement), Value::Number(num), ) =>{
+                    return Ok(Value::Measurement(Measurement { num: num * measurement.num, kind: measurement.kind }))
+                }
                 _ => {}
             },
             TokenKind::Slash => match (&left, &right) {
@@ -185,6 +207,9 @@ impl<'a> Expr {
                 }
                 (Value::Matrix(matrix), Value::Number(divisor)) => {
                     return Ok(Value::Matrix(matrix / *divisor))
+                }
+                (Value::Measurement(measurement), Value::Number(num), ) =>{
+                    return Ok(Value::Measurement(Measurement { num: num / measurement.num, kind: measurement.kind }))
                 }
                 _ => {}
             },
@@ -311,8 +336,11 @@ impl<'a> Expr {
         match &operator.kind {
             TokenKind::Minus => match &operand {
                 Value::Number(right) => {
-                    return Ok(Value::Number(right * Complex64::new(-1.0, 0.0)));
+                    return Ok(Value::Number(right * Complex64::from(-1.0)));
                 }
+                Value::Measurement(measurement) => {
+                    return Ok(Value::Measurement(Measurement { num: measurement.num * Complex64::from(-1.0), kind: measurement.kind }))
+                } 
                 Value::Matrix(matrix) => return Ok(Value::Matrix(-matrix)),
                 _ => {}
             },
@@ -481,6 +509,7 @@ impl<'a> Expr {
                 expr: _,
             } => "grouping",
             Expr::Number { number: _ } => "number",
+            Expr::Measurement { measurement: _ } => "measurement",
             Expr::Matrix {
                 bracket: _,
                 parameters,
@@ -528,6 +557,7 @@ impl fmt::Display for Expr {
                 GroupingKind::Floor => write!(f, "⌊{expr}⌋"),
             },
             Expr::Number { number } => write!(f, "{}", complex_to_string(number)),
+            Expr::Measurement { measurement: _ } => todo!(),
             Expr::Matrix {
                 bracket: _,
                 parameters,
