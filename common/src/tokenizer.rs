@@ -1,5 +1,5 @@
 use crate::num_complex::{Complex, Complex64};
-use crate::value::{DistanceUnit, MassUnit, MeasurementKind, TemperatureUnit};
+use crate::value::{DistanceUnit, MassUnit, Unit, TemperatureUnit};
 use std::fmt;
 use std::{
     iter::Peekable,
@@ -37,10 +37,11 @@ pub enum TokenKind {
     // Keywords
     Delete,
     Clear,
+    As,
     // Other
     Identifier(String),
     Number(Complex64),
-    MeasurementKind(MeasurementKind),
+    Unit(Unit),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -112,66 +113,70 @@ impl<'a> Tokenizer<'a> {
         match lexeme {
             "delete" => Some(TokenKind::Delete),
             "cross" => Some(TokenKind::Cross),
+            "as" => Some(TokenKind::As),
             "dot" => Some(TokenKind::Dot),
             "clear" => Some(TokenKind::Clear),
-            "nanometer" | "nanometers" | "nm" => Some(TokenKind::MeasurementKind(
-                MeasurementKind::Distance(DistanceUnit::Nanometer),
+            "nanometer" | "nanometers" | "nm" => Some(TokenKind::Unit(
+                Unit::Distance(DistanceUnit::Nanometer),
             )),
-            "micrometer" | "micrometers" | "µs" => Some(TokenKind::MeasurementKind(
-                MeasurementKind::Distance(DistanceUnit::Micrometer),
+            "micrometer" | "micrometers" | "µs" => Some(TokenKind::Unit(
+                Unit::Distance(DistanceUnit::Micrometer),
             )),
-            "millimeter" | "millimeters" | "ms" => Some(TokenKind::MeasurementKind(
-                MeasurementKind::Distance(DistanceUnit::Millimeter),
+            "millimeter" | "millimeters" | "ms" => Some(TokenKind::Unit(
+                Unit::Distance(DistanceUnit::Millimeter),
             )),
-            "meters" | "meter" | "m" => Some(TokenKind::MeasurementKind(
-                MeasurementKind::Distance(DistanceUnit::Meter),
+            "centimeter" | "centimeters" | "cm" => Some(TokenKind::Unit(
+                Unit::Distance(DistanceUnit::Centimeter)
             )),
-            "kilometer" | "kilometers" | "km" => Some(TokenKind::MeasurementKind(
-                MeasurementKind::Distance(DistanceUnit::Kilometer),
+            "meters" | "meter" | "m" => Some(TokenKind::Unit(
+                Unit::Distance(DistanceUnit::Meter),
             )),
-            "inch" | "inches" | "in" => Some(TokenKind::MeasurementKind(
-                MeasurementKind::Distance(DistanceUnit::Inch),
+            "kilometer" | "kilometers" | "km" => Some(TokenKind::Unit(
+                Unit::Distance(DistanceUnit::Kilometer),
             )),
-            "foot" | "feet" | "ft" => Some(TokenKind::MeasurementKind(MeasurementKind::Distance(
+            "inch" | "inches" | "in" => Some(TokenKind::Unit(
+                Unit::Distance(DistanceUnit::Inch),
+            )),
+            "foot" | "feet" | "ft" => Some(TokenKind::Unit(Unit::Distance(
                 DistanceUnit::Foot,
             ))),
-            "yard" | "yards" | "yd" => Some(TokenKind::MeasurementKind(MeasurementKind::Distance(
+            "yard" | "yards" | "yd" => Some(TokenKind::Unit(Unit::Distance(
                 DistanceUnit::Foot,
             ))),
-            "nanogram" | "nanograms" | "ng" => Some(TokenKind::MeasurementKind(
-                MeasurementKind::Mass(MassUnit::Nanogram),
+            "nanogram" | "nanograms" | "ng" => Some(TokenKind::Unit(
+                Unit::Mass(MassUnit::Nanogram),
             )),
-            "microgram" | "micrograms" | "µg" => Some(TokenKind::MeasurementKind(
-                MeasurementKind::Mass(MassUnit::Microgram),
+            "microgram" | "micrograms" | "µg" => Some(TokenKind::Unit(
+                Unit::Mass(MassUnit::Microgram),
             )),
-            "milligram" | "milligrams" | "mg" => Some(TokenKind::MeasurementKind(
-                MeasurementKind::Mass(MassUnit::Milligram),
+            "milligram" | "milligrams" | "mg" => Some(TokenKind::Unit(
+                Unit::Mass(MassUnit::Milligram),
             )),
-            "gram" | "grams" | "g" => Some(TokenKind::MeasurementKind(MeasurementKind::Mass(
+            "gram" | "grams" | "g" => Some(TokenKind::Unit(Unit::Mass(
                 MassUnit::Gram,
             ))),
-            "kilogram" | "kilograms" | "kg" => Some(TokenKind::MeasurementKind(
-                MeasurementKind::Mass(MassUnit::Kilogram),
+            "kilogram" | "kilograms" | "kg" => Some(TokenKind::Unit(
+                Unit::Mass(MassUnit::Kilogram),
             )),
-            "tonne" | "tonnes" | "t" => Some(TokenKind::MeasurementKind(MeasurementKind::Mass(
+            "tonne" | "tonnes" | "t" => Some(TokenKind::Unit(Unit::Mass(
                 MassUnit::Tonne,
             ))),
-            "ounce" | "ounces" | "oz" => Some(TokenKind::MeasurementKind(MeasurementKind::Mass(
+            "ounce" | "ounces" | "oz" => Some(TokenKind::Unit(Unit::Mass(
                 MassUnit::Ounce,
             ))),
-            "pound" | "pounds" | "lb" | "lbs"=> Some(TokenKind::MeasurementKind(MeasurementKind::Mass(
-                MassUnit::Pound,
-            ))),
-            "stone" | "st" => Some(TokenKind::MeasurementKind(MeasurementKind::Mass(
+            "pound" | "pounds" | "lb" | "lbs" => Some(TokenKind::Unit(
+                Unit::Mass(MassUnit::Pound),
+            )),
+            "stone" | "st" => Some(TokenKind::Unit(Unit::Mass(
                 MassUnit::Stone,
             ))),
-            "°K" | "K" => Some(TokenKind::MeasurementKind(MeasurementKind::Temperature(
+            "°K" | "K" => Some(TokenKind::Unit(Unit::Temperature(
                 TemperatureUnit::Kelvin,
             ))),
-            "°C" | "C" => Some(TokenKind::MeasurementKind(MeasurementKind::Temperature(
+            "°C" | "C" => Some(TokenKind::Unit(Unit::Temperature(
                 TemperatureUnit::Celsius,
             ))),
-            "°F" | "F" => Some(TokenKind::MeasurementKind(MeasurementKind::Temperature(
+            "°F" | "F" => Some(TokenKind::Unit(Unit::Temperature(
                 TemperatureUnit::Fahrenheit,
             ))),
             _ => None,

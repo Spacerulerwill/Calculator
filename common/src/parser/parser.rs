@@ -18,7 +18,7 @@
 <function_declaration> ::= <call> "=" <expression> <delimeter>
 
 // expressions
-<expression> ::= <term>
+<expression> ::= <term> ( "as" <UNIT> ) ?
 
 <term> ::= <factor> ( ( "-" | "+" ) <factor> )*
 
@@ -63,8 +63,7 @@ use crate::{
 };
 
 use super::{
-    CannotDelete, ExpectedDelimeter, ExpectedExpression, ExpectedToken,
-    InconsistentMatrixRowLength, InvalidAssignmentTarget, ParserError,
+    CannotDelete, ExpectedDelimeter, ExpectedExpression, ExpectedToken, ExpectedUnit, InconsistentMatrixRowLength, InvalidAssignmentTarget, ParserError
 };
 
 #[derive(Debug)]
@@ -209,7 +208,20 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Expr, ParserError> {
-        self.term()
+        let expr = self.term()?;
+        if let Some(Token { kind: TokenKind::As, .. }) = self.iter.peek() {
+            let as_token = self.iter.next().unwrap();
+            if self.iter.peek().is_some() {
+                let unit_token = self.iter.next().unwrap();
+                match unit_token.kind {
+                    TokenKind::Unit(unit) => return Ok(Expr::As { expr: Box::new(expr), _as: as_token, unit: unit }),
+                    _ => return Err(ParserError::ExpectedUnit(Box::new(ExpectedUnit { found: Some(unit_token) })))
+                }
+            } else {
+                return Err(ParserError::ExpectedUnit(Box::new(ExpectedUnit { found: None })))
+            }
+        }
+        Ok(expr)
     }
 
     fn term(&mut self) -> Result<Expr, ParserError> {
@@ -382,7 +394,7 @@ impl Parser {
             match token.kind {
                 TokenKind::Number(num) => {
                     if let Some(peeked_token) = self.iter.peek() {
-                        if let TokenKind::MeasurementKind(measurement_kind) = peeked_token.kind {
+                        if let TokenKind::Unit(measurement_kind) = peeked_token.kind {
                             self.iter.next();
                             return Ok(Expr::Measurement {
                                 measurement: Measurement {

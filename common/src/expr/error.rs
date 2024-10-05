@@ -1,6 +1,6 @@
 use crate::{
     tokenizer::Token,
-    value::{Value, ValueConstraint},
+    value::{Unit, Value, ValueConstraint},
 };
 use std::fmt;
 
@@ -25,6 +25,7 @@ pub enum EvaluationError<'a> {
     UnknownVariable(Box<UnknownVariable>),
     InvalidMatrixParameter(Box<InvalidMatrixParameter<'a>>),
     NoInverseForMatrix(Box<NoInverseForMatrix>),
+    InvalidMeasurementConversion(Box<InvalidMeasurementConversion<'a>>),
 }
 
 impl<'a> std::error::Error for EvaluationError<'a> {}
@@ -160,6 +161,14 @@ impl<'a> fmt::Display for EvaluationError<'a> {
                 err.line,
                 err.col
             ),
+            EvaluationError::InvalidMeasurementConversion(err) => write!(
+                f,
+                "Line {}, Column {} :: Cannot convert value of type '{}' to unit '{}'",
+                err.line,
+                err.col,
+                &err.value.get_type_string(),
+                err.unit,
+            ),
         }
     }
 }
@@ -276,4 +285,12 @@ pub struct InvalidMatrixParameter<'a> {
 pub struct NoInverseForMatrix {
     pub line: usize,
     pub col: usize,
+}
+
+#[derive(Debug)]
+pub struct InvalidMeasurementConversion<'a> {
+    pub line: usize,
+    pub col: usize,
+    pub value: Value<'a>,
+    pub unit: Unit 
 }

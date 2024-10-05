@@ -1,11 +1,7 @@
 use std::fmt;
 
 use crate::{
-    matrix::{matrix_format, Matrix},
-    num_complex::Complex64,
-    tokenizer::{Token, TokenKind},
-    value::{complex_to_string, Measurement, Value, ValueConstraint},
-    variable::VariableMap,
+    expr::InvalidMeasurementConversion, matrix::{matrix_format, Matrix}, num_complex::Complex64, tokenizer::{Token, TokenKind}, value::{complex_to_string, Measurement, Unit, Value, ValueConstraint}, variable::VariableMap
 };
 
 use super::{
@@ -35,6 +31,11 @@ impl GroupingKind {
 
 #[derive(Debug, Clone)]
 pub enum Expr {
+    As {
+        expr: Box<Expr>,
+        _as: Token,
+        unit: Unit,
+    },
     Binary {
         left: Box<Expr>,
         operator: Token,
@@ -75,6 +76,24 @@ impl<'a> Expr {
         variables: &mut VariableMap<'a>,
     ) -> Result<Value<'a>, EvaluationError<'a>> {
         match self {
+            Expr::As { expr, _as, unit } => {
+                let value = expr.evaluate(variables)?;
+                match &value {
+                    Value::Measurement(measurement) => {
+                        if let Ok(measurement) = measurement.to_other_unit(*unit) {
+                            return Ok(Value::Measurement(measurement))
+                        }
+                    },
+                    Value::Number(num) => return Ok(Value::Measurement(Measurement { num: *num, kind: *unit })),
+                    _ => {}
+                }
+                return Err(EvaluationError::InvalidMeasurementConversion(Box::new(InvalidMeasurementConversion{
+                    line: _as.line,
+                    col: _as.col,
+                    value: value,
+                    unit: *unit
+                })))
+            },
             Expr::Binary {
                 left,
                 operator,
@@ -88,7 +107,7 @@ impl<'a> Expr {
             }
             Expr::Number { number } => Ok(Value::Number(*number)),
             Expr::Measurement { measurement } => {
-                Ok(Value::Measurement(measurement.to_si_base_units()))
+                Ok(Value::Measurement(measurement.clone()))
             }
             Expr::Matrix {
                 bracket,
@@ -146,9 +165,15 @@ impl<'a> Expr {
                 }
                 (Value::Measurement(measurement1), Value::Measurement(measurement2))
                     if std::mem::discriminant(&measurement1.kind)
-                        == std::mem::discriminant(&measurement2.kind) => {
-                            return Ok(Value::Measurement(Measurement { num: measurement1.num + measurement2.num, kind: measurement1.kind }))
-                        }
+                        == std::mem::discriminant(&measurement2.kind) =>
+                {
+                    let measurement1 = measurement1.to_si_base_unit();
+                    let measurement2 = measurement2.to_si_base_unit();
+                    return Ok(Value::Measurement(Measurement {
+                        num: measurement1.num + measurement2.num,
+                        kind: measurement1.kind,
+                    }))
+                }
                 (Value::Matrix(matrix1), Value::Matrix(matrix2))
                     if matrix1.dimensions() == matrix2.dimensions() =>
                 {
@@ -162,9 +187,15 @@ impl<'a> Expr {
                 }
                 (Value::Measurement(measurement1), Value::Measurement(measurement2))
                     if std::mem::discriminant(&measurement1.kind)
-                        == std::mem::discriminant(&measurement2.kind) => {
-                            return Ok(Value::Measurement(Measurement { num: measurement1.num - measurement2.num, kind: measurement1.kind }))
-                        }
+                        == std::mem::discriminant(&measurement2.kind) =>
+                {
+                    let measurement1 = measurement1.to_si_base_unit();
+                    let measurement2 = measurement2.to_si_base_unit();
+                    return Ok(Value::Measurement(Measurement {
+                        num: measurement1.num - measurement2.num,
+                        kind: measurement1.kind,
+                    }))
+                }
                 (Value::Matrix(matrix1), Value::Matrix(matrix2))
                     if matrix1.dimensions() == matrix2.dimensions() =>
                 {
@@ -187,11 +218,19 @@ impl<'a> Expr {
                 {
                     return Ok(Value::Matrix(matrix1 * matrix2))
                 }
-                (Value::Number(num), Value::Measurement(measurement)) =>{
-                    return Ok(Value::Measurement(Measurement { num: num * measurement.num, kind: measurement.kind }))
+                (Value::Number(num), Value::Measurement(measurement)) => {
+                    let measurement = measurement.to_si_base_unit();
+                    return Ok(Value::Measurement(Measurement {
+                        num: num * measurement.num,
+                        kind: measurement.kind,
+                    }))
                 }
-                (Value::Measurement(measurement), Value::Number(num), ) =>{
-                    return Ok(Value::Measurement(Measurement { num: num * measurement.num, kind: measurement.kind }))
+                (Value::Measurement(measurement), Value::Number(num)) => {
+                    let measurement = measurement.to_si_base_unit();
+                    return Ok(Value::Measurement(Measurement {
+                        num: num * measurement.num,
+                        kind: measurement.kind,
+                    }))
                 }
                 _ => {}
             },
@@ -208,8 +247,12 @@ impl<'a> Expr {
                 (Value::Matrix(matrix), Value::Number(divisor)) => {
                     return Ok(Value::Matrix(matrix / *divisor))
                 }
-                (Value::Measurement(measurement), Value::Number(num), ) =>{
-                    return Ok(Value::Measurement(Measurement { num: num / measurement.num, kind: measurement.kind }))
+                (Value::Measurement(measurement), Value::Number(num)) => {
+                    let measurement = measurement.to_si_base_unit();
+                    return Ok(Value::Measurement(Measurement {
+                        num: num / measurement.num,
+                        kind: measurement.kind,
+                    }))
                 }
                 _ => {}
             },
@@ -339,8 +382,12 @@ impl<'a> Expr {
                     return Ok(Value::Number(right * Complex64::from(-1.0)));
                 }
                 Value::Measurement(measurement) => {
-                    return Ok(Value::Measurement(Measurement { num: measurement.num * Complex64::from(-1.0), kind: measurement.kind }))
-                } 
+                    let measurement = measurement.to_si_base_unit();
+                    return Ok(Value::Measurement(Measurement {
+                        num: measurement.num * Complex64::from(-1.0),
+                        kind: measurement.kind,
+                    }))
+                }
                 Value::Matrix(matrix) => return Ok(Value::Matrix(-matrix)),
                 _ => {}
             },
@@ -494,6 +541,7 @@ impl<'a> Expr {
 
     pub fn get_type_string(&self) -> &'static str {
         match self {
+            Expr::As { expr: _, _as: _, unit: _ } => "as expression",
             Expr::Binary {
                 left: _,
                 operator: _,
@@ -537,6 +585,12 @@ impl<'a> Expr {
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Expr::As { expr, _as: _,  unit } => write!(
+                f,
+                "{} as {}",
+                expr,
+                unit
+            ),
             Expr::Binary {
                 left,
                 operator,
@@ -557,7 +611,7 @@ impl fmt::Display for Expr {
                 GroupingKind::Floor => write!(f, "⌊{expr}⌋"),
             },
             Expr::Number { number } => write!(f, "{}", complex_to_string(number)),
-            Expr::Measurement { measurement: _ } => todo!(),
+            Expr::Measurement { measurement } => write!(f, "{measurement}"),
             Expr::Matrix {
                 bracket: _,
                 parameters,

@@ -7,6 +7,7 @@ use std::fmt;
 #[derive(Debug)]
 pub enum ParserError {
     ExpectedExpression(Box<ExpectedExpression>),
+    ExpectedUnit(Box<ExpectedUnit>),
     ExpectedDelimeter(Box<ExpectedDelimeter>),
     ExpectedToken(Box<ExpectedToken>),
     ExpectedEOF(Box<ExpectedEOF>),
@@ -24,18 +25,31 @@ impl fmt::Display for ParserError {
                 if let Some(found) = &err.found {
                     write!(
                         f,
-                        "Line {}, Position {} :: Expected expression next but found '{}'",
+                        "Line {}, Column {} :: Expected expression next but found '{}'",
                         found.line, found.col, &found.lexeme
                     )
                 } else {
                     write!(f, "Expected expression next but found EOF")
+                }
+            },
+            ParserError::ExpectedUnit(err) => {
+                if let Some(found) = &err.found {
+                    write!(
+                        f, 
+                        "Line {}, Column {} :: Expected unit but found '{}'",
+                        found.line,
+                        found.col,
+                        &found.lexeme
+                    )
+                } else {
+                    write!(f, "Expected unit but found EOF")
                 }
             }
             ParserError::ExpectedDelimeter(err) => {
                 if let Some(found) = &err.found {
                     write!(
                         f,
-                        "Line {}, Position {} :: Expected delimeter (semicolon or newline) next but found '{}'",
+                        "Line {}, Column {} :: Expected delimeter (semicolon or newline) next but found '{}'",
                         found.line,
                         found.col,
                         &found.lexeme
@@ -87,6 +101,11 @@ impl fmt::Display for ParserError {
 
 #[derive(Debug)]
 pub struct ExpectedExpression {
+    pub found: Option<Token>,
+}
+
+#[derive(Debug)]
+pub struct ExpectedUnit {
     pub found: Option<Token>,
 }
 

@@ -103,6 +103,24 @@ impl fmt::Display for DistanceUnit {
     }
 }
 
+impl DistanceUnit {
+    /// How many of this unit of distance is there per meter
+    pub fn get_per_meter(&self) -> f64 {
+        match self {
+            DistanceUnit::Nanometer => 1e9,
+            DistanceUnit::Micrometer => 1e6,
+            DistanceUnit::Millimeter => 1e3,
+            DistanceUnit::Centimeter => 100.0,
+            DistanceUnit::Meter => 1.0,
+            DistanceUnit::Kilometer => 1e-3,
+            DistanceUnit::Inch => 39.3701,
+            DistanceUnit::Foot => 3.28084,
+            DistanceUnit::Yard => 1.0936133333333,
+            DistanceUnit::Mile => 0.00062137121212119323429,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MassUnit {
     // Metric
@@ -134,6 +152,23 @@ impl fmt::Display for MassUnit {
     }
 }
 
+impl MassUnit {
+    /// How many of this unit of mass there are per kilograms
+    pub fn get_per_kilo(&self) -> f64 {
+        match self {
+            MassUnit::Nanogram => 1e12,
+            MassUnit::Microgram => 1e9,
+            MassUnit::Milligram => 1e6,
+            MassUnit::Gram => 1e3,
+            MassUnit::Kilogram => 1.0,
+            MassUnit::Tonne => 1e-3,
+            MassUnit::Ounce => 35.274,
+            MassUnit::Pound => 2.20462,
+            MassUnit::Stone => 0.157473,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TemperatureUnit {
     Kelvin,
@@ -152,28 +187,28 @@ impl fmt::Display for TemperatureUnit {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum MeasurementKind {
+pub enum Unit {
     Distance(DistanceUnit),
     Mass(MassUnit),
     Temperature(TemperatureUnit),
 }
 
-impl MeasurementKind {
+impl Unit {
     pub fn get_type_string(&self) -> &'static str {
         match self {
-            MeasurementKind::Distance(_) => "distance",
-            MeasurementKind::Mass(_) => "mass",
-            MeasurementKind::Temperature(_) => "temperature",
+            Unit::Distance(_) => "distance",
+            Unit::Mass(_) => "mass",
+            Unit::Temperature(_) => "temperature",
         }
     }
 }
 
-impl fmt::Display for MeasurementKind {
+impl fmt::Display for Unit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MeasurementKind::Distance(distance_unit) => write!(f, "{distance_unit}"),
-            MeasurementKind::Mass(mass_unit) => write!(f, "{mass_unit}"),
-            MeasurementKind::Temperature(temperature_unit) => write!(f, "{temperature_unit}"),
+            Unit::Distance(distance_unit) => write!(f, "{distance_unit}"),
+            Unit::Mass(mass_unit) => write!(f, "{mass_unit}"),
+            Unit::Temperature(temperature_unit) => write!(f, "{temperature_unit}"),
         }
     }
 }
@@ -181,7 +216,7 @@ impl fmt::Display for MeasurementKind {
 #[derive(Debug, Clone)]
 pub struct Measurement {
     pub num: Complex64,
-    pub kind: MeasurementKind,
+    pub kind: Unit,
 }
 
 impl fmt::Display for Measurement {
@@ -196,60 +231,71 @@ impl fmt::Display for Measurement {
 }
 
 impl Measurement {
-    pub fn to_si_base_units(&self) -> Self {
-        let si_measurement = match self.kind {
-            MeasurementKind::Distance(distance_unit) => {
-                let value_in_meters = match distance_unit {
-                    DistanceUnit::Nanometer => self.num / Complex64::new(1e9, 0.0), // 1 nm = 1e-9 m
-                    DistanceUnit::Micrometer => self.num / Complex64::new(1e6, 0.0), // 1 µm = 1e-6 m
-                    DistanceUnit::Millimeter => self.num / Complex64::new(1e3, 0.0), // 1 mm = 1e-3 m
-                    DistanceUnit::Centimeter => self.num / Complex64::new(1e2, 0.0), // 1 cm = 1e-2 m
-                    DistanceUnit::Meter => self.num, // already in meters
-                    DistanceUnit::Kilometer => self.num * Complex64::new(1e3, 0.0), // 1 km = 1000 m
-                    DistanceUnit::Inch => self.num / Complex64::new(39.3701, 0.0), // 1 in = 0.0254 m
-                    DistanceUnit::Foot => self.num / Complex64::new(3.28084, 0.0), // 1 ft = 0.3048 m
-                    DistanceUnit::Yard => self.num / Complex64::new(1.09361, 0.0), // 1 yd = 0.9144 m
-                    DistanceUnit::Mile => self.num / Complex64::new(0.000621371, 0.0), // 1 mi = 1609.34 m
+    pub fn to_other_unit(&self, unit: Unit) -> Result<Self, ()> {
+        if std::mem::discriminant(&self.kind) != std::mem::discriminant(&unit) {
+            return Err(());
+        }
+        // Convert to SI base unit (Kelvin for temperature, meters for distance, kilograms for mass)
+        let si_value = self.to_si_base_unit();
+    
+        match unit {
+            Unit::Distance(distance_unit) => Ok(Self {
+                num: si_value.num * distance_unit.get_per_meter(),
+                kind: unit,
+            }),
+            Unit::Mass(mass_unit) => Ok(Self {
+                num: si_value.num * mass_unit.get_per_kilo(),
+                kind: unit,
+            }),
+            Unit::Temperature(temperature_unit) => {
+                // Convert from Kelvin to the desired temperature unit
+                let converted_value = match temperature_unit {
+                    TemperatureUnit::Celsius => si_value.num - Complex64::from(273.15),
+                    TemperatureUnit::Fahrenheit => (si_value.num * Complex64::from(9.0 / 5.0)) - Complex64::from(459.67),
+                    TemperatureUnit::Kelvin => si_value.num,
                 };
-                Measurement {
-                    num: value_in_meters,
-                    kind: MeasurementKind::Distance(DistanceUnit::Meter), // Convert to meters
-                }
+    
+                Ok(Self {
+                    num: converted_value,
+                    kind: Unit::Temperature(temperature_unit),
+                })
             }
-            MeasurementKind::Mass(mass_unit) => {
-                let value_in_kilograms = match mass_unit {
-                    MassUnit::Nanogram => self.num / Complex64::new(1e9, 0.0), // 1 ng = 1e-9 kg
-                    MassUnit::Microgram => self.num / Complex64::new(1e6, 0.0), // 1 µg = 1e-6 kg
-                    MassUnit::Milligram => self.num / Complex64::new(1e3, 0.0), // 1 mg = 1e-3 kg
-                    MassUnit::Gram => self.num / Complex64::new(1.0, 0.0),     // 1 g = 1 kg
-                    MassUnit::Kilogram => self.num, // already in kilograms
-                    MassUnit::Tonne => self.num * Complex64::new(1e3, 0.0), // 1 t = 1000 kg
-                    MassUnit::Ounce => self.num / Complex64::new(35.274, 0.0), // 1 oz = 0.0283495 kg
-                    MassUnit::Pound => self.num / Complex64::new(2.20462, 0.0), // 1 lb = 0.453592 kg
-                    MassUnit::Stone => self.num / Complex64::new(0.157473, 0.0), // 1 st = 6.35029 kg
-                };
-                Measurement {
-                    num: value_in_kilograms,
-                    kind: MeasurementKind::Mass(MassUnit::Kilogram), // Convert to kilograms
-                }
-            }
-            MeasurementKind::Temperature(temperature_unit) => {
-                let value_in_kelvin = match temperature_unit {
-                    TemperatureUnit::Kelvin => self.num, // already in Kelvin
-                    TemperatureUnit::Celsius => self.num + Complex64::new(273.15, 0.0), // K = °C + 273.15
-                    TemperatureUnit::Fahrenheit => {
-                        (self.num - Complex64::new(32.0, 0.0)) * Complex64::new(5.0 / 9.0, 0.0)
-                            + Complex64::new(273.15, 0.0)
-                    } // K = (°F - 32) × 5/9 + 273.15
-                };
-                Measurement {
-                    num: value_in_kelvin,
-                    kind: MeasurementKind::Temperature(TemperatureUnit::Kelvin), // Convert to Kelvin
-                }
-            }
-        };
+        }
+    }
+    
+    
 
-        si_measurement
+    pub fn to_si_base_unit(&self) -> Self {
+        match self.kind {
+            // Distance conversion to meters
+            Unit::Distance(distance_unit) => {
+                let si_value = self.num / Complex64::from(distance_unit.get_per_meter());
+                Measurement {
+                    num: si_value,
+                    kind: Unit::Distance(DistanceUnit::Meter),
+                }
+            }
+            // Mass conversion to kilograms
+            Unit::Mass(mass_unit) => {
+                let si_value = self.num / Complex64::from(mass_unit.get_per_kilo());
+                Measurement {
+                    num: si_value,
+                    kind: Unit::Mass(MassUnit::Kilogram),
+                }
+            }
+            // Temperature conversion to Kelvin
+            Unit::Temperature(temp_unit) => {
+                let si_value = match temp_unit {
+                    TemperatureUnit::Celsius => self.num + Complex64::from(273.15),
+                    TemperatureUnit::Fahrenheit => (self.num + Complex64::new(459.67, 0.0)) * Complex64::new(5.0 / 9.0, 0.0),
+                    TemperatureUnit::Kelvin => self.num, // Already in kelvin
+                };
+                Measurement {
+                    num: si_value,
+                    kind: Unit::Temperature(TemperatureUnit::Kelvin),
+                }
+            }
+        }
     }
 }
 
