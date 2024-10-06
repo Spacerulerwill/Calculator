@@ -1,4 +1,3 @@
-use std::fmt;
 use std::{
     iter::Peekable,
     str::{Chars, FromStr},
@@ -8,76 +7,7 @@ use num_complex::Complex64;
 
 use crate::variable::value::unit::{DistanceUnit, MassUnit, TemperatureUnit, Unit};
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum TokenKind {
-    // Groupings
-    LeftParen,
-    RightParen,
-    LeftBracket,
-    RightBracket,
-    LeftCeiling,
-    RightCeiling,
-    LeftFloor,
-    RightFloor,
-    // Operators
-    Plus,
-    Minus,
-    Slash,
-    Star,
-    Caret,
-    Bang,
-    Pipe,
-    Percent,
-    Comma,
-    Equal,
-    Sqrt,
-    Dot,
-    Cross,
-    // Line delimeters
-    Newline,
-    Semicolon,
-    // Keywords
-    Delete,
-    Clear,
-    As,
-    // Other
-    Identifier(String),
-    Number(Complex64),
-    Unit(Unit),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Token {
-    pub kind: TokenKind,
-    pub lexeme: String,
-    pub line: usize,
-    pub col: usize,
-}
-
-#[derive(Debug, Clone)]
-pub struct TokenPosition {
-    pub line: usize,
-    pub col: usize,
-    pub idx: usize,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum TokenizerError {
-    BadChar { line: usize, col: usize, char: char },
-}
-
-impl std::error::Error for TokenizerError {}
-
-impl fmt::Display for TokenizerError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            TokenizerError::BadChar { line, col, char } => write!(
-                f,
-                "Line {line}, Column {col} :: Unexpected or invalid character '{char}'"
-            ),
-        }
-    }
-}
+use super::{Token, TokenKind, TokenPosition, TokenizerError};
 
 #[derive(Debug)]
 pub struct Tokenizer<'a> {
