@@ -17,14 +17,10 @@ impl Matrix {
     /// Panics if zero sized, or uneven row lengths
     pub fn from_rows(rows: Vec<Vec<Complex64>>) -> Self {
         // Can't be empty
-        if rows.is_empty() {
-            panic!("Attempt to create zero size matrix");
-        }
+        assert!(!rows.is_empty());
         // Can't have uneven row lengths
         let first_len = rows[0].len();
-        if rows.iter().any(|v| v.len() != first_len) {
-            panic!("Attempt to create vector with uneven rows")
-        }
+        assert!(rows.iter().all(|v| v.len() == first_len));
         Self { rows }
     }
 
@@ -68,9 +64,7 @@ impl Matrix {
     }
 
     pub fn determinant(&self) -> Complex64 {
-        if self.rows() != self.cols() {
-            panic!("Non-square matrix passed to determinant function");
-        }
+        assert!(self.rows() == self.cols());
 
         let size = self.rows();
 
@@ -164,10 +158,7 @@ impl<'a> Add<&'a Matrix> for &'a Matrix {
     type Output = Matrix;
 
     fn add(self, rhs: &'a Matrix) -> Self::Output {
-        if self.dimensions() != rhs.dimensions() {
-            panic!("Matrix dimensions do not match for addition");
-        }
-
+        assert!(self.dimensions() == rhs.dimensions());
         let rows = self
             .rows
             .iter()
@@ -188,10 +179,7 @@ impl<'a> Sub<&'a Matrix> for &'a Matrix {
     type Output = Matrix;
 
     fn sub(self, rhs: &'a Matrix) -> Self::Output {
-        if self.dimensions() != rhs.dimensions() {
-            panic!("Matrix dimensions do not match for addition");
-        }
-
+        assert!(self.dimensions() == rhs.dimensions());
         self + (&-rhs)
     }
 }
@@ -222,9 +210,7 @@ impl<'a> Mul<&'a Matrix> for &'a Matrix {
     type Output = Matrix;
 
     fn mul(self, rhs: &'a Matrix) -> Self::Output {
-        if self.cols() != rhs.rows() {
-            panic!("Matrix dimensions do not match for multiplication");
-        }
+        assert!(self.cols() == rhs.rows());
 
         let mut result_rows = Vec::with_capacity(self.rows());
 
