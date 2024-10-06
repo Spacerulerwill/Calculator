@@ -1,6 +1,6 @@
 use crate::{
     tokenizer::Token,
-    value::{Unit, Value, ValueConstraint},
+    variable::value::{constraint::ValueConstraint, unit::Unit, Value},
 };
 use std::fmt;
 
@@ -292,5 +292,5 @@ pub struct InvalidMeasurementConversion<'a> {
     pub line: usize,
     pub col: usize,
     pub value: Value<'a>,
-    pub unit: Unit 
+    pub unit: Unit,
 }

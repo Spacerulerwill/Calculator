@@ -6,10 +6,14 @@ use crate::{
         NativeFunctionCantAddSignature, NativeFunctionCantDeleteSignature, UnknownVariable,
         UserDefinedFunctionNoMatchingSignature,
     },
-    function::{Function, Signature, UserDefinedFunction},
     tokenizer::Token,
-    value::Value,
-    variable::{Variable, VariableMap},
+    variable::{
+        value::{
+            function::{Function, Signature, UserDefinedFunction},
+            Value,
+        },
+        Variable, VariableMap,
+    },
 };
 
 #[derive(Debug)]

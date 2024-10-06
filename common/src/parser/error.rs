@@ -35,7 +35,7 @@ impl fmt::Display for ParserError {
             ParserError::ExpectedUnit(err) => {
                 if let Some(found) = &err.found {
                     write!(
-                        f, 
+                        f,
                         "Line {}, Column {} :: Expected unit but found '{}'",
                         found.line,
                         found.col,

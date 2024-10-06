@@ -1,13 +1,27 @@
 use std::fmt;
 
+use num_complex::Complex64;
+
 use crate::{
-    expr::InvalidMeasurementConversion, matrix::{matrix_format, Matrix}, num_complex::Complex64, tokenizer::{Token, TokenKind}, value::{complex_to_string, Measurement, Unit, Value, ValueConstraint}, variable::VariableMap
+    tokenizer::{Token, TokenKind},
+    variable::{
+        value::{
+            complex_to_string,
+            constraint::ValueConstraint,
+            matrix::{matrix_format, Matrix},
+            measurement::Measurement,
+            unit::Unit,
+            Value,
+        },
+        VariableMap,
+    },
 };
 
 use super::{
     DivisionByZero, EvaluationError, GroupingValueConstraintNotMet, InvalidCallable,
-    InvalidGroupingOperand, InvalidMatrixParameter, UnaryOperatorValueConstraintNotMet,
-    UnknownVariable, UnsupportedBinaryOperator, UnsupportedUnaryOperator,
+    InvalidGroupingOperand, InvalidMatrixParameter, InvalidMeasurementConversion,
+    UnaryOperatorValueConstraintNotMet, UnknownVariable, UnsupportedBinaryOperator,
+    UnsupportedUnaryOperator,
 };
 
 #[derive(Debug, Copy, Clone)]
@@ -81,19 +95,26 @@ impl<'a> Expr {
                 match &value {
                     Value::Measurement(measurement) => {
                         if let Ok(measurement) = measurement.to_other_unit(*unit) {
-                            return Ok(Value::Measurement(measurement))
+                            return Ok(Value::Measurement(measurement));
                         }
-                    },
-                    Value::Number(num) => return Ok(Value::Measurement(Measurement { num: *num, kind: *unit })),
+                    }
+                    Value::Number(num) => {
+                        return Ok(Value::Measurement(Measurement {
+                            num: *num,
+                            kind: *unit,
+                        }))
+                    }
                     _ => {}
                 }
-                return Err(EvaluationError::InvalidMeasurementConversion(Box::new(InvalidMeasurementConversion{
-                    line: _as.line,
-                    col: _as.col,
-                    value: value,
-                    unit: *unit
-                })))
-            },
+                return Err(EvaluationError::InvalidMeasurementConversion(Box::new(
+                    InvalidMeasurementConversion {
+                        line: _as.line,
+                        col: _as.col,
+                        value: value,
+                        unit: *unit,
+                    },
+                )));
+            }
             Expr::Binary {
                 left,
                 operator,
@@ -106,9 +127,7 @@ impl<'a> Expr {
                 Self::evaluate_grouping(paren, *kind, &*expr, variables)
             }
             Expr::Number { number } => Ok(Value::Number(*number)),
-            Expr::Measurement { measurement } => {
-                Ok(Value::Measurement(measurement.clone()))
-            }
+            Expr::Measurement { measurement } => Ok(Value::Measurement(measurement.clone())),
             Expr::Matrix {
                 bracket,
                 parameters,
@@ -172,7 +191,7 @@ impl<'a> Expr {
                     return Ok(Value::Measurement(Measurement {
                         num: measurement1.num + measurement2.num,
                         kind: measurement1.kind,
-                    }))
+                    }));
                 }
                 (Value::Matrix(matrix1), Value::Matrix(matrix2))
                     if matrix1.dimensions() == matrix2.dimensions() =>
@@ -194,7 +213,7 @@ impl<'a> Expr {
                     return Ok(Value::Measurement(Measurement {
                         num: measurement1.num - measurement2.num,
                         kind: measurement1.kind,
-                    }))
+                    }));
                 }
                 (Value::Matrix(matrix1), Value::Matrix(matrix2))
                     if matrix1.dimensions() == matrix2.dimensions() =>
@@ -223,14 +242,14 @@ impl<'a> Expr {
                     return Ok(Value::Measurement(Measurement {
                         num: num * measurement.num,
                         kind: measurement.kind,
-                    }))
+                    }));
                 }
                 (Value::Measurement(measurement), Value::Number(num)) => {
                     let measurement = measurement.to_si_base_unit();
                     return Ok(Value::Measurement(Measurement {
                         num: num * measurement.num,
                         kind: measurement.kind,
-                    }))
+                    }));
                 }
                 _ => {}
             },
@@ -252,7 +271,7 @@ impl<'a> Expr {
                     return Ok(Value::Measurement(Measurement {
                         num: num / measurement.num,
                         kind: measurement.kind,
-                    }))
+                    }));
                 }
                 _ => {}
             },
@@ -386,7 +405,7 @@ impl<'a> Expr {
                     return Ok(Value::Measurement(Measurement {
                         num: measurement.num * Complex64::from(-1.0),
                         kind: measurement.kind,
-                    }))
+                    }));
                 }
                 Value::Matrix(matrix) => return Ok(Value::Matrix(-matrix)),
                 _ => {}
@@ -541,7 +560,11 @@ impl<'a> Expr {
 
     pub fn get_type_string(&self) -> &'static str {
         match self {
-            Expr::As { expr: _, _as: _, unit: _ } => "as expression",
+            Expr::As {
+                expr: _,
+                _as: _,
+                unit: _,
+            } => "as expression",
             Expr::Binary {
                 left: _,
                 operator: _,
@@ -585,12 +608,7 @@ impl<'a> Expr {
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Expr::As { expr, _as: _,  unit } => write!(
-                f,
-                "{} as {}",
-                expr,
-                unit
-            ),
+            Expr::As { expr, _as: _, unit } => write!(f, "{} as {}", expr, unit),
             Expr::Binary {
                 left,
                 operator,

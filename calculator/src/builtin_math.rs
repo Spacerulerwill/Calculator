@@ -1,10 +1,11 @@
 use common::{
     expr::{EvaluationError, NoInverseForMatrix},
-    matrix::Matrix,
     num::integer::{gcd as _gcd, lcm as _lcm},
     num_complex::Complex64,
-    value::Value,
-    variable::{Variable, VariableMap},
+    variable::{
+        value::{matrix::Matrix, Value},
+        Variable, VariableMap,
+    },
 };
 use proc_macros::define_calculator_builtin_function;
 use std::{

@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+pub mod value;
 
-use crate::value::Value;
+use std::collections::HashMap;
+use value::Value;
 
 #[derive(Debug, Clone)]
 pub struct Variable<'a> {

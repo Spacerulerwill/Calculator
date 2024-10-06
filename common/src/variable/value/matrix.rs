@@ -5,7 +5,7 @@ use std::{
     ops::{Add, Div, Mul, Neg, Sub},
 };
 
-use crate::value::complex_to_string;
+use crate::variable::value::complex_to_string;
 
 /// Matrix for use in calculator operations.
 #[derive(Debug, Clone)]

@@ -56,14 +56,14 @@ use std::{iter::Peekable, vec::IntoIter};
 
 use crate::{
     expr::{Expr, GroupingKind},
-    function::Signature,
     stmt::Statement,
     tokenizer::{Token, TokenKind},
-    value::Measurement,
+    variable::value::{function::Signature, measurement::Measurement},
 };
 
 use super::{
-    CannotDelete, ExpectedDelimeter, ExpectedExpression, ExpectedToken, ExpectedUnit, InconsistentMatrixRowLength, InvalidAssignmentTarget, ParserError
+    CannotDelete, ExpectedDelimeter, ExpectedExpression, ExpectedToken, ExpectedUnit,
+    InconsistentMatrixRowLength, InvalidAssignmentTarget, ParserError,
 };
 
 #[derive(Debug)]
@@ -209,16 +209,32 @@ impl Parser {
 
     fn expression(&mut self) -> Result<Expr, ParserError> {
         let expr = self.term()?;
-        if let Some(Token { kind: TokenKind::As, .. }) = self.iter.peek() {
+        if let Some(Token {
+            kind: TokenKind::As,
+            ..
+        }) = self.iter.peek()
+        {
             let as_token = self.iter.next().unwrap();
             if self.iter.peek().is_some() {
                 let unit_token = self.iter.next().unwrap();
                 match unit_token.kind {
-                    TokenKind::Unit(unit) => return Ok(Expr::As { expr: Box::new(expr), _as: as_token, unit: unit }),
-                    _ => return Err(ParserError::ExpectedUnit(Box::new(ExpectedUnit { found: Some(unit_token) })))
+                    TokenKind::Unit(unit) => {
+                        return Ok(Expr::As {
+                            expr: Box::new(expr),
+                            _as: as_token,
+                            unit: unit,
+                        })
+                    }
+                    _ => {
+                        return Err(ParserError::ExpectedUnit(Box::new(ExpectedUnit {
+                            found: Some(unit_token),
+                        })))
+                    }
                 }
             } else {
-                return Err(ParserError::ExpectedUnit(Box::new(ExpectedUnit { found: None })))
+                return Err(ParserError::ExpectedUnit(Box::new(ExpectedUnit {
+                    found: None,
+                })));
             }
         }
         Ok(expr)

@@ -66,7 +66,7 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
     let unwrap_args = args.iter().enumerate().map(|(i, arg)| {
         let Argument { name, arg_type } = arg;
         let binding = arg_type.to_string();
-        let constraint = common::value::ValueConstraint::from_str(binding.as_str()).unwrap();
+        let constraint = common::variable::value::constraint::ValueConstraint::from_str(binding.as_str()).unwrap();
         let constraint_checking = quote! {
             let #name = args.get(#i).unwrap();
             if !#name.fits_value_constraint(#constraint) {
@@ -84,29 +84,29 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
         };
 
         let extract_variable = match constraint {
-            common::value::ValueConstraint::Function => quote! {
+            common::variable::value::constraint::ValueConstraint::Function => quote! {
                 let #name = match #name {
                     Value::Function(f) => f,
                     _ => panic!()
                 };
             },
-            common::value::ValueConstraint::Number => quote! {
+            common::variable::value::constraint::ValueConstraint::Number => quote! {
                 let #name = match #name {
                     Value::Number(num) => num,
                     _ => panic!()
                 };
             },
-            common::value::ValueConstraint::Real
-            | common::value::ValueConstraint::Natural
-            | common::value::ValueConstraint::PositiveInteger
-            | common::value::ValueConstraint::Integer => quote! {
+            common::variable::value::constraint::ValueConstraint::Real
+            | common::variable::value::constraint::ValueConstraint::Natural
+            | common::variable::value::constraint::ValueConstraint::PositiveInteger
+            | common::variable::value::constraint::ValueConstraint::Integer => quote! {
                 let #name = match #name {
                     Value::Number(num) => num.re,
                     _ => panic!()
                 };
             },
-            common::value::ValueConstraint::Matrix
-            | common::value::ValueConstraint::SquareMatrix => quote! {
+            common::variable::value::constraint::ValueConstraint::Matrix
+            | common::variable::value::constraint::ValueConstraint::SquareMatrix => quote! {
                 let #name = match #name {
                     Value::Matrix(matrix) => matrix,
                     _ => panic!()
@@ -123,16 +123,16 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
     // Generate const and function implementation
     let expanded = quote! {
         #[allow(non_upper_case_globals)]
-        pub const #function_name: common::function::Function = {
-            fn internal_builtin_function(line:usize, col: usize, args: Vec<common::value::Value>) -> Result<common::value::Value, common::expr::EvaluationError> {
+        pub const #function_name: common::variable::value::function::Function = {
+            fn internal_builtin_function(line:usize, col: usize, args: Vec<common::variable::value::Value>) -> Result<common::variable::value::Value, common::expr::EvaluationError> {
                 // TODO :: determine why this line is neccesary?
-                use common::value::ValueConstraint;
+                use common::variable::value::constraint::ValueConstraint;
                 use common::num_complex::ComplexFloat;
                 #(#unwrap_args)*
                 #body
             }
 
-            common::function::Function::NativeFunction(common::function::NativeFunction {
+            common::variable::value::function::Function::NativeFunction(common::variable::value::function::NativeFunction {
                 name: stringify!(#function_name),
                 function: internal_builtin_function,
                 arity: #arity,

@@ -1,10 +1,12 @@
-use crate::num_complex::{Complex, Complex64};
-use crate::value::{DistanceUnit, MassUnit, Unit, TemperatureUnit};
 use std::fmt;
 use std::{
     iter::Peekable,
     str::{Chars, FromStr},
 };
+
+use num_complex::Complex64;
+
+use crate::variable::value::unit::{DistanceUnit, MassUnit, TemperatureUnit, Unit};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
@@ -116,66 +118,44 @@ impl<'a> Tokenizer<'a> {
             "as" => Some(TokenKind::As),
             "dot" => Some(TokenKind::Dot),
             "clear" => Some(TokenKind::Clear),
-            "nanometer" | "nanometers" | "nm" => Some(TokenKind::Unit(
-                Unit::Distance(DistanceUnit::Nanometer),
-            )),
-            "micrometer" | "micrometers" | "µs" => Some(TokenKind::Unit(
-                Unit::Distance(DistanceUnit::Micrometer),
-            )),
-            "millimeter" | "millimeters" | "ms" => Some(TokenKind::Unit(
-                Unit::Distance(DistanceUnit::Millimeter),
-            )),
-            "centimeter" | "centimeters" | "cm" => Some(TokenKind::Unit(
-                Unit::Distance(DistanceUnit::Centimeter)
-            )),
-            "meters" | "meter" | "m" => Some(TokenKind::Unit(
-                Unit::Distance(DistanceUnit::Meter),
-            )),
-            "kilometer" | "kilometers" | "km" => Some(TokenKind::Unit(
-                Unit::Distance(DistanceUnit::Kilometer),
-            )),
-            "inch" | "inches" | "in" => Some(TokenKind::Unit(
-                Unit::Distance(DistanceUnit::Inch),
-            )),
-            "foot" | "feet" | "ft" => Some(TokenKind::Unit(Unit::Distance(
-                DistanceUnit::Foot,
-            ))),
-            "yard" | "yards" | "yd" => Some(TokenKind::Unit(Unit::Distance(
-                DistanceUnit::Foot,
-            ))),
-            "nanogram" | "nanograms" | "ng" => Some(TokenKind::Unit(
-                Unit::Mass(MassUnit::Nanogram),
-            )),
-            "microgram" | "micrograms" | "µg" => Some(TokenKind::Unit(
-                Unit::Mass(MassUnit::Microgram),
-            )),
-            "milligram" | "milligrams" | "mg" => Some(TokenKind::Unit(
-                Unit::Mass(MassUnit::Milligram),
-            )),
-            "gram" | "grams" | "g" => Some(TokenKind::Unit(Unit::Mass(
-                MassUnit::Gram,
-            ))),
-            "kilogram" | "kilograms" | "kg" => Some(TokenKind::Unit(
-                Unit::Mass(MassUnit::Kilogram),
-            )),
-            "tonne" | "tonnes" | "t" => Some(TokenKind::Unit(Unit::Mass(
-                MassUnit::Tonne,
-            ))),
-            "ounce" | "ounces" | "oz" => Some(TokenKind::Unit(Unit::Mass(
-                MassUnit::Ounce,
-            ))),
-            "pound" | "pounds" | "lb" | "lbs" => Some(TokenKind::Unit(
-                Unit::Mass(MassUnit::Pound),
-            )),
-            "stone" | "st" => Some(TokenKind::Unit(Unit::Mass(
-                MassUnit::Stone,
-            ))),
-            "°K" | "K" => Some(TokenKind::Unit(Unit::Temperature(
-                TemperatureUnit::Kelvin,
-            ))),
-            "°C" | "C" => Some(TokenKind::Unit(Unit::Temperature(
-                TemperatureUnit::Celsius,
-            ))),
+            "nanometer" | "nanometers" | "nm" => {
+                Some(TokenKind::Unit(Unit::Distance(DistanceUnit::Nanometer)))
+            }
+            "micrometer" | "micrometers" | "µm" => {
+                Some(TokenKind::Unit(Unit::Distance(DistanceUnit::Micrometer)))
+            }
+            "millimeter" | "millimeters" | "mm" => {
+                Some(TokenKind::Unit(Unit::Distance(DistanceUnit::Millimeter)))
+            }
+            "centimeter" | "centimeters" | "cm" => {
+                Some(TokenKind::Unit(Unit::Distance(DistanceUnit::Centimeter)))
+            }
+            "meters" | "meter" | "m" => Some(TokenKind::Unit(Unit::Distance(DistanceUnit::Meter))),
+            "kilometer" | "kilometers" | "km" => {
+                Some(TokenKind::Unit(Unit::Distance(DistanceUnit::Kilometer)))
+            }
+            "inch" | "inches" | "in" => Some(TokenKind::Unit(Unit::Distance(DistanceUnit::Inch))),
+            "foot" | "feet" | "ft" => Some(TokenKind::Unit(Unit::Distance(DistanceUnit::Foot))),
+            "yard" | "yards" | "yd" => Some(TokenKind::Unit(Unit::Distance(DistanceUnit::Foot))),
+            "nanogram" | "nanograms" | "ng" => {
+                Some(TokenKind::Unit(Unit::Mass(MassUnit::Nanogram)))
+            }
+            "microgram" | "micrograms" | "µg" => {
+                Some(TokenKind::Unit(Unit::Mass(MassUnit::Microgram)))
+            }
+            "milligram" | "milligrams" | "mg" => {
+                Some(TokenKind::Unit(Unit::Mass(MassUnit::Milligram)))
+            }
+            "gram" | "grams" | "g" => Some(TokenKind::Unit(Unit::Mass(MassUnit::Gram))),
+            "kilogram" | "kilograms" | "kg" => {
+                Some(TokenKind::Unit(Unit::Mass(MassUnit::Kilogram)))
+            }
+            "tonne" | "tonnes" | "t" => Some(TokenKind::Unit(Unit::Mass(MassUnit::Tonne))),
+            "ounce" | "ounces" | "oz" => Some(TokenKind::Unit(Unit::Mass(MassUnit::Ounce))),
+            "pound" | "pounds" | "lb" | "lbs" => Some(TokenKind::Unit(Unit::Mass(MassUnit::Pound))),
+            "stone" | "st" => Some(TokenKind::Unit(Unit::Mass(MassUnit::Stone))),
+            "°K" | "K" => Some(TokenKind::Unit(Unit::Temperature(TemperatureUnit::Kelvin))),
+            "°C" | "C" => Some(TokenKind::Unit(Unit::Temperature(TemperatureUnit::Celsius))),
             "°F" | "F" => Some(TokenKind::Unit(Unit::Temperature(
                 TemperatureUnit::Fahrenheit,
             ))),
@@ -213,7 +193,9 @@ impl<'a> Tokenizer<'a> {
                 '√' => self.add_single_char_token(TokenKind::Sqrt),
                 '•' => self.add_single_char_token(TokenKind::Dot),
                 '×' => self.add_single_char_token(TokenKind::Cross),
-                'a'..='z' | 'A'..='Z' | '_' | 'π' | 'ϕ' | '°' => self.tokenize_identifier(),
+                'a'..='z' | 'A'..='Z' | '_' | 'π' | 'ϕ' | '°' | 'µ' => {
+                    self.tokenize_identifier()
+                }
                 '0'..='9' => self.tokenize_number(),
                 ch => {
                     return Err(TokenizerError::BadChar {
@@ -284,7 +266,7 @@ impl<'a> Tokenizer<'a> {
         let mut number_string = self.consume_while(|ch| ch.is_digit(10));
         // Consume and exponent and if there is one we stop here
         if self.consume_exponent_for_number(&mut number_string) {
-            let num = Complex::new(f64::from_str(&number_string).unwrap(), 0.0);
+            let num = Complex64::from(f64::from_str(&number_string).unwrap());
             self.add_token(TokenKind::Number(num));
             return;
         }
@@ -305,7 +287,7 @@ impl<'a> Tokenizer<'a> {
         // Finally try and consume and exponent
         let _ = self.consume_exponent_for_number(&mut number_string);
         // Add token
-        let num = Complex::new(f64::from_str(&number_string).unwrap(), 0.0);
+        let num = Complex64::from(f64::from_str(&number_string).unwrap());
         self.add_token(TokenKind::Number(num));
     }
 
@@ -415,95 +397,157 @@ mod tests {
             ("\n", TokenKind::Newline),
             (";", TokenKind::Semicolon),
             ("clear", TokenKind::Clear),
+            ("as", TokenKind::As),
+            // Distance Units
+            (
+                "nanometer",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Nanometer)),
+            ),
+            (
+                "nanometers",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Nanometer)),
+            ),
+            (
+                "nm",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Nanometer)),
+            ),
+            (
+                "micrometer",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Micrometer)),
+            ),
+            (
+                "micrometers",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Micrometer)),
+            ),
+            (
+                "µm",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Micrometer)),
+            ),
+            (
+                "millimeter",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Millimeter)),
+            ),
+            (
+                "millimeters",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Millimeter)),
+            ),
+            (
+                "mm",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Millimeter)),
+            ),
+            (
+                "centimeter",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Centimeter)),
+            ),
+            (
+                "centimeters",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Centimeter)),
+            ),
+            (
+                "cm",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Centimeter)),
+            ),
+            (
+                "meter",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Meter)),
+            ),
+            (
+                "meters",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Meter)),
+            ),
+            ("m", TokenKind::Unit(Unit::Distance(DistanceUnit::Meter))),
+            (
+                "kilometer",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Kilometer)),
+            ),
+            (
+                "kilometers",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Kilometer)),
+            ),
+            (
+                "km",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Kilometer)),
+            ),
+            ("inch", TokenKind::Unit(Unit::Distance(DistanceUnit::Inch))),
+            (
+                "inches",
+                TokenKind::Unit(Unit::Distance(DistanceUnit::Inch)),
+            ),
+            ("in", TokenKind::Unit(Unit::Distance(DistanceUnit::Inch))),
+            ("foot", TokenKind::Unit(Unit::Distance(DistanceUnit::Foot))),
+            ("feet", TokenKind::Unit(Unit::Distance(DistanceUnit::Foot))),
+            ("ft", TokenKind::Unit(Unit::Distance(DistanceUnit::Foot))),
+            ("yard", TokenKind::Unit(Unit::Distance(DistanceUnit::Foot))),
+            ("yards", TokenKind::Unit(Unit::Distance(DistanceUnit::Foot))),
+            ("yd", TokenKind::Unit(Unit::Distance(DistanceUnit::Foot))),
+            // Mass Units
+            ("nanogram", TokenKind::Unit(Unit::Mass(MassUnit::Nanogram))),
+            ("nanograms", TokenKind::Unit(Unit::Mass(MassUnit::Nanogram))),
+            ("ng", TokenKind::Unit(Unit::Mass(MassUnit::Nanogram))),
+            (
+                "microgram",
+                TokenKind::Unit(Unit::Mass(MassUnit::Microgram)),
+            ),
+            (
+                "micrograms",
+                TokenKind::Unit(Unit::Mass(MassUnit::Microgram)),
+            ),
+            ("µg", TokenKind::Unit(Unit::Mass(MassUnit::Microgram))),
+            (
+                "milligram",
+                TokenKind::Unit(Unit::Mass(MassUnit::Milligram)),
+            ),
+            (
+                "milligrams",
+                TokenKind::Unit(Unit::Mass(MassUnit::Milligram)),
+            ),
+            ("mg", TokenKind::Unit(Unit::Mass(MassUnit::Milligram))),
+            ("gram", TokenKind::Unit(Unit::Mass(MassUnit::Gram))),
+            ("grams", TokenKind::Unit(Unit::Mass(MassUnit::Gram))),
+            ("g", TokenKind::Unit(Unit::Mass(MassUnit::Gram))),
+            ("kilogram", TokenKind::Unit(Unit::Mass(MassUnit::Kilogram))),
+            ("kilograms", TokenKind::Unit(Unit::Mass(MassUnit::Kilogram))),
+            ("kg", TokenKind::Unit(Unit::Mass(MassUnit::Kilogram))),
+            ("tonne", TokenKind::Unit(Unit::Mass(MassUnit::Tonne))),
+            ("tonnes", TokenKind::Unit(Unit::Mass(MassUnit::Tonne))),
+            ("t", TokenKind::Unit(Unit::Mass(MassUnit::Tonne))),
+            ("ounce", TokenKind::Unit(Unit::Mass(MassUnit::Ounce))),
+            ("ounces", TokenKind::Unit(Unit::Mass(MassUnit::Ounce))),
+            ("oz", TokenKind::Unit(Unit::Mass(MassUnit::Ounce))),
+            ("pound", TokenKind::Unit(Unit::Mass(MassUnit::Pound))),
+            ("pounds", TokenKind::Unit(Unit::Mass(MassUnit::Pound))),
+            ("lb", TokenKind::Unit(Unit::Mass(MassUnit::Pound))),
+            ("lbs", TokenKind::Unit(Unit::Mass(MassUnit::Pound))),
+            ("stone", TokenKind::Unit(Unit::Mass(MassUnit::Stone))),
+            ("st", TokenKind::Unit(Unit::Mass(MassUnit::Stone))),
+            // Temperature Units
+            (
+                "°K",
+                TokenKind::Unit(Unit::Temperature(TemperatureUnit::Kelvin)),
+            ),
+            (
+                "K",
+                TokenKind::Unit(Unit::Temperature(TemperatureUnit::Kelvin)),
+            ),
+            (
+                "°C",
+                TokenKind::Unit(Unit::Temperature(TemperatureUnit::Celsius)),
+            ),
+            (
+                "C",
+                TokenKind::Unit(Unit::Temperature(TemperatureUnit::Celsius)),
+            ),
+            (
+                "°F",
+                TokenKind::Unit(Unit::Temperature(TemperatureUnit::Fahrenheit)),
+            ),
+            (
+                "F",
+                TokenKind::Unit(Unit::Temperature(TemperatureUnit::Fahrenheit)),
+            ),
         ] {
             let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
             assert_eq!(extract_token_types(tokens), vec![result]);
-        }
-    }
-
-    #[test]
-    fn test_samples() {
-        for (input, expected_tokens) in [
-            (
-                "(√(5 + 3) * 2 - foo) / ⌊bar⌋;",
-                vec![
-                    TokenKind::LeftParen,
-                    TokenKind::Sqrt,
-                    TokenKind::LeftParen,
-                    TokenKind::Number(Complex64::new(5.0, 0.0)),
-                    TokenKind::Plus,
-                    TokenKind::Number(Complex64::new(3.0, 0.0)),
-                    TokenKind::RightParen,
-                    TokenKind::Star,
-                    TokenKind::Number(Complex64::new(2.0, 0.0)),
-                    TokenKind::Minus,
-                    TokenKind::Identifier(String::from("foo")),
-                    TokenKind::RightParen,
-                    TokenKind::Slash,
-                    TokenKind::LeftFloor,
-                    TokenKind::Identifier(String::from("bar")),
-                    TokenKind::RightFloor,
-                    TokenKind::Semicolon,
-                ],
-            ),
-            (
-                "a_long_variable = 3.14 + π * ϕ / 2",
-                vec![
-                    TokenKind::Identifier(String::from("a_long_variable")),
-                    TokenKind::Equal,
-                    TokenKind::Number(Complex64::new(3.14, 0.0)),
-                    TokenKind::Plus,
-                    TokenKind::Identifier(String::from("π")),
-                    TokenKind::Star,
-                    TokenKind::Identifier(String::from("ϕ")),
-                    TokenKind::Slash,
-                    TokenKind::Number(Complex64::new(2.0, 0.0)),
-                ],
-            ),
-            (
-                "|foo^2| + √(bar - 1);",
-                vec![
-                    TokenKind::Pipe,
-                    TokenKind::Identifier(String::from("foo")),
-                    TokenKind::Caret,
-                    TokenKind::Number(Complex64::new(2.0, 0.0)),
-                    TokenKind::Pipe,
-                    TokenKind::Plus,
-                    TokenKind::Sqrt,
-                    TokenKind::LeftParen,
-                    TokenKind::Identifier(String::from("bar")),
-                    TokenKind::Minus,
-                    TokenKind::Number(Complex64::new(1.0, 0.0)),
-                    TokenKind::RightParen,
-                    TokenKind::Semicolon,
-                ],
-            ),
-            (
-                "[1 + i,2,3] + [2,3,4];",
-                vec![
-                    TokenKind::LeftBracket,
-                    TokenKind::Number(Complex64::from(1.0)),
-                    TokenKind::Plus,
-                    TokenKind::Identifier(String::from("i")),
-                    TokenKind::Comma,
-                    TokenKind::Number(Complex64::from(2.0)),
-                    TokenKind::Comma,
-                    TokenKind::Number(Complex64::from(3.0)),
-                    TokenKind::RightBracket,
-                    TokenKind::Plus,
-                    TokenKind::LeftBracket,
-                    TokenKind::Number(Complex64::from(2.0)),
-                    TokenKind::Comma,
-                    TokenKind::Number(Complex64::from(3.0)),
-                    TokenKind::Comma,
-                    TokenKind::Number(Complex64::from(4.0)),
-                    TokenKind::RightBracket,
-                    TokenKind::Semicolon,
-                ],
-            ),
-        ] {
-            let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
-            assert_eq!(extract_token_types(tokens), expected_tokens);
         }
     }
 
@@ -516,15 +560,107 @@ mod tests {
 
     #[test]
     fn test_lexeme_extraction() {
-        let input =
-            "()⌈⌉⌊⌋+-/*^!|%,=√foo\tbar  baz 3.14 0.0001\t0.045    10.01 1e6 1e-6 2.5e6 2.5e-6; delete cross dot clear";
+        let input = "( ) [ ] ⌈ ⌉ ⌊ ⌋ + - / * ^ ! | % , = √ foo 12 12.5 0.5 1e6 1e-6 2.5e6 2.5e-6 ; delete cross × dot • clear as nanometer nanometers nm micrometer micrometers µm millimeter millimeters mm centimeter centimeters cm meter meters m kilometer kilometers km inch inches in foot feet ft yard yards yd nanogram nanograms ng microgram micrograms µg milligram milligrams mg gram grams g kilogram kilograms kg tonne tonnes t ounce ounces oz pound pounds lb lbs stone st °K K °C C °F F";
+
         let tokens = Tokenizer::tokenize(input, 4).unwrap().tokens;
         assert_eq!(
             extract_lexemes(&tokens),
             vec![
-                "(", ")", "⌈", "⌉", "⌊", "⌋", "+", "-", "/", "*", "^", "!", "|", "%", ",", "=",
-                "√", "foo", "bar", "baz", "3.14", "0.0001", "0.045", "10.01", "1e6", "1e-6",
-                "2.5e6", "2.5e-6", ";", "delete", "cross", "dot", "clear"
+                "(",
+                ")",
+                "[",
+                "]",
+                "⌈",
+                "⌉",
+                "⌊",
+                "⌋",
+                "+",
+                "-",
+                "/",
+                "*",
+                "^",
+                "!",
+                "|",
+                "%",
+                ",",
+                "=",
+                "√",
+                "foo",
+                "12",
+                "12.5",
+                "0.5",
+                "1e6",
+                "1e-6",
+                "2.5e6",
+                "2.5e-6",
+                ";",
+                "delete",
+                "cross",
+                "×",
+                "dot",
+                "•",
+                "clear",
+                "as",
+                "nanometer",
+                "nanometers",
+                "nm",
+                "micrometer",
+                "micrometers",
+                "µm",
+                "millimeter",
+                "millimeters",
+                "mm",
+                "centimeter",
+                "centimeters",
+                "cm",
+                "meter",
+                "meters",
+                "m",
+                "kilometer",
+                "kilometers",
+                "km",
+                "inch",
+                "inches",
+                "in",
+                "foot",
+                "feet",
+                "ft",
+                "yard",
+                "yards",
+                "yd",
+                "nanogram",
+                "nanograms",
+                "ng",
+                "microgram",
+                "micrograms",
+                "µg",
+                "milligram",
+                "milligrams",
+                "mg",
+                "gram",
+                "grams",
+                "g",
+                "kilogram",
+                "kilograms",
+                "kg",
+                "tonne",
+                "tonnes",
+                "t",
+                "ounce",
+                "ounces",
+                "oz",
+                "pound",
+                "pounds",
+                "lb",
+                "lbs",
+                "stone",
+                "st",
+                "°K",
+                "K",
+                "°C",
+                "C",
+                "°F",
+                "F"
             ]
         )
     }

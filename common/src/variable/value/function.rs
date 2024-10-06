@@ -8,9 +8,10 @@ use crate::{
         UserDefinedFunctionNoMatchingSignature,
     },
     tokenizer::Token,
-    value::{complex_to_string, Value},
-    variable::{Variable, VariableMap},
+    variable::{value::complex_to_string, Variable, VariableMap},
 };
+
+use super::Value;
 
 #[derive(Debug, Clone)]
 pub enum Function<'a> {
