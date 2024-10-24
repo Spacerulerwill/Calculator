@@ -1,5 +1,6 @@
 ![Build](https://github.com/Spacerulerwill/Calculator/actions/workflows/build.yml/badge.svg)
 ![Tests](https://github.com/Spacerulerwill/Calculator/actions/workflows/tests.yml/badge.svg)
+[![codecov](https://codecov.io/gh/Spacerulerwill/Calculator/graph/badge.svg?token=UDI06EJQRT)](https://codecov.io/gh/Spacerulerwill/Calculator)
 [![](https://tokei.rs/b1/github/Spacerulerwill/Calculator)](https://github.com/Spacerulerwill/Calculator)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
