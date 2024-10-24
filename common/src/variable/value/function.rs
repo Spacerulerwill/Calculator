@@ -13,7 +13,7 @@ use crate::{
 
 use super::Value;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Function<'a> {
     NativeFunction(NativeFunction<'a>),
     UserDefinedFunction(UserDefinedFunction),
@@ -84,7 +84,7 @@ impl<'a> Function<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct NativeFunction<'a> {
     pub name: &'a str,
     pub function: fn(usize, usize, Vec<Value>) -> Result<Value, EvaluationError>,
@@ -97,13 +97,13 @@ impl<'a> fmt::Display for NativeFunction<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum UserDefinedFunctionArgType {
     Identifier(String),
     Number(Complex64),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Signature {
     pub parameters: Vec<UserDefinedFunctionArgType>,
 }
@@ -129,6 +129,7 @@ impl Signature {
         }
         Err(())
     }
+
     pub fn matches_parameters(&self, parameters: &Vec<Value>) -> bool {
         if self.parameters.len() != parameters.len() {
             return false;
@@ -152,10 +153,8 @@ impl Signature {
 
         true
     }
-}
 
-impl PartialEq for Signature {
-    fn eq(&self, other: &Self) -> bool {
+    pub fn equivalent(&self, other: &Self) -> bool {
         if self.parameters.len() != other.parameters.len() {
             return false;
         }
@@ -190,7 +189,7 @@ impl fmt::Display for UserDefinedFunctionArgType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UserDefinedFunction {
     pub name: String,
     pub signatures: Vec<(Signature, Expr)>,

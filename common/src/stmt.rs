@@ -148,7 +148,7 @@ impl Statement {
                         match &mut *func {
                             Function::UserDefinedFunction(ref mut func) => {
                                 for sig in func.signatures.iter_mut() {
-                                    if sig.0 == signature {
+                                    if sig.0.equivalent(&signature) {
                                         *sig = (signature, expr);
                                         return Ok(());
                                     }

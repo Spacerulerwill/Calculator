@@ -5,7 +5,7 @@ use std::{
 
 use num_complex::Complex64;
 
-use crate::variable::value::unit::{DistanceUnit, MassUnit, TemperatureUnit, Unit};
+use crate::variable::value::unit::{DistanceUnit, MassUnit, StorageUnit, TemperatureUnit, Unit};
 
 use super::{Token, TokenKind, TokenPosition, TokenizerError};
 
@@ -89,6 +89,34 @@ impl<'a> Tokenizer<'a> {
             "°F" | "F" => Some(TokenKind::Unit(Unit::Temperature(
                 TemperatureUnit::Fahrenheit,
             ))),
+            "B" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Byte))),
+            "KB" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Kilobyte))),
+            "MB" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Megabyte))),
+            "GB" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Gigabyte))),
+            "TB" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Terabyte))),
+            "PB" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Petabyte))),
+            "EB" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Exabyte))),
+            "KiB" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Kibibyte))),
+            "MiB" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Mebibyte))),
+            "GiB" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Gibibyte))),
+            "TiB" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Tebibyte))),
+            "PiB" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Petibyte))),
+            "EiB" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Exbibyte))),
+            "b" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Bit))),
+            "Kb" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Kilobit))),
+            "Mb" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Megabit))),
+            "Gb" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Gigabit))),
+            "Tb" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Terabit))),
+            "Pb" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Petabit))),
+            "Eb" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Exabit))),
+            "Kib" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Kibibit))),
+            "Mib" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Mebibit))),
+            "Gib" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Gibibit))),
+            "Tib" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Tebibit))),
+            "Pib" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Petibit))),
+            "Eib" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Exbibit))),
+
+
             _ => None,
         }
     }
@@ -659,5 +687,40 @@ mod tests {
                 }
             );
         }
+    }
+
+    #[test]
+    fn test_missing_digits_after_decimal_point() {
+        let input = "123.";
+        assert_eq!(
+            Tokenizer::tokenize(input, 4).unwrap_err(),
+            TokenizerError::BadChar {
+                line: 1,
+                col: 4,
+                char: '.'
+            }
+        );
+    }
+
+    #[test]
+    fn test_missing_exponent_number() {
+        let input = "10e";
+        assert_eq!(
+            Tokenizer::tokenize(input, 4).unwrap().tokens,
+            vec![
+                Token {
+                    kind: TokenKind::Number(Complex64::from(10.0)),
+                    lexeme: String::from("10"),
+                    line: 1,
+                    col: 1
+                },
+                Token {
+                    kind: TokenKind::Identifier(String::from("e")),
+                    lexeme: String::from("e"),
+                    line: 1,
+                    col: 3
+                }
+            ]
+        );
     }
 }

@@ -8,7 +8,7 @@ use std::{
 use crate::variable::value::complex_to_string;
 
 /// Matrix for use in calculator operations.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Matrix {
     pub rows: Vec<Vec<Complex64>>,
 }

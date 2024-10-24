@@ -16,3 +16,19 @@ impl fmt::Display for TemperatureUnit {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::TemperatureUnit;
+
+    #[test]
+    fn test_display_temperature_unit() {
+        for (unit, expected) in [
+            (TemperatureUnit::Celsius, "°C"),
+            (TemperatureUnit::Kelvin, "°K"),
+            (TemperatureUnit::Fahrenheit, "°F"),
+        ] {
+            assert_eq!(unit.to_string(), expected)
+        }
+    }
+}

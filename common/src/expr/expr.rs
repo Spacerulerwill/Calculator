@@ -24,7 +24,7 @@ use super::{
     UnsupportedUnaryOperator,
 };
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum GroupingKind {
     Grouping,
     Absolute,
@@ -43,7 +43,7 @@ impl GroupingKind {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     As {
         expr: Box<Expr>,
@@ -418,7 +418,7 @@ impl<'a> Expr {
             },
             TokenKind::Bang => match &operand {
                 Value::Number(right) => {
-                    if operand.fits_value_constraint(ValueConstraint::Natural) {
+                    if ValueConstraint::Natural.does_value_fit(&operand) {
                         return Ok(Value::Number(factorial(right.re as u64).into()));
                     } else {
                         return Err(EvaluationError::UnaryOperatorValueConstraintNotMet(
@@ -476,7 +476,7 @@ impl<'a> Expr {
             },
             GroupingKind::Ceil => match value {
                 Value::Number(num) => {
-                    if value.fits_value_constraint(ValueConstraint::Real) {
+                    if ValueConstraint::Real.does_value_fit(&value) {
                         return Ok(Value::Number(num.re.ceil().into()));
                     } else {
                         return Err(EvaluationError::GroupingValueConstraintNotMet(Box::new(
@@ -493,7 +493,7 @@ impl<'a> Expr {
             },
             GroupingKind::Floor => match value {
                 Value::Number(num) => {
-                    if value.fits_value_constraint(ValueConstraint::Real) {
+                    if ValueConstraint::Real.does_value_fit(&value) {
                         return Ok(Value::Number(num.re.floor().into()));
                     } else {
                         return Err(EvaluationError::GroupingValueConstraintNotMet(Box::new(

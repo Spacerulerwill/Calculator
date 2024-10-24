@@ -6,13 +6,12 @@ pub mod unit;
 
 use std::{cell::RefCell, fmt, rc::Rc};
 
-use constraint::ValueConstraint;
 use function::Function;
 use matrix::Matrix;
 use measurement::Measurement;
 use num_complex::Complex64;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value<'a> {
     Function(Rc<RefCell<Function<'a>>>),
     Number(Complex64),
@@ -31,44 +30,13 @@ impl fmt::Display for Value<'_> {
     }
 }
 
-impl Value<'_> {
-    pub fn fits_value_constraint(&self, constraint: ValueConstraint) -> bool {
-        match constraint {
-            ValueConstraint::Function => match self {
-                Value::Function(_) => true,
-                _ => false,
-            },
-            ValueConstraint::Number => match self {
-                Value::Number(_) => true,
-                _ => false,
-            },
-            ValueConstraint::Real => match self {
-                Value::Number(num) => num.im == 0.0,
-                _ => false,
-            },
-            ValueConstraint::Natural => match self {
-                Value::Number(num) => num.im == 0.0 && num.re.fract() == 0.0 && num.re >= 0.0,
-                _ => false,
-            },
-            ValueConstraint::Integer => match self {
-                Value::Number(num) => num.im == 0.0 && num.re.fract() == 0.0,
-                _ => false,
-            },
-            ValueConstraint::PositiveInteger => match self {
-                Value::Number(num) => num.im == 0.0 && num.re.fract() == 0.0 && num.re > 0.0,
-                _ => false,
-            },
-            ValueConstraint::Matrix => match self {
-                Value::Matrix(_) => true,
-                _ => false,
-            },
-            ValueConstraint::SquareMatrix => match self {
-                Value::Matrix(matrix) => matrix.rows() == matrix.cols(),
-                _ => false,
-            },
-        }
+impl<'a> Value<'a> {
+    pub fn from_function(function: Function<'a>) -> Self {
+        Self::Function(Rc::new(RefCell::new(function)))
     }
+}
 
+impl Value<'_> {
     pub fn get_type_string(&self) -> String {
         match self {
             Value::Function(_) => String::from("function"),
@@ -116,5 +84,114 @@ pub fn complex_to_string(num: &Complex64) -> String {
         return String::from("0");
     } else {
         return format!("{}i", num.im);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use num::Zero;
+    use num_complex::Complex64;
+
+    use crate::variable::value::{
+        complex_to_string,
+        function::Function,
+        matrix::Matrix,
+        measurement::Measurement,
+        unit::{DistanceUnit, Unit},
+    };
+
+    use super::{function::NativeFunction, Value};
+
+    #[test]
+    fn test_complex_to_string() {
+        for (input, expected) in [
+            (Complex64::new(3.5, 3.0), "3.5 + 3i"),
+            (Complex64::new(3.0, -3.5), "3 - 3.5i"),
+            (Complex64::new(3.5, 1.0), "3.5 + i"),
+            (Complex64::new(3.0, -1.0), "3 - i"),
+            (Complex64::new(-3.0, -3.0), "-3 - 3i"),
+            (Complex64::new(3.0, 0.0), "3"),
+            (Complex64::new(3.5, 0.0), "3.5"),
+            (Complex64::new(-3.0, 0.0), "-3"),
+            (Complex64::new(-3.5, 0.0), "-3.5"),
+            (Complex64::new(0.0, 0.0), "0"),
+            (Complex64::new(0.0, 3.0), "3i"),
+            (Complex64::new(0.0, -3.0), "-3i"),
+            (Complex64::new(0.0, 3.5), "3.5i"),
+            (Complex64::new(0.0, -3.5), "-3.5i"),
+            (Complex64::new(0.0, -1.0), "-i"),
+            (Complex64::new(0.0, 1.0), "i"),
+        ] {
+            assert_eq!(complex_to_string(&input), expected);
+        }
+    }
+
+    #[test]
+    fn test_value_get_type_string() {
+        let measurement = Measurement {
+            num: Complex64::zero(),
+            kind: Unit::Distance(DistanceUnit::Meter),
+        };
+
+        for (input, expected) in [
+            (
+                Value::from_function(Function::NativeFunction(NativeFunction {
+                    name: "test",
+                    function: |_, _, _| panic!(),
+                    arity: 0,
+                })),
+                "function",
+            ),
+            (Value::Number(Complex64::zero()), "number"),
+            (
+                Value::Measurement(measurement.clone()),
+                measurement.kind.get_type_string(),
+            ),
+            (
+                Value::Matrix(Matrix::from_rows(vec![vec![Complex64::zero()]])),
+                "1x1 matrix",
+            ),
+            (
+                Value::Matrix(Matrix::from_rows(vec![
+                    vec![Complex64::zero(), Complex64::zero(), Complex64::zero()],
+                    vec![Complex64::zero(), Complex64::zero(), Complex64::zero()],
+                    vec![Complex64::zero(), Complex64::zero(), Complex64::zero()],
+                ])),
+                "3x3 matrix",
+            ),
+            (
+                Value::Matrix(Matrix::from_rows(vec![
+                    vec![Complex64::zero(), Complex64::zero(), Complex64::zero()],
+                    vec![Complex64::zero(), Complex64::zero(), Complex64::zero()],
+                ])),
+                "2x3 matrix",
+            ),
+            (
+                Value::Matrix(Matrix::from_rows(vec![
+                    vec![Complex64::zero(), Complex64::zero()],
+                    vec![Complex64::zero(), Complex64::zero()],
+                    vec![Complex64::zero(), Complex64::zero()],
+                ])),
+                "3x2 matrix",
+            ),
+            (
+                Value::Matrix(Matrix::from_rows(vec![vec![
+                    Complex64::zero(),
+                    Complex64::zero(),
+                    Complex64::zero(),
+                ]])),
+                "3D row vector",
+            ),
+            (
+                Value::Matrix(Matrix::from_rows(vec![
+                    vec![Complex64::zero()],
+                    vec![Complex64::zero()],
+                    vec![Complex64::zero()],
+                ])),
+                "3D column vector",
+            ),
+        ] {
+            assert_eq!(input.get_type_string(), expected)
+        }
     }
 }

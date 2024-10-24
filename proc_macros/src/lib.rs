@@ -53,7 +53,7 @@ impl Parse for Argument {
 }
 
 #[proc_macro]
-pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
+pub fn define_calculator_native_function(input: TokenStream) -> TokenStream {
     let FunctionInput {
         function_name,
         args,
@@ -69,7 +69,7 @@ pub fn define_calculator_builtin_function(input: TokenStream) -> TokenStream {
         let constraint = common::variable::value::constraint::ValueConstraint::from_str(binding.as_str()).unwrap();
         let constraint_checking = quote! {
             let #name = args.get(#i).unwrap();
-            if !#name.fits_value_constraint(#constraint) {
+            if !#constraint.does_value_fit(&#name) {
                 return Err(common::expr::EvaluationError::NativeFunctionIncorrectParameterType(Box::new(
                     common::expr::NativeFunctionIncorrectParameterType {
                         function_name: stringify!(#function_name).to_string(),

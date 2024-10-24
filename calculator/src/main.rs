@@ -118,3 +118,15 @@ fn start_repl<'a>(tabsize: u8, variables: &mut VariableMap<'a>) {
     }
     println!("Goodbye!")
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::ensure_trailing_newline;
+
+    #[test]
+    fn test_ensure_trailing_newline() {
+        for (input, expected) in [("", "\n"), ("bruh", "bruh\n"), ("bruh\n", "bruh\n")] {
+            assert_eq!(ensure_trailing_newline(input.to_string()), expected);
+        }
+    }
+}

@@ -47,3 +47,42 @@ impl MassUnit {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::MassUnit;
+
+    #[test]
+    fn test_display_mass_unit() {
+        for (unit, expected) in [
+            (MassUnit::Nanogram, "ng"),
+            (MassUnit::Microgram, "µg"),
+            (MassUnit::Milligram, "mg"),
+            (MassUnit::Gram, "g"),
+            (MassUnit::Kilogram, "kg"),
+            (MassUnit::Tonne, "t"),
+            (MassUnit::Ounce, "oz"),
+            (MassUnit::Pound, "lb"),
+            (MassUnit::Stone, "st"),
+        ] {
+            assert_eq!(unit.to_string(), expected);
+        }
+    }
+
+    #[test]
+    fn test_get_per_kg() {
+        for (unit, per_meter) in [
+            (MassUnit::Nanogram, 1e12),
+            (MassUnit::Microgram, 1e9),
+            (MassUnit::Milligram, 1e6),
+            (MassUnit::Gram, 1e3),
+            (MassUnit::Kilogram, 1.0),
+            (MassUnit::Tonne, 1e-3),
+            (MassUnit::Ounce, 35.274),
+            (MassUnit::Pound, 2.20462),
+            (MassUnit::Stone, 0.157473),
+        ] {
+            assert_eq!(unit.get_per_kilo(), per_meter)
+        }
+    }
+}

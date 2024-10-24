@@ -1,12 +1,11 @@
-use std::fmt;
-
 use num_complex::Complex64;
+use std::fmt;
 
 use crate::variable::value::complex_to_string;
 
-use super::unit::{DistanceUnit, MassUnit, TemperatureUnit, Unit};
+use super::unit::{DistanceUnit, MassUnit, StorageUnit, TemperatureUnit, Unit};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Measurement {
     pub num: Complex64,
     pub kind: Unit,
@@ -38,6 +37,10 @@ impl Measurement {
             }),
             Unit::Mass(mass_unit) => Ok(Self {
                 num: si_value.num * mass_unit.get_per_kilo(),
+                kind: unit,
+            }),
+            Unit::Storage(storage_unit) => Ok(Self {
+                num: si_value.num * storage_unit.get_per_byte(),
                 kind: unit,
             }),
             Unit::Temperature(temperature_unit) => {
@@ -76,6 +79,13 @@ impl Measurement {
                     kind: Unit::Mass(MassUnit::Kilogram),
                 }
             }
+            Unit::Storage(storage_unit) => {
+                let si_value = self.num / Complex64::from(storage_unit.get_per_byte());
+                Measurement {
+                    num: si_value,
+                    kind: Unit::Storage(StorageUnit::Byte),
+                }
+            }
             // Temperature conversion to Kelvin
             Unit::Temperature(temp_unit) => {
                 let si_value = match temp_unit {
@@ -93,3 +103,6 @@ impl Measurement {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {}
