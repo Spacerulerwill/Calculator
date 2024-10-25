@@ -108,15 +108,70 @@ impl ValueConstraint {
 
 #[cfg(test)]
 mod tests {
+    use num_complex::Complex64;
+
     use crate::variable::value::{
-        function::{Function, NativeFunction, UserDefinedFunction}, matrix::Matrix, measurement::Measurement, unit::{DistanceUnit, Unit}, Value
+        function::{Function, NativeFunction, UserDefinedFunction},
+        matrix::Matrix,
+        measurement::Measurement,
+        unit::{MassUnit, Unit},
     };
 
-    use super::ValueConstraint;
-    use num_complex::Complex64;
-    use proc_macro2::TokenStream;
-    use quote::{quote, ToTokens};
-    use std::str::FromStr;
+    use super::*;
+
+    fn get_test_cases() -> Vec<Value<'static>> {
+        vec![
+            // Native function
+            Value::from_function(Function::NativeFunction(NativeFunction {
+                name: "bruh",
+                function: |_, _, _| unimplemented!(),
+                arity: 0,
+            })),
+            // User defined function
+            Value::from_function(Function::UserDefinedFunction(UserDefinedFunction {
+                name: String::from("test"),
+                signatures: vec![],
+            })),
+            // Number, Natural, real, integer
+            Value::Number(Complex64::ZERO),
+            // Number, Natural, real, integer, positive_integer
+            Value::Number(Complex64::from(1.0)),
+            // Number, Natural, real, integer
+            Value::Number(Complex64::from(-1.0)),
+            // Number, real
+            Value::Number(Complex64::from(1.5)),
+            // Number, real
+            Value::Number(Complex64::from(-1.5)),
+            // Number
+            Value::Number(Complex64::i()),
+            // Number
+            Value::Number(Complex64::new(2.5, 3.5)),
+            // fits none
+            Value::Measurement(Measurement {
+                num: Complex64::new(1.0, 2.0),
+                kind: Unit::Mass(MassUnit::Kilogram),
+            }),
+            // matrix, square matrix
+            Value::Matrix(Matrix::from_rows(vec![vec![Complex64::ZERO]])),
+            // matrix
+            Value::Matrix(Matrix::from_rows(vec![vec![Complex64::ZERO, Complex64::ZERO]])),
+            // matrix
+            Value::Matrix(Matrix::from_rows(vec![vec![Complex64::ZERO], vec![Complex64::ZERO]])),
+            // matrix, square matrix
+            Value::Matrix(Matrix::from_rows(vec![
+                vec![Complex64::ZERO, Complex64::ZERO],
+                vec![Complex64::ZERO, Complex64::ZERO],
+            ])),
+        ]
+    }
+
+    fn perform_value_constraint_test(value_constraint: ValueConstraint, values: &[bool]) {
+        let test_cases = get_test_cases();
+        assert_eq!(test_cases.len(), values.len());
+        for (input, &expected) in test_cases.iter().zip(values.iter()) {
+            assert_eq!(value_constraint.does_value_fit(input), expected, "{value_constraint} {input}")
+        }
+    }
 
     #[test]
     fn test_value_constraint_from_str() {
@@ -190,36 +245,89 @@ mod tests {
 
     #[test]
     fn test_function_value_constraint() {
-        for (input, result) in [
-            (
-                Value::from_function(Function::NativeFunction(NativeFunction {
-                    name: "bruh",
-                    function: |_, _, _| panic!(),
-                    arity: 0,
-                })),
-                true,
-            ),
-            (
-                Value::from_function(Function::UserDefinedFunction(UserDefinedFunction {
-                    name: String::from("test"),
-                    signatures: vec![],
-                })),
-                true,
-            ),
-            (Value::Number(Complex64::ZERO), false),
-            (
-                Value::Measurement(Measurement {
-                    num: Complex64::ZERO,
-                    kind: Unit::Distance(DistanceUnit::Meter),
-                }),
+        perform_value_constraint_test(
+            ValueConstraint::Function,
+            &[
+                true, true, false, false, false, false, false, false, false, false, false, false,
+                false, false,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_number_value_constraint() {
+        perform_value_constraint_test(
+            ValueConstraint::Number,
+            &[
+                false, false, true, true, true, true, true, true, true, false, false, false, false,
                 false,
-            ),
-            (
-                Value::Matrix(Matrix::from_rows(vec![vec![Complex64::ZERO]])),
-                false
-            )
-        ] {
-            assert_eq!(ValueConstraint::Function.does_value_fit(&input), result)
-        }
+            ],
+        );
+    }
+
+    #[test]
+    fn test_real_value_constraint() {
+        perform_value_constraint_test(
+            ValueConstraint::Real,
+            &[
+                false, false, true, true, true, true, true, false, false, false, false, false,
+                false, false,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_natural_value_constraint() {
+        perform_value_constraint_test(
+            ValueConstraint::Natural,
+            &[
+                false, false, true, true, false, false, false, false, false, false, false, false,
+                false, false,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_integer_value_constraint() {
+        perform_value_constraint_test(
+            ValueConstraint::Integer,
+            &[
+                false, false, true, true, true, false, false, false, false, false, false, false,
+                false, false,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_positive_integer_value_constraint() {
+        perform_value_constraint_test(
+            ValueConstraint::PositiveInteger,
+            &[
+                false, false, false, true, false, false, false, false, false, false, false, false,
+                false, false,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_matrix_value_constraint() {
+        perform_value_constraint_test(
+            ValueConstraint::Matrix,
+            &[
+                false, false, false, false, false, false, false, false, false, false, true, true,
+                true, true,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_square_matrix_value_constraint() {
+        perform_value_constraint_test(
+            ValueConstraint::SquareMatrix,
+            &[
+                false, false, false, false, false, false, false, false, false, false, true, false,
+                false, true,
+            ],
+        );
     }
 }

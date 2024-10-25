@@ -33,7 +33,7 @@ pub enum StorageUnit {
     Gibibit,
     Tebibit,
     Petibit,
-    Exbibit
+    Exbibit,
 }
 
 impl fmt::Display for StorageUnit {
@@ -177,4 +177,3 @@ mod tests {
         }
     }
 }
-

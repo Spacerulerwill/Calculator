@@ -1,7 +1,7 @@
 mod distance;
 mod mass;
-mod temperature;
 mod storage;
+mod temperature;
 
 use std::fmt;
 
@@ -24,7 +24,7 @@ impl Unit {
             Unit::Distance(_) => "distance",
             Unit::Mass(_) => "mass",
             Unit::Temperature(_) => "temperature",
-            Unit::Storage(_) => "torage"
+            Unit::Storage(_) => "storage",
         }
     }
 }
@@ -35,14 +35,14 @@ impl fmt::Display for Unit {
             Unit::Distance(distance_unit) => write!(f, "{distance_unit}"),
             Unit::Mass(mass_unit) => write!(f, "{mass_unit}"),
             Unit::Temperature(temperature_unit) => write!(f, "{temperature_unit}"),
-            Unit::Storage(storage_unit) => write!(f, "{storage_unit}")
+            Unit::Storage(storage_unit) => write!(f, "{storage_unit}"),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{DistanceUnit, MassUnit, TemperatureUnit, Unit};
+    use super::{DistanceUnit, MassUnit, StorageUnit, TemperatureUnit, Unit};
 
     #[test]
     fn test_unit_get_type_string() {
@@ -50,6 +50,7 @@ mod tests {
             (Unit::Distance(DistanceUnit::Meter), "distance"),
             (Unit::Mass(MassUnit::Kilogram), "mass"),
             (Unit::Temperature(TemperatureUnit::Kelvin), "temperature"),
+            (Unit::Storage(StorageUnit::Bit), "storage"),
         ] {
             assert_eq!(unit.get_type_string(), expected);
         }
@@ -61,6 +62,7 @@ mod tests {
             (Unit::Distance(DistanceUnit::Meter), "m"),
             (Unit::Mass(MassUnit::Kilogram), "kg"),
             (Unit::Temperature(TemperatureUnit::Kelvin), "°K"),
+            (Unit::Storage(StorageUnit::Bit), "b"),
         ] {
             assert_eq!(unit.to_string(), expected);
         }

@@ -116,7 +116,6 @@ impl<'a> Tokenizer<'a> {
             "Pib" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Petibit))),
             "Eib" => Some(TokenKind::Unit(Unit::Storage(StorageUnit::Exbibit))),
 
-
             _ => None,
         }
     }
