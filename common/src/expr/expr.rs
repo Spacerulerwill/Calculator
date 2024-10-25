@@ -99,10 +99,7 @@ impl<'a> Expr {
                         }
                     }
                     Value::Number(num) => {
-                        return Ok(Value::Measurement(Measurement {
-                            num: *num,
-                            kind: *unit,
-                        }))
+                        return Ok(Value::Measurement(Measurement::new(*num, *unit)))
                     }
                     _ => {}
                 }
@@ -183,15 +180,15 @@ impl<'a> Expr {
                     return Ok(Value::Number(left + right))
                 }
                 (Value::Measurement(measurement1), Value::Measurement(measurement2))
-                    if std::mem::discriminant(&measurement1.kind)
-                        == std::mem::discriminant(&measurement2.kind) =>
+                    if std::mem::discriminant(&measurement1.unit)
+                        == std::mem::discriminant(&measurement2.unit) =>
                 {
                     let measurement1 = measurement1.to_si_base_unit();
                     let measurement2 = measurement2.to_si_base_unit();
-                    return Ok(Value::Measurement(Measurement {
-                        num: measurement1.num + measurement2.num,
-                        kind: measurement1.kind,
-                    }));
+                    return Ok(Value::Measurement(Measurement::new(
+                        measurement1.num + measurement2.num,
+                        measurement1.unit,
+                    )));
                 }
                 (Value::Matrix(matrix1), Value::Matrix(matrix2))
                     if matrix1.dimensions() == matrix2.dimensions() =>
@@ -205,15 +202,15 @@ impl<'a> Expr {
                     return Ok(Value::Number(left - right))
                 }
                 (Value::Measurement(measurement1), Value::Measurement(measurement2))
-                    if std::mem::discriminant(&measurement1.kind)
-                        == std::mem::discriminant(&measurement2.kind) =>
+                    if std::mem::discriminant(&measurement1.unit)
+                        == std::mem::discriminant(&measurement2.unit) =>
                 {
                     let measurement1 = measurement1.to_si_base_unit();
                     let measurement2 = measurement2.to_si_base_unit();
-                    return Ok(Value::Measurement(Measurement {
-                        num: measurement1.num - measurement2.num,
-                        kind: measurement1.kind,
-                    }));
+                    return Ok(Value::Measurement(Measurement::new(
+                        measurement1.num - measurement2.num,
+                        measurement1.unit,
+                    )));
                 }
                 (Value::Matrix(matrix1), Value::Matrix(matrix2))
                     if matrix1.dimensions() == matrix2.dimensions() =>
@@ -239,17 +236,17 @@ impl<'a> Expr {
                 }
                 (Value::Number(num), Value::Measurement(measurement)) => {
                     let measurement = measurement.to_si_base_unit();
-                    return Ok(Value::Measurement(Measurement {
-                        num: num * measurement.num,
-                        kind: measurement.kind,
-                    }));
+                    return Ok(Value::Measurement(Measurement::new(
+                        num * measurement.num,
+                        measurement.unit,
+                    )));
                 }
                 (Value::Measurement(measurement), Value::Number(num)) => {
                     let measurement = measurement.to_si_base_unit();
-                    return Ok(Value::Measurement(Measurement {
-                        num: num * measurement.num,
-                        kind: measurement.kind,
-                    }));
+                    return Ok(Value::Measurement(Measurement::new(
+                        num * measurement.num,
+                        measurement.unit,
+                    )));
                 }
                 _ => {}
             },
@@ -268,10 +265,10 @@ impl<'a> Expr {
                 }
                 (Value::Measurement(measurement), Value::Number(num)) => {
                     let measurement = measurement.to_si_base_unit();
-                    return Ok(Value::Measurement(Measurement {
-                        num: num / measurement.num,
-                        kind: measurement.kind,
-                    }));
+                    return Ok(Value::Measurement(Measurement::new(
+                        num / measurement.num,
+                        measurement.unit,
+                    )));
                 }
                 _ => {}
             },
@@ -402,10 +399,10 @@ impl<'a> Expr {
                 }
                 Value::Measurement(measurement) => {
                     let measurement = measurement.to_si_base_unit();
-                    return Ok(Value::Measurement(Measurement {
-                        num: measurement.num * Complex64::from(-1.0),
-                        kind: measurement.kind,
-                    }));
+                    return Ok(Value::Measurement(Measurement::new(
+                        measurement.num * Complex64::from(-1.0),
+                        measurement.unit,
+                    )));
                 }
                 Value::Matrix(matrix) => return Ok(Value::Matrix(-matrix)),
                 _ => {}

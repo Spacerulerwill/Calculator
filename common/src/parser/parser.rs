@@ -413,10 +413,7 @@ impl Parser {
                         if let TokenKind::Unit(measurement_kind) = peeked_token.kind {
                             self.iter.next();
                             return Ok(Expr::Measurement {
-                                measurement: Measurement {
-                                    num: num,
-                                    kind: measurement_kind,
-                                },
+                                measurement: Measurement::new(num, measurement_kind),
                             });
                         }
                     }

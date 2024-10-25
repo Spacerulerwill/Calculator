@@ -147,16 +147,22 @@ mod tests {
             // Number
             Value::Number(Complex64::new(2.5, 3.5)),
             // fits none
-            Value::Measurement(Measurement {
-                num: Complex64::new(1.0, 2.0),
-                kind: Unit::Mass(MassUnit::Kilogram),
-            }),
+            Value::Measurement(Measurement::new(
+                Complex64::new(1.0, 2.0),
+                Unit::Mass(MassUnit::Kilogram),
+            )),
             // matrix, square matrix
             Value::Matrix(Matrix::from_rows(vec![vec![Complex64::ZERO]])),
             // matrix
-            Value::Matrix(Matrix::from_rows(vec![vec![Complex64::ZERO, Complex64::ZERO]])),
+            Value::Matrix(Matrix::from_rows(vec![vec![
+                Complex64::ZERO,
+                Complex64::ZERO,
+            ]])),
             // matrix
-            Value::Matrix(Matrix::from_rows(vec![vec![Complex64::ZERO], vec![Complex64::ZERO]])),
+            Value::Matrix(Matrix::from_rows(vec![
+                vec![Complex64::ZERO],
+                vec![Complex64::ZERO],
+            ])),
             // matrix, square matrix
             Value::Matrix(Matrix::from_rows(vec![
                 vec![Complex64::ZERO, Complex64::ZERO],
@@ -169,7 +175,11 @@ mod tests {
         let test_cases = get_test_cases();
         assert_eq!(test_cases.len(), values.len());
         for (input, &expected) in test_cases.iter().zip(values.iter()) {
-            assert_eq!(value_constraint.does_value_fit(input), expected, "{value_constraint} {input}")
+            assert_eq!(
+                value_constraint.does_value_fit(input),
+                expected,
+                "{value_constraint} {input}"
+            )
         }
     }
 

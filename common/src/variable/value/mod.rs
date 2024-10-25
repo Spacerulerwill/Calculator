@@ -41,7 +41,7 @@ impl Value<'_> {
         match self {
             Value::Function(_) => String::from("function"),
             Value::Number(_) => String::from("number"),
-            Value::Measurement(measurement) => String::from(measurement.kind.get_type_string()),
+            Value::Measurement(measurement) => String::from(measurement.unit.get_type_string()),
             Value::Matrix(matrix) => {
                 let one_row = matrix.rows() == 1;
                 let one_col = matrix.cols() == 1;
@@ -128,10 +128,7 @@ mod tests {
 
     #[test]
     fn test_value_get_type_string() {
-        let measurement = Measurement {
-            num: Complex64::zero(),
-            kind: Unit::Distance(DistanceUnit::Meter),
-        };
+        let measurement = Measurement::new(Complex64::zero(), Unit::Distance(DistanceUnit::Meter));
 
         for (input, expected) in [
             (
@@ -145,7 +142,7 @@ mod tests {
             (Value::Number(Complex64::zero()), "number"),
             (
                 Value::Measurement(measurement.clone()),
-                measurement.kind.get_type_string(),
+                measurement.unit.get_type_string(),
             ),
             (
                 Value::Matrix(Matrix::from_rows(vec![vec![Complex64::zero()]])),
