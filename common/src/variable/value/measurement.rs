@@ -26,7 +26,7 @@ impl Measurement {
     pub fn new(num: Complex64, unit: Unit) -> Self {
         Self { num, unit }
     }
-    
+
     pub fn to_other_unit(&self, unit: Unit) -> Result<Self, ()> {
         if std::mem::discriminant(&self.unit) != std::mem::discriminant(&unit) {
             return Err(());
@@ -104,12 +104,15 @@ mod tests {
                 "(1 + 2i)kg",
             ),
             (
-                Measurement::new(Complex64::from(1.0), Unit::Distance(DistanceUnit::Centimeter)),
-                "1cm"
+                Measurement::new(
+                    Complex64::from(1.0),
+                    Unit::Distance(DistanceUnit::Centimeter),
+                ),
+                "1cm",
             ),
             (
                 Measurement::new(Complex64::i(), Unit::Distance(DistanceUnit::Centimeter)),
-                "icm"
+                "icm",
             ),
         ] {
             assert_eq!(input.to_string(), expected);
@@ -119,15 +122,18 @@ mod tests {
     fn close_enough(a: Complex64, b: Complex64, epsilon: f64) -> bool {
         (a.re - b.re).abs() < epsilon && (a.im - b.im).abs() < epsilon
     }
-    
+
     #[test]
     fn test_measurement_to_si_unit() {
         let epsilon = 1e-10; // Define a small tolerance
-    
+
         for (input, expected) in [
             // Centimeter to Meter
             (
-                Measurement::new(Complex64::from(100.0), Unit::Distance(DistanceUnit::Centimeter)),
+                Measurement::new(
+                    Complex64::from(100.0),
+                    Unit::Distance(DistanceUnit::Centimeter),
+                ),
                 Measurement::new(Complex64::from(1.0), Unit::Distance(DistanceUnit::Meter)),
             ),
             // Gram to Kilogram
@@ -142,23 +148,47 @@ mod tests {
             ),
             // Celsius to Kelvin
             (
-                Measurement::new(Complex64::from(0.0), Unit::Temperature(TemperatureUnit::Celsius)),
-                Measurement::new(Complex64::from(273.15), Unit::Temperature(TemperatureUnit::Kelvin)),
+                Measurement::new(
+                    Complex64::from(0.0),
+                    Unit::Temperature(TemperatureUnit::Celsius),
+                ),
+                Measurement::new(
+                    Complex64::from(273.15),
+                    Unit::Temperature(TemperatureUnit::Kelvin),
+                ),
             ),
             // Kelvin to Kelvin (should return the same value)
             (
-                Measurement::new(Complex64::from(273.15), Unit::Temperature(TemperatureUnit::Kelvin)),
-                Measurement::new(Complex64::from(273.15), Unit::Temperature(TemperatureUnit::Kelvin)),
+                Measurement::new(
+                    Complex64::from(273.15),
+                    Unit::Temperature(TemperatureUnit::Kelvin),
+                ),
+                Measurement::new(
+                    Complex64::from(273.15),
+                    Unit::Temperature(TemperatureUnit::Kelvin),
+                ),
             ),
             // Fahrenheit to Kelvin (32°F = 273.15K)
             (
-                Measurement::new(Complex64::from(32.0), Unit::Temperature(TemperatureUnit::Fahrenheit)),
-                Measurement::new(Complex64::from(273.15), Unit::Temperature(TemperatureUnit::Kelvin)),
+                Measurement::new(
+                    Complex64::from(32.0),
+                    Unit::Temperature(TemperatureUnit::Fahrenheit),
+                ),
+                Measurement::new(
+                    Complex64::from(273.15),
+                    Unit::Temperature(TemperatureUnit::Kelvin),
+                ),
             ),
             // Another Fahrenheit to Kelvin conversion (212°F = 373.15K)
             (
-                Measurement::new(Complex64::from(212.0), Unit::Temperature(TemperatureUnit::Fahrenheit)),
-                Measurement::new(Complex64::from(373.15), Unit::Temperature(TemperatureUnit::Kelvin)),
+                Measurement::new(
+                    Complex64::from(212.0),
+                    Unit::Temperature(TemperatureUnit::Fahrenheit),
+                ),
+                Measurement::new(
+                    Complex64::from(373.15),
+                    Unit::Temperature(TemperatureUnit::Kelvin),
+                ),
             ),
         ] {
             let result = input.to_si_base_unit();
@@ -166,16 +196,19 @@ mod tests {
             assert_eq!(result.unit, expected.unit);
         }
     }
-    
+
     #[test]
     fn test_measurement_to_other_unit() {
         let epsilon = 1e-10;
-    
+
         for (input, target_unit, expected) in [
             (
                 Measurement::new(Complex64::from(1000.0), Unit::Distance(DistanceUnit::Meter)),
                 Unit::Distance(DistanceUnit::Kilometer),
-                Measurement::new(Complex64::from(1.0), Unit::Distance(DistanceUnit::Kilometer)),
+                Measurement::new(
+                    Complex64::from(1.0),
+                    Unit::Distance(DistanceUnit::Kilometer),
+                ),
             ),
             (
                 Measurement::new(Complex64::from(1.0), Unit::Mass(MassUnit::Kilogram)),
@@ -183,19 +216,37 @@ mod tests {
                 Measurement::new(Complex64::from(1000.0), Unit::Mass(MassUnit::Gram)),
             ),
             (
-                Measurement::new(Complex64::from(273.15), Unit::Temperature(TemperatureUnit::Kelvin)),
+                Measurement::new(
+                    Complex64::from(273.15),
+                    Unit::Temperature(TemperatureUnit::Kelvin),
+                ),
                 Unit::Temperature(TemperatureUnit::Celsius),
-                Measurement::new(Complex64::from(0.0), Unit::Temperature(TemperatureUnit::Celsius)),
+                Measurement::new(
+                    Complex64::from(0.0),
+                    Unit::Temperature(TemperatureUnit::Celsius),
+                ),
             ),
             (
-                Measurement::new(Complex64::from(0.0), Unit::Temperature(TemperatureUnit::Celsius)),
+                Measurement::new(
+                    Complex64::from(0.0),
+                    Unit::Temperature(TemperatureUnit::Celsius),
+                ),
                 Unit::Temperature(TemperatureUnit::Fahrenheit),
-                Measurement::new(Complex64::from(32.0), Unit::Temperature(TemperatureUnit::Fahrenheit)),
+                Measurement::new(
+                    Complex64::from(32.0),
+                    Unit::Temperature(TemperatureUnit::Fahrenheit),
+                ),
             ),
             (
-                Measurement::new(Complex64::from(32.0), Unit::Temperature(TemperatureUnit::Fahrenheit)),
+                Measurement::new(
+                    Complex64::from(32.0),
+                    Unit::Temperature(TemperatureUnit::Fahrenheit),
+                ),
                 Unit::Temperature(TemperatureUnit::Kelvin),
-                Measurement::new(Complex64::from(273.15), Unit::Temperature(TemperatureUnit::Kelvin)),
+                Measurement::new(
+                    Complex64::from(273.15),
+                    Unit::Temperature(TemperatureUnit::Kelvin),
+                ),
             ),
             (
                 Measurement::new(Complex64::from(6.0), Unit::Storage(StorageUnit::Megabyte)),
@@ -207,10 +258,12 @@ mod tests {
             assert!(close_enough(result.num, expected.num, epsilon));
             assert_eq!(result.unit, expected.unit);
         }
-    
+
         assert_eq!(
-            Measurement::new(Complex64::ZERO, Unit::Distance(DistanceUnit::Centimeter)).to_other_unit(Unit::Mass(MassUnit::Kilogram)).unwrap_err(),
+            Measurement::new(Complex64::ZERO, Unit::Distance(DistanceUnit::Centimeter))
+                .to_other_unit(Unit::Mass(MassUnit::Kilogram))
+                .unwrap_err(),
             ()
         );
-    }    
+    }
 }

@@ -261,6 +261,12 @@ impl<'a> Expr {
                     return Ok(Value::Number(left / right));
                 }
                 (Value::Matrix(matrix), Value::Number(divisor)) => {
+                    if divisor.norm() == 0.0 {
+                        return Err(EvaluationError::DivisionByZero(Box::new(DivisionByZero {
+                            line: operator.line,
+                            col: operator.col,
+                        })));
+                    } 
                     return Ok(Value::Matrix(matrix / *divisor))
                 }
                 (Value::Measurement(measurement), Value::Number(num)) => {
@@ -295,29 +301,13 @@ impl<'a> Expr {
                 (Value::Matrix(left), Value::Matrix(right))
                     if left.rows() == 1 && right.rows() == 1 && left.cols() == right.cols() =>
                 {
-                    let left_values = &left.rows[0];
-                    let right_values = &right.rows[0];
-                    return Ok(Value::Number(
-                        left_values
-                            .iter()
-                            .zip(right_values.iter())
-                            .map(|(x, y)| x * y)
-                            .sum(),
-                    ));
+                    return Ok(Value::Number(left.row_dot(right)));
                 }
                 // column vector dot product
                 (Value::Matrix(left), Value::Matrix(right))
                     if left.cols() == 1 && right.cols() == 1 && left.rows() == right.rows() =>
                 {
-                    let left_values: Vec<Complex64> = left.rows.iter().map(|x| x[0]).collect();
-                    let right_values: Vec<Complex64> = right.rows.iter().map(|x| x[0]).collect();
-                    return Ok(Value::Number(
-                        left_values
-                            .iter()
-                            .zip(right_values.iter())
-                            .map(|(x, y)| x * y)
-                            .sum(),
-                    ));
+                    return Ok(Value::Number(left.column_dot(right)));
                 }
                 _ => {}
             },
@@ -329,23 +319,7 @@ impl<'a> Expr {
                         && left.cols() == 3
                         && right.cols() == 3 =>
                 {
-                    let vec1 = &left.rows[0];
-                    let a1 = vec1[0];
-                    let a2 = vec1[1];
-                    let a3 = vec1[2];
-
-                    let vec2 = &right.rows[0];
-                    let b1 = vec2[0];
-                    let b2 = vec2[1];
-                    let b3 = vec2[2];
-
-                    let cross_product = Value::Matrix(Matrix::from_rows(vec![vec![
-                        a2 * b3 - a3 * b2,
-                        a3 * b1 - a1 * b3,
-                        a1 * b2 - a2 * b1,
-                    ]]));
-
-                    return Ok(cross_product);
+                    return Ok(Value::Matrix(left.row_cross(right)));
                 }
                 // Column vector dot product
                 (Value::Matrix(left), Value::Matrix(right))
@@ -354,23 +328,7 @@ impl<'a> Expr {
                         && left.rows() == 3
                         && right.rows() == 3 =>
                 {
-                    let vec1: Vec<Complex64> = left.rows.iter().map(|x| x[0]).collect();
-                    let a1 = vec1[0];
-                    let a2 = vec1[1];
-                    let a3 = vec1[2];
-
-                    let vec2: Vec<Complex64> = right.rows.iter().map(|x| x[0]).collect();
-                    let b1 = vec2[0];
-                    let b2 = vec2[1];
-                    let b3 = vec2[2];
-
-                    let cross_product = Value::Matrix(Matrix::from_rows(vec![vec![
-                        a2 * b3 - a3 * b2,
-                        a3 * b1 - a1 * b3,
-                        a1 * b2 - a2 * b1,
-                    ]]));
-
-                    return Ok(cross_product);
+                    return Ok(Value::Matrix(left.column_cross(right)));
                 }
                 _ => {}
             },

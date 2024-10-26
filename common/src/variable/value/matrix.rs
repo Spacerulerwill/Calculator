@@ -7,7 +7,8 @@ use std::{
 
 use crate::variable::value::complex_to_string;
 
-/// Matrix for use in calculator operations.
+/// Matrix for use in calculator operations - note that vectors are treated as single row or column matrices
+/// and therefore matrix specific operations (cross/dot product) are implemented here
 #[derive(Debug, Clone, PartialEq)]
 pub struct Matrix {
     pub rows: Vec<Vec<Complex64>>,
@@ -43,7 +44,6 @@ impl Matrix {
                 rows[row][col] = self.rows[col][row];
             }
         }
-
         Self::from_rows(rows)
     }
 
@@ -114,9 +114,10 @@ impl Matrix {
 
     pub fn inverse(&self) -> Option<Matrix> {
         // Step 1: Ensure the matrix is square
-        if self.rows() != self.cols() {
-            panic!("Non-square matrix passed to inverse function");
-        }
+        assert!(
+            self.rows() == self.cols(),
+            "Cannot calculate inverse of non square matrix"
+        );
 
         // Step 2: Calculate the determinant
         let determinant = self.determinant();
@@ -151,6 +152,80 @@ impl Matrix {
 
         // Step 5: Divide the adjugate matrix by the determinant
         Some(&adjugate_matrix / determinant)
+    }
+
+    pub fn row_cross(&self, other: &Matrix) -> Matrix {
+        assert_eq!(self.rows(), 1);
+        assert_eq!(self.cols(), 3);
+        assert_eq!(other.rows(), 1);
+        assert_eq!(other.cols(), 3);
+
+        let vec1 = &self.rows[0];
+        let a1 = vec1[0];
+        let a2 = vec1[1];
+        let a3 = vec1[2];
+
+        let vec2 = &other.rows[0];
+        let b1 = vec2[0];
+        let b2 = vec2[1];
+        let b3 = vec2[2];
+
+        let cross_product = Matrix::from_rows(vec![vec![
+            a2 * b3 - a3 * b2,
+            a3 * b1 - a1 * b3,
+            a1 * b2 - a2 * b1,
+        ]]);
+
+        cross_product
+    }
+
+    pub fn column_cross(&self, other: &Matrix) -> Matrix {
+        assert_eq!(self.rows(), 3);
+        assert_eq!(self.cols(), 1);
+        assert_eq!(other.rows(), 3);
+        assert_eq!(other.cols(), 1);
+
+        let vec1: Vec<Complex64> = self.rows.iter().map(|x| x[0]).collect();
+        let a1 = vec1[0];
+        let a2 = vec1[1];
+        let a3 = vec1[2];
+
+        let vec2: Vec<Complex64> = other.rows.iter().map(|x| x[0]).collect();
+        let b1 = vec2[0];
+        let b2 = vec2[1];
+        let b3 = vec2[2];
+
+        Matrix::from_rows(vec![vec![
+            a2 * b3 - a3 * b2,
+            a3 * b1 - a1 * b3,
+            a1 * b2 - a2 * b1,
+        ]])
+    }
+
+    pub fn row_dot(&self, other: &Matrix) -> Complex64 {
+        assert_eq!(self.rows(), 1);
+        assert_eq!(other.rows(), 1);
+        assert_eq!(self.cols(), other.cols());
+        let left_values = &self.rows[0];
+        let right_values = &other.rows[0];
+        left_values
+            .iter()
+            .zip(right_values.iter())
+            .map(|(x, y)| x * y)
+            .sum()
+    }
+
+    pub fn column_dot(&self, other: &Matrix) -> Complex64 {
+        assert_eq!(self.cols(), 1);
+        assert_eq!(other.cols(), 1);
+        assert_eq!(self.rows(), other.rows());
+        let left_values: Vec<Complex64> = self.rows.iter().map(|x| x[0]).collect();
+        let right_values: Vec<Complex64> = other.rows.iter().map(|x| x[0]).collect();
+        left_values
+            .iter()
+            .zip(right_values.iter())
+            .map(|(x, y)| x * y)
+            .sum()
     }
 }
 
@@ -309,4 +384,129 @@ pub fn matrix_format<T: ToString>(matrix: &Vec<Vec<T>>) -> String {
     }
     formatted_string.push(']');
     formatted_string
+}
+
+#[cfg(test)]
+mod tests {
+    use num::Zero;
+    use num_complex::Complex64;
+
+    use super::*;
+
+    #[test]
+    #[should_panic]
+    fn test_from_rows_empty_matrix() {
+        Matrix::from_rows(vec![]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_from_rows_uneven_rows() {
+        Matrix::from_rows(vec![vec![], vec![Complex64::zero()]]);
+    }
+
+    #[test]
+    fn test_from_rows_valid_matrices() {
+        let cases = vec![
+            (
+                vec![vec![Complex64::zero()]],
+                Matrix {
+                    rows: vec![vec![Complex64::zero()]],
+                },
+            ),
+            (
+                vec![vec![Complex64::new(1.0, 0.0), Complex64::new(2.0, 0.0)]],
+                Matrix {
+                    rows: vec![vec![Complex64::new(1.0, 0.0), Complex64::new(2.0, 0.0)]],
+                },
+            ),
+            (
+                vec![
+                    vec![Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+                    vec![Complex64::new(0.0, 0.0), Complex64::new(1.0, 0.0)],
+                ],
+                Matrix {
+                    rows: vec![
+                        vec![Complex64::new(1.0, 0.0), Complex64::new(0.0, 0.0)],
+                        vec![Complex64::new(0.0, 0.0), Complex64::new(1.0, 0.0)],
+                    ],
+                },
+            ),
+        ];
+
+        for (input_rows, expected_matrix) in cases {
+            let matrix = Matrix::from_rows(input_rows.clone());
+            assert_eq!(matrix, expected_matrix);
+        }
+    }
+
+    #[test]
+    fn test_identity() {
+        for (input, expected) in [
+            (
+                1,
+                Matrix {
+                    rows: vec![vec![Complex64::from(1.0)]],
+                },
+            ),
+            (
+                2,
+                Matrix {
+                    rows: vec![
+                        vec![Complex64::from(1.0), Complex64::zero()],
+                        vec![Complex64::zero(), Complex64::from(1.0)],
+                    ],
+                },
+            ),
+            (
+                3,
+                Matrix {
+                    rows: vec![
+                        vec![Complex64::from(1.0), Complex64::zero(), Complex64::zero()],
+                        vec![Complex64::zero(), Complex64::from(1.0), Complex64::zero()],
+                        vec![Complex64::zero(), Complex64::zero(), Complex64::from(1.0)],
+                    ],
+                },
+            ),
+        ] {
+            assert_eq!(Matrix::identity(input), expected)
+        }
+    }
+
+    #[test]
+    fn test_transpose() {
+        // 1 size matrix - unchanged
+        let one_size_matrix = Matrix::from_rows(vec![vec![Complex64::zero()]]);
+        assert_eq!(one_size_matrix.transpose(), one_size_matrix);
+        // Identity matrix - unchanged
+        let identity_2x2 = Matrix::from_rows(vec![
+            vec![Complex64::from(1.0), Complex64::zero()],
+            vec![Complex64::zero(), Complex64::from(1.0)],
+        ]);
+        assert_eq!(identity_2x2.transpose(), identity_2x2);
+
+        // Test case with more rows than columns
+        let matrix_3x2 = Matrix::from_rows(vec![
+            vec![Complex64::new(1.0, 0.0), Complex64::new(2.0, 0.0)],
+            vec![Complex64::new(3.0, 0.0), Complex64::new(4.0, 0.0)],
+            vec![Complex64::new(5.0, 0.0), Complex64::new(6.0, 0.0)],
+        ]);
+        let expected_transpose_2x3 = Matrix::from_rows(vec![
+            vec![Complex64::new(1.0, 0.0), Complex64::new(3.0, 0.0), Complex64::new(5.0, 0.0)],
+            vec![Complex64::new(2.0, 0.0), Complex64::new(4.0, 0.0), Complex64::new(6.0, 0.0)],
+        ]);
+        assert_eq!(matrix_3x2.transpose(), expected_transpose_2x3);
+
+        // Test case with more columns than rows
+        let matrix_2x3 = Matrix::from_rows(vec![
+            vec![Complex64::new(1.0, 0.0), Complex64::new(2.0, 0.0), Complex64::new(3.0, 0.0)],
+            vec![Complex64::new(4.0, 0.0), Complex64::new(5.0, 0.0), Complex64::new(6.0, 0.0)],
+        ]);
+        let expected_transpose_3x2 = Matrix::from_rows(vec![
+            vec![Complex64::new(1.0, 0.0), Complex64::new(4.0, 0.0)],
+            vec![Complex64::new(2.0, 0.0), Complex64::new(5.0, 0.0)],
+            vec![Complex64::new(3.0, 0.0), Complex64::new(6.0, 0.0)],
+        ]);
+        assert_eq!(matrix_2x3.transpose(), expected_transpose_3x2);
+    }
 }

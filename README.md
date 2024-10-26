@@ -10,7 +10,12 @@ A simple command line calculator I'm working on
 ## Features
 * Real and complex number arithmetic
 * Vector and matrix operations
-* Scientific notation for numbers
+* Support for arithmetic and conversions involving the following units:
+  * Distance (imperial and metric)
+  * Mass (imperial and metric)
+  * Storage
+  * Temperature
+* Scientific notation for number exponents
 * Operators: `+`, `-`, `*`, `/`, `%`, `^`, `!`, `√`
 * Groupings: `()`, `|absolute|`, `⌈ceil⌉`,  `⌊floor⌋`
 * Pre-defined functions and constants
@@ -19,7 +24,6 @@ A simple command line calculator I'm working on
 * `delete` operator for managing functions and variables
 * `clear` operator to reset all user defined variables and functions
 * Expression history and recall
-* Support for different units and dimensions (e.g. `3m + 5ft`)
 
 ## Todo
 * Different number bases (1-16, 32 and 64)
