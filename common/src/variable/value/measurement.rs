@@ -94,6 +94,8 @@ impl Measurement {
 
 #[cfg(test)]
 mod tests {
+    use crate::test_utils::close_enough;
+
     use super::*;
 
     #[test]
@@ -119,14 +121,8 @@ mod tests {
         }
     }
 
-    fn close_enough(a: Complex64, b: Complex64, epsilon: f64) -> bool {
-        (a.re - b.re).abs() < epsilon && (a.im - b.im).abs() < epsilon
-    }
-
     #[test]
     fn test_measurement_to_si_unit() {
-        let epsilon = 1e-10; // Define a small tolerance
-
         for (input, expected) in [
             // Centimeter to Meter
             (
@@ -192,15 +188,13 @@ mod tests {
             ),
         ] {
             let result = input.to_si_base_unit();
-            assert!(close_enough(result.num, expected.num, epsilon));
+            assert!(close_enough(result.num, expected.num));
             assert_eq!(result.unit, expected.unit);
         }
     }
 
     #[test]
     fn test_measurement_to_other_unit() {
-        let epsilon = 1e-10;
-
         for (input, target_unit, expected) in [
             (
                 Measurement::new(Complex64::from(1000.0), Unit::Distance(DistanceUnit::Meter)),
@@ -255,7 +249,7 @@ mod tests {
             ),
         ] {
             let result = input.to_other_unit(target_unit).unwrap();
-            assert!(close_enough(result.num, expected.num, epsilon));
+            assert!(close_enough(result.num, expected.num));
             assert_eq!(result.unit, expected.unit);
         }
 

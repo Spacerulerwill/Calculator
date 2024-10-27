@@ -128,6 +128,9 @@ impl Matrix {
 
         // Step 3: Compute the cofactor matrix
         let size = self.rows();
+        if size == 1{
+            return Some(Matrix::from_rows(vec![vec![Complex64::from(1.0) / self.get(0, 0)]]))
+        }
         let mut cofactor_matrix = vec![vec![Complex64::zero(); size]; size];
 
         for row in 0..size {
@@ -391,6 +394,8 @@ mod tests {
     use num::Zero;
     use num_complex::Complex64;
 
+    use crate::test_utils::close_enough;
+
     use super::*;
 
     #[test]
@@ -492,15 +497,31 @@ mod tests {
             vec![Complex64::new(5.0, 0.0), Complex64::new(6.0, 0.0)],
         ]);
         let expected_transpose_2x3 = Matrix::from_rows(vec![
-            vec![Complex64::new(1.0, 0.0), Complex64::new(3.0, 0.0), Complex64::new(5.0, 0.0)],
-            vec![Complex64::new(2.0, 0.0), Complex64::new(4.0, 0.0), Complex64::new(6.0, 0.0)],
+            vec![
+                Complex64::new(1.0, 0.0),
+                Complex64::new(3.0, 0.0),
+                Complex64::new(5.0, 0.0),
+            ],
+            vec![
+                Complex64::new(2.0, 0.0),
+                Complex64::new(4.0, 0.0),
+                Complex64::new(6.0, 0.0),
+            ],
         ]);
         assert_eq!(matrix_3x2.transpose(), expected_transpose_2x3);
 
         // Test case with more columns than rows
         let matrix_2x3 = Matrix::from_rows(vec![
-            vec![Complex64::new(1.0, 0.0), Complex64::new(2.0, 0.0), Complex64::new(3.0, 0.0)],
-            vec![Complex64::new(4.0, 0.0), Complex64::new(5.0, 0.0), Complex64::new(6.0, 0.0)],
+            vec![
+                Complex64::new(1.0, 0.0),
+                Complex64::new(2.0, 0.0),
+                Complex64::new(3.0, 0.0),
+            ],
+            vec![
+                Complex64::new(4.0, 0.0),
+                Complex64::new(5.0, 0.0),
+                Complex64::new(6.0, 0.0),
+            ],
         ]);
         let expected_transpose_3x2 = Matrix::from_rows(vec![
             vec![Complex64::new(1.0, 0.0), Complex64::new(4.0, 0.0)],
@@ -509,4 +530,155 @@ mod tests {
         ]);
         assert_eq!(matrix_2x3.transpose(), expected_transpose_3x2);
     }
+
+    #[test]
+    fn test_determinant() {
+        // Valid cases
+        for (input, expected) in [
+            // 1x1 matrix
+            (
+                Matrix::from_rows(vec![vec![Complex64::from(5.0)]]),
+                Complex64::from(5.0),
+            ),
+            // 2x2 matrix
+            (
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(3.0), Complex64::from(5.0)],
+                    vec![Complex64::from(8.0), Complex64::from(-13.0)],
+                ]),
+                Complex64::from(-79.0),
+            ),
+            // 3x3 matrix
+            (
+                Matrix::from_rows(vec![
+                    vec![
+                        Complex64::from(3.0),
+                        Complex64::from(5.0),
+                        Complex64::from(10.0),
+                    ],
+                    vec![
+                        Complex64::from(8.0),
+                        Complex64::from(-13.0),
+                        Complex64::from(1.0),
+                    ],
+                    vec![
+                        Complex64::from(3.0),
+                        Complex64::from(-25.0),
+                        Complex64::from(1.0),
+                    ],
+                ]),
+                Complex64::from(-1599.0),
+            ),
+            // 4x4 matrix
+            (
+                Matrix::from_rows(vec![
+                    vec![
+                        Complex64::from(3.5),
+                        Complex64::from(5.0),
+                        Complex64::from(10.0),
+                        Complex64::from(1.0),
+                    ],
+                    vec![
+                        Complex64::from(8.1),
+                        Complex64::from(-13.0),
+                        Complex64::from(1.0),
+                        Complex64::from(2.0),
+                    ],
+                    vec![
+                        Complex64::from(3.3),
+                        Complex64::from(-25.0),
+                        Complex64::from(1.0),
+                        Complex64::from(3.0),
+                    ],
+                    vec![
+                        Complex64::from(10.0),
+                        Complex64::from(9.0),
+                        Complex64::from(8.5),
+                        Complex64::from(7.0),
+                    ],
+                ]),
+                Complex64::from(-9852.7),
+            ),
+        ] {
+            assert_eq!(input.determinant(), expected);
+        }
+
+        // Invalid cases - non square matrices
+        for input in [
+            Matrix::from_rows(vec![vec![Complex64::zero(), Complex64::zero()]]),
+            Matrix::from_rows(vec![vec![Complex64::zero()], vec![Complex64::zero()]]),
+        ] {
+            assert!(std::panic::catch_unwind(|| input.determinant()).is_err())
+        }
+    }
+
+    #[test]
+    fn test_inverse() {
+        // Valid cases
+        for (input, expected) in [
+            // 1x1 matrix
+            (
+                Matrix::from_rows(vec![vec![Complex64::from(5.0)]]),
+                Matrix::from_rows(vec![vec![Complex64::from(0.2)]]),
+            ),
+            // 2x2 matrix
+            (
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(4.0), Complex64::from(7.0)],
+                    vec![Complex64::from(2.0), Complex64::from(6.0)],
+                ]),
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(0.6), Complex64::from(-0.7)],
+                    vec![Complex64::from(-0.2), Complex64::from(0.4)],
+                ]),
+            ),
+            // 3x3 matrix
+            (
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(1.0), Complex64::from(2.0), Complex64::from(3.0)],
+                    vec![Complex64::from(0.0), Complex64::from(1.0), Complex64::from(4.0)],
+                    vec![Complex64::from(5.0), Complex64::from(6.0), Complex64::from(0.0)],
+                ]),
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(-24.0), Complex64::from(18.0), Complex64::from(5.0)],
+                    vec![Complex64::from(20.0), Complex64::from(-15.0), Complex64::from(-4.0)],
+                    vec![Complex64::from(-5.0), Complex64::from(4.0), Complex64::from(1.0)],
+                ]),
+            ),
+        ] {
+            let inverse = input.inverse().unwrap();
+            let size = inverse.rows();
+            for i in 0..size {
+                for j in 0..size {
+                    assert!(close_enough(inverse.get(i, j), expected.get(i, j)))
+                }
+            }
+        }
+
+        // Singular (non-invertible) matrices - should return None
+        for input in [
+            // 2x2 singular matrix
+            Matrix::from_rows(vec![
+                vec![Complex64::from(4.0), Complex64::from(2.0)],
+                vec![Complex64::from(2.0), Complex64::from(1.0)],
+            ]),
+            // 3x3 singular matrix
+            Matrix::from_rows(vec![
+                vec![Complex64::from(1.0), Complex64::from(2.0), Complex64::from(3.0)],
+                vec![Complex64::from(2.0), Complex64::from(4.0), Complex64::from(6.0)],
+                vec![Complex64::from(3.0), Complex64::from(6.0), Complex64::from(9.0)],
+            ]),
+        ] {
+            assert_eq!(input.inverse(), None);
+        }
+
+        // Invalid cases - non square matrices
+        for input in [
+            Matrix::from_rows(vec![vec![Complex64::zero(), Complex64::zero()]]),
+            Matrix::from_rows(vec![vec![Complex64::zero()], vec![Complex64::zero()]]),
+        ] {
+            assert!(std::panic::catch_unwind(|| input.inverse()).is_err())
+        }
+    }
+
 }

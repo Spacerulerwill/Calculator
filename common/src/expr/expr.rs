@@ -266,8 +266,8 @@ impl<'a> Expr {
                             line: operator.line,
                             col: operator.col,
                         })));
-                    } 
-                    return Ok(Value::Matrix(matrix / *divisor))
+                    }
+                    return Ok(Value::Matrix(matrix / *divisor));
                 }
                 (Value::Measurement(measurement), Value::Number(num)) => {
                     let measurement = measurement.to_si_base_unit();
