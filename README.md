@@ -13,8 +13,8 @@ A simple command line calculator I'm working on
 * Support for arithmetic and conversions involving the following units:
   * Distance (imperial and metric)
   * Mass (imperial and metric)
-  * Storage
-  * Temperature
+  * Storage (bytes/bits in both base 2 and base 10)
+  * Temperature (celcius, fahrenheit, kelvin)
 * Scientific notation for number exponents
 * Operators: `+`, `-`, `*`, `/`, `%`, `^`, `!`, `√`
 * Groupings: `()`, `|absolute|`, `⌈ceil⌉`,  `⌊floor⌋`
