@@ -17,8 +17,10 @@ pub struct Matrix {
 impl Matrix {
     /// Panics if zero sized, or uneven row lengths
     pub fn from_rows(rows: Vec<Vec<Complex64>>) -> Self {
-        // Can't be empty
+        // Can't have zero rows
         assert!(!rows.is_empty());
+        // Can't have empty columns
+        assert!(rows.iter().all(|v| v.len() > 0));
         // Can't have uneven row lengths
         let first_len = rows[0].len();
         assert!(rows.iter().all(|v| v.len() == first_len));
@@ -128,8 +130,10 @@ impl Matrix {
 
         // Step 3: Compute the cofactor matrix
         let size = self.rows();
-        if size == 1{
-            return Some(Matrix::from_rows(vec![vec![Complex64::from(1.0) / self.get(0, 0)]]))
+        if size == 1 {
+            return Some(Matrix::from_rows(vec![vec![
+                Complex64::from(1.0) / self.get(0, 0),
+            ]]));
         }
         let mut cofactor_matrix = vec![vec![Complex64::zero(); size]; size];
 
@@ -311,7 +315,7 @@ impl<'a> Div<Complex64> for &'a Matrix {
     type Output = Matrix;
 
     fn div(self, scalar: Complex64) -> Self::Output {
-        self * (1.0 / scalar)
+        self * (Complex64::from(1.0) / scalar)
     }
 }
 
@@ -399,20 +403,8 @@ mod tests {
     use super::*;
 
     #[test]
-    #[should_panic]
-    fn test_from_rows_empty_matrix() {
-        Matrix::from_rows(vec![]);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_from_rows_uneven_rows() {
-        Matrix::from_rows(vec![vec![], vec![Complex64::zero()]]);
-    }
-
-    #[test]
-    fn test_from_rows_valid_matrices() {
-        let cases = vec![
+    fn test_from_rows() {
+        let valid_cases = vec![
             (
                 vec![vec![Complex64::zero()]],
                 Matrix {
@@ -439,9 +431,21 @@ mod tests {
             ),
         ];
 
-        for (input_rows, expected_matrix) in cases {
+        for (input_rows, expected_matrix) in valid_cases {
             let matrix = Matrix::from_rows(input_rows.clone());
             assert_eq!(matrix, expected_matrix);
+        }
+
+        let invalid_cases = vec![
+            // No rows provided
+            vec![],
+            // Row of empty columns provided
+            vec![vec![], vec![]],
+            // Uneven sized rows
+            vec![vec![], vec![Complex64::zero()]],
+        ];
+        for rows in invalid_cases {
+            assert!(std::panic::catch_unwind(|| Matrix::from_rows(rows)).is_err())
         }
     }
 
@@ -635,14 +639,38 @@ mod tests {
             // 3x3 matrix
             (
                 Matrix::from_rows(vec![
-                    vec![Complex64::from(1.0), Complex64::from(2.0), Complex64::from(3.0)],
-                    vec![Complex64::from(0.0), Complex64::from(1.0), Complex64::from(4.0)],
-                    vec![Complex64::from(5.0), Complex64::from(6.0), Complex64::from(0.0)],
+                    vec![
+                        Complex64::from(1.0),
+                        Complex64::from(2.0),
+                        Complex64::from(3.0),
+                    ],
+                    vec![
+                        Complex64::from(0.0),
+                        Complex64::from(1.0),
+                        Complex64::from(4.0),
+                    ],
+                    vec![
+                        Complex64::from(5.0),
+                        Complex64::from(6.0),
+                        Complex64::from(0.0),
+                    ],
                 ]),
                 Matrix::from_rows(vec![
-                    vec![Complex64::from(-24.0), Complex64::from(18.0), Complex64::from(5.0)],
-                    vec![Complex64::from(20.0), Complex64::from(-15.0), Complex64::from(-4.0)],
-                    vec![Complex64::from(-5.0), Complex64::from(4.0), Complex64::from(1.0)],
+                    vec![
+                        Complex64::from(-24.0),
+                        Complex64::from(18.0),
+                        Complex64::from(5.0),
+                    ],
+                    vec![
+                        Complex64::from(20.0),
+                        Complex64::from(-15.0),
+                        Complex64::from(-4.0),
+                    ],
+                    vec![
+                        Complex64::from(-5.0),
+                        Complex64::from(4.0),
+                        Complex64::from(1.0),
+                    ],
                 ]),
             ),
         ] {
@@ -664,9 +692,21 @@ mod tests {
             ]),
             // 3x3 singular matrix
             Matrix::from_rows(vec![
-                vec![Complex64::from(1.0), Complex64::from(2.0), Complex64::from(3.0)],
-                vec![Complex64::from(2.0), Complex64::from(4.0), Complex64::from(6.0)],
-                vec![Complex64::from(3.0), Complex64::from(6.0), Complex64::from(9.0)],
+                vec![
+                    Complex64::from(1.0),
+                    Complex64::from(2.0),
+                    Complex64::from(3.0),
+                ],
+                vec![
+                    Complex64::from(2.0),
+                    Complex64::from(4.0),
+                    Complex64::from(6.0),
+                ],
+                vec![
+                    Complex64::from(3.0),
+                    Complex64::from(6.0),
+                    Complex64::from(9.0),
+                ],
             ]),
         ] {
             assert_eq!(input.inverse(), None);
@@ -681,4 +721,414 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_addition() {
+        let valid_cases = vec![
+            // Adding two 1x1 matrices
+            (
+                Matrix::from_rows(vec![vec![Complex64::from(1.0)]]),
+                Matrix::from_rows(vec![vec![Complex64::from(2.0)]]),
+                Matrix::from_rows(vec![vec![Complex64::from(3.0)]]),
+            ),
+            // Adding two 2x2 matrices
+            (
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(1.0), Complex64::from(2.0)],
+                    vec![Complex64::from(3.0), Complex64::from(4.0)],
+                ]),
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(5.0), Complex64::from(6.0)],
+                    vec![Complex64::from(7.0), Complex64::from(8.0)],
+                ]),
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(6.0), Complex64::from(8.0)],
+                    vec![Complex64::from(10.0), Complex64::from(12.0)],
+                ]),
+            ),
+            // Adding two 2x1 matrices
+            (
+                Matrix::from_rows(vec![vec![Complex64::from(1.0)], vec![Complex64::from(2.0)]]),
+                Matrix::from_rows(vec![vec![Complex64::from(3.0)], vec![Complex64::from(4.0)]]),
+                Matrix::from_rows(vec![vec![Complex64::from(4.0)], vec![Complex64::from(6.0)]]),
+            ),
+            // Adding two 1x3 matrices
+            (
+                Matrix::from_rows(vec![vec![
+                    Complex64::from(1.0),
+                    Complex64::from(2.0),
+                    Complex64::from(3.0),
+                ]]),
+                Matrix::from_rows(vec![vec![
+                    Complex64::from(4.0),
+                    Complex64::from(5.0),
+                    Complex64::from(6.0),
+                ]]),
+                Matrix::from_rows(vec![vec![
+                    Complex64::from(5.0),
+                    Complex64::from(7.0),
+                    Complex64::from(9.0),
+                ]]),
+            ),
+        ];
+
+        for (matrix1, matrix2, expected) in valid_cases {
+            assert_eq!(&matrix1 + &matrix2, expected);
+        }
+
+        // Invalid cases - different sizes
+        let invalid_cases = vec![(
+            Matrix::from_rows(vec![vec![Complex64::zero()]]),
+            Matrix::from_rows(vec![vec![Complex64::zero(), Complex64::zero()]]),
+        )];
+
+        for (matrix1, matrix2) in invalid_cases {
+            assert!(std::panic::catch_unwind(|| &matrix1 + &matrix2).is_err())
+        }
+    }
+
+    #[test]
+    fn test_sub() {
+        let valid_cases = vec![
+            // Subtracting two 1x1 matrices
+            (
+                Matrix::from_rows(vec![vec![Complex64::from(3.0)]]),
+                Matrix::from_rows(vec![vec![Complex64::from(2.0)]]),
+                Matrix::from_rows(vec![vec![Complex64::from(1.0)]]),
+            ),
+            // Subtracting two 2x2 matrices
+            (
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(5.0), Complex64::from(6.0)],
+                    vec![Complex64::from(7.0), Complex64::from(8.0)],
+                ]),
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(1.0), Complex64::from(2.0)],
+                    vec![Complex64::from(3.0), Complex64::from(4.0)],
+                ]),
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(4.0), Complex64::from(4.0)],
+                    vec![Complex64::from(4.0), Complex64::from(4.0)],
+                ]),
+            ),
+            // Subtracting two 2x1 matrices
+            (
+                Matrix::from_rows(vec![vec![Complex64::from(5.0)], vec![Complex64::from(6.0)]]),
+                Matrix::from_rows(vec![vec![Complex64::from(3.0)], vec![Complex64::from(2.0)]]),
+                Matrix::from_rows(vec![vec![Complex64::from(2.0)], vec![Complex64::from(4.0)]]),
+            ),
+            // Subtracting two 1x3 matrices
+            (
+                Matrix::from_rows(vec![vec![
+                    Complex64::from(7.0),
+                    Complex64::from(8.0),
+                    Complex64::from(9.0),
+                ]]),
+                Matrix::from_rows(vec![vec![
+                    Complex64::from(1.0),
+                    Complex64::from(2.0),
+                    Complex64::from(3.0),
+                ]]),
+                Matrix::from_rows(vec![vec![
+                    Complex64::from(6.0),
+                    Complex64::from(6.0),
+                    Complex64::from(6.0),
+                ]]),
+            ),
+        ];
+
+        for (matrix1, matrix2, expected) in valid_cases {
+            assert_eq!(&matrix1 - &matrix2, expected);
+        }
+
+        // Invalid cases - different sizes
+        let invalid_cases = vec![(
+            Matrix::from_rows(vec![vec![Complex64::zero()]]), // 1x1
+            Matrix::from_rows(vec![vec![Complex64::zero(), Complex64::zero()]]), // 1x2
+        )];
+
+        for (matrix1, matrix2) in invalid_cases {
+            assert!(std::panic::catch_unwind(|| &matrix1 - &matrix2).is_err());
+        }
+    }
+
+    #[test]
+    fn test_mul_matrix() {
+        // Case 1: Multiplying two same-sized matrices (2x2)
+        let matrix_a = Matrix::from_rows(vec![
+            vec![Complex64::from(1.0), Complex64::from(2.0)],
+            vec![Complex64::from(3.0), Complex64::from(4.0)],
+        ]); // 2x2
+
+        let matrix_b = Matrix::from_rows(vec![
+            vec![Complex64::from(5.0), Complex64::from(6.0)],
+            vec![Complex64::from(7.0), Complex64::from(8.0)],
+        ]); // 2x2
+
+        let expected_result = Matrix::from_rows(vec![
+            vec![Complex64::from(19.0), Complex64::from(22.0)],
+            vec![Complex64::from(43.0), Complex64::from(50.0)],
+        ]); // 2x2
+
+        assert_eq!(&matrix_a * &matrix_b, expected_result);
+
+        // Case 2: First matrix has more rows than columns (3x2) x (2x2)
+        let matrix_a = Matrix::from_rows(vec![
+            vec![Complex64::from(1.0), Complex64::from(2.0)],
+            vec![Complex64::from(3.0), Complex64::from(4.0)],
+            vec![Complex64::from(5.0), Complex64::from(6.0)],
+        ]); // 3x2
+
+        let matrix_b = Matrix::from_rows(vec![
+            vec![Complex64::from(7.0), Complex64::from(8.0)],
+            vec![Complex64::from(9.0), Complex64::from(10.0)],
+        ]); // 2x2
+
+        let expected_result = Matrix::from_rows(vec![
+            vec![Complex64::from(25.0), Complex64::from(28.0)],
+            vec![Complex64::from(57.0), Complex64::from(64.0)],
+            vec![Complex64::from(89.0), Complex64::from(100.0)],
+        ]); // 3x2
+
+        assert_eq!(&matrix_a * &matrix_b, expected_result);
+
+        // Case 3: Second matrix has more rows than columns (2x2) x (2x3)
+        let matrix_a = Matrix::from_rows(vec![
+            vec![Complex64::from(1.0), Complex64::from(2.0)],
+            vec![Complex64::from(3.0), Complex64::from(4.0)],
+        ]); // 2x2
+
+        let matrix_b = Matrix::from_rows(vec![
+            vec![
+                Complex64::from(5.0),
+                Complex64::from(6.0),
+                Complex64::from(7.0),
+            ],
+            vec![
+                Complex64::from(8.0),
+                Complex64::from(9.0),
+                Complex64::from(10.0),
+            ],
+        ]); // 2x3
+
+        let expected_result = Matrix::from_rows(vec![
+            vec![
+                Complex64::from(21.0),
+                Complex64::from(24.0),
+                Complex64::from(27.0),
+            ],
+            vec![
+                Complex64::from(47.0),
+                Complex64::from(54.0),
+                Complex64::from(61.0),
+            ],
+        ]); // 2x3
+
+        assert_eq!(&matrix_a * &matrix_b, expected_result);
+
+        // Case 4: 1x1 * 1x1
+        let matrix_a = Matrix::from_rows(vec![vec![Complex64::from(5.0)]]);
+        let matrix_b = Matrix::from_rows(vec![vec![Complex64::from(2.0)]]);
+        let expected_result = Matrix::from_rows(vec![vec![Complex64::from(10.0)]]);
+        assert_eq!(&matrix_a * &matrix_b, expected_result);
+
+        // Case 5: Can't multiply - invalid dimensions
+        let matrix_a = Matrix::from_rows(vec![vec![Complex64::zero(), Complex64::zero()]]);
+        let matrix_b = matrix_a.clone();
+        assert!(std::panic::catch_unwind(|| &matrix_a * &matrix_b).is_err());
+    }
+
+    #[test]
+    fn test_mul_scalar() {
+        let valid_cases = vec![
+            // Normal cases
+            (
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(1.0), Complex64::from(2.0)],
+                    vec![Complex64::from(3.0), Complex64::from(4.0)],
+                ]),
+                Complex64::from(2.0),
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(2.0), Complex64::from(4.0)],
+                    vec![Complex64::from(6.0), Complex64::from(8.0)],
+                ]),
+            ),
+            // Multiply by zero
+            (
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(1.0), Complex64::from(2.0)],
+                    vec![Complex64::from(3.0), Complex64::from(4.0)],
+                ]),
+                Complex64::from(0.0),
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(0.0), Complex64::from(0.0)],
+                    vec![Complex64::from(0.0), Complex64::from(0.0)],
+                ]),
+            ),
+            //  Multiply by one
+            (
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(1.0), Complex64::from(2.0)],
+                    vec![Complex64::from(3.0), Complex64::from(4.0)],
+                ]),
+                Complex64::from(1.0),
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(1.0), Complex64::from(2.0)],
+                    vec![Complex64::from(3.0), Complex64::from(4.0)],
+                ]),
+            ),
+            // Multiply by negative
+            (
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(1.0), Complex64::from(2.0)],
+                    vec![Complex64::from(3.0), Complex64::from(4.0)],
+                ]),
+                Complex64::from(-1.0),
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(-1.0), Complex64::from(-2.0)],
+                    vec![Complex64::from(-3.0), Complex64::from(-4.0)],
+                ]),
+            ),
+        ];
+
+        for (matrix, scalar, expected) in valid_cases {
+            assert_eq!(&matrix * scalar, expected);
+        }
+    }
+
+    #[test]
+    fn test_div_scalar() {
+        let valid_cases = vec![
+            // Normal cases
+            (
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(2.0), Complex64::from(4.0)],
+                    vec![Complex64::from(6.0), Complex64::from(8.0)],
+                ]),
+                Complex64::from(2.0),
+                Matrix::from_rows(vec![
+                    vec![Complex64::from(1.0), Complex64::from(2.0)],
+                    vec![Complex64::from(3.0), Complex64::from(4.0)],
+                ]),
+            ),
+        ];
+
+        for (matrix, scalar, expected) in valid_cases {
+            assert_eq!(&matrix / scalar, expected);
+        }
+    }
+
+    #[test]
+    fn test_row_cross() {
+        let row_vector1 = Matrix::from_rows(vec![vec![
+            Complex64::from(1.0),
+            Complex64::from(2.0),
+            Complex64::from(3.0),
+        ]]); // 1x3
+        let row_vector2 = Matrix::from_rows(vec![vec![
+            Complex64::from(4.0),
+            Complex64::from(5.0),
+            Complex64::from(6.0),
+        ]]); // 1x3
+
+        let result = row_vector1.row_cross(&row_vector2);
+        let expected = Matrix::from_rows(vec![vec![
+            Complex64::from(-3.0),
+            Complex64::from(6.0),
+            Complex64::from(-3.0),
+        ]]);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_column_cross() {
+        let column_vector1 = Matrix::from_rows(vec![
+            vec![Complex64::from(1.0)],
+            vec![Complex64::from(2.0)],
+            vec![Complex64::from(3.0)],
+        ]); // 3x1
+
+        let column_vector2 = Matrix::from_rows(vec![
+            vec![Complex64::from(4.0)],
+            vec![Complex64::from(5.0)],
+            vec![Complex64::from(6.0)],
+        ]); // 3x1
+
+        let result = column_vector1.column_cross(&column_vector2);
+        let expected = Matrix::from_rows(vec![vec![
+            Complex64::from(-3.0),
+            Complex64::from(6.0),
+            Complex64::from(-3.0),
+        ]]);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_row_dot() {
+        let row_vector1 = Matrix::from_rows(vec![vec![
+            Complex64::from(1.0),
+            Complex64::from(2.0),
+            Complex64::from(3.0),
+        ]]); // 1x3
+        let row_vector2 = Matrix::from_rows(vec![vec![
+            Complex64::from(4.0),
+            Complex64::from(5.0),
+            Complex64::from(6.0),
+        ]]); // 1x3
+
+        let result = row_vector1.row_dot(&row_vector2);
+        let expected = Complex64::from(32.0);
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_column_dot() {
+        let column_vector1 = Matrix::from_rows(vec![
+            vec![Complex64::from(1.0)],
+            vec![Complex64::from(2.0)],
+            vec![Complex64::from(3.0)],
+        ]); // 3x1
+
+        let column_vector2 = Matrix::from_rows(vec![
+            vec![Complex64::from(4.0)],
+            vec![Complex64::from(5.0)],
+            vec![Complex64::from(6.0)],
+        ]); // 3x1
+
+        let result = column_vector1.column_dot(&column_vector2);
+        let expected = Complex64::from(32.0); // (1*4 + 2*5 + 3*6)
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_negate() {
+        for (input, expected) in [
+            (
+                Matrix::from_rows(vec![vec![Complex64::from(1.0)]]),
+                Matrix::from_rows(vec![vec![Complex64::from(-1.0)]]),
+            ),
+            (
+                Matrix::from_rows(vec![vec![Complex64::new(1.0, 2.0), Complex64::from(0.0)]]),
+                Matrix::from_rows(vec![vec![
+                    Complex64::new(-1.0, -2.0),
+                    Complex64::from(-0.0),
+                ]]),
+            ),
+            (
+                Matrix::from_rows(vec![
+                    vec![Complex64::new(-1.23, -2.017)],
+                    vec![Complex64::new(-0.0, -0.5)],
+                ]),
+                Matrix::from_rows(vec![
+                    vec![Complex64::new(1.23, 2.017)],
+                    vec![Complex64::new(0.0, 0.5)],
+                ]),
+            ),
+        ] {
+            assert_eq!(-&input, expected);
+        }
+    }
 }
