@@ -991,6 +991,7 @@ mod tests {
         ];
 
         for (matrix, scalar, expected) in valid_cases {
+            assert_eq!(scalar * &matrix, expected);
             assert_eq!(&matrix * scalar, expected);
         }
     }
