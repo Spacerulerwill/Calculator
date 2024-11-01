@@ -191,4 +191,30 @@ mod tests {
             assert_eq!(input.get_type_string(), expected)
         }
     }
+
+    #[test]
+    fn test_display_value() {
+        let measurement = Measurement::new(Complex64::new(5.0, 0.0), Unit::Distance(DistanceUnit::Meter));
+        let matrix = Matrix::from_rows(vec![
+            vec![Complex64::new(1.0, 0.0), Complex64::new(2.0, 0.0)],
+            vec![Complex64::new(3.0, 4.0), Complex64::new(0.0, 1.0)],
+        ]);
+        let function = Function::NativeFunction(NativeFunction {
+            name: "example_func",
+            function: |_, _, _| panic!(),
+            arity: 0,
+        });
+
+        let test_cases = [
+            (Value::from_function(function), "example_func (built-in)"),
+            (Value::Number(Complex64::new(3.5, -2.0)), "3.5 - 2i"),
+            (Value::Measurement(measurement.clone()), "5m"),
+            (Value::Matrix(matrix.clone()), "[     1, 2\n 3 + 4i, i]"),
+        ];
+
+        for (value, expected_output) in test_cases.iter() {
+            assert_eq!(value.to_string(), *expected_output, "Display output did not match for value: {:?}", value);
+        }
+    }
+
 }
