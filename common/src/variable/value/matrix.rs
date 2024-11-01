@@ -347,8 +347,8 @@ pub fn matrix_format<T: ToString>(matrix: &Vec<Vec<T>>) -> String {
         return String::from("[]");
     }
 
+    let longest_row = matrix.iter().map(|v| v.len()).max().unwrap_or(0);
     let rows = matrix.len();
-    let cols = matrix[0].len();
 
     // Convert the matrix elements to strings
     let string_matrix: Vec<Vec<String>> = matrix
@@ -357,22 +357,34 @@ pub fn matrix_format<T: ToString>(matrix: &Vec<Vec<T>>) -> String {
         .collect();
 
     // Calculate the maximum width of each column
-    let mut max_col_widths = Vec::with_capacity(cols);
-    for col in 0..cols {
-        let col_widths: Vec<usize> = string_matrix.iter().map(|row| row[col].len()).collect();
+    let mut max_col_widths = Vec::with_capacity(longest_row);
+    for col in 0..longest_row {
+        let col_widths: Vec<usize> = string_matrix
+            .iter()
+            .map(|row| {
+                if let Some(element) = row.get(col) {
+                    element.len()
+                } else {
+                    0
+                }
+            })
+            .collect();
         let max = *col_widths.iter().max().unwrap_or(&0);
         max_col_widths.push(max);
     }
 
     let mut formatted_string = String::from("[");
     for (row_idx, row) in string_matrix.iter().enumerate() {
+        if row.len() == 0 {
+            continue;
+        }
         // Create a vector to hold formatted elements for the row
         let formatted_row: Vec<String> = row
             .iter()
             .enumerate()
             .map(|(i, element)| {
                 let width = max_col_widths[i];
-                format!("{:^width$}", element, width = width)
+                format!("{:>width$}", element, width = width)
             })
             .collect();
 
@@ -386,6 +398,8 @@ pub fn matrix_format<T: ToString>(matrix: &Vec<Vec<T>>) -> String {
         formatted_row_string.push_str(&formatted_row.join(", "));
         if row_idx != rows - 1 {
             formatted_row_string.push('\n');
+        } else {
+            // TODO - extend to end
         }
         formatted_string.push_str(&formatted_row_string);
     }
@@ -1131,5 +1145,64 @@ mod tests {
         ] {
             assert_eq!(-&input, expected);
         }
+    }
+
+    #[test]
+    fn test_matrix_format() {
+        for (input, result) in [
+            (vec![], "[]"),
+            (vec![vec![]], "[]"),
+            (vec![vec![], vec![]], "[]"),
+            (vec![vec!["1111"]], "[1111]"),
+            (vec![vec!["1", "2", "3"]], "[1, 2, 3]"),
+            (
+                vec![
+                    vec!["1", "1233333", "3"],
+                    vec!["123", "44", "3"],
+                    vec!["1", "2", "three"],
+                ],
+                "[  1, 1233333,     3\n 123,      44,     3\n   1,       2, three]",
+            ),
+            (vec![vec!["1", "2"], vec!["3"]], "[1, 2\n 3]"),
+        ] {
+            assert_eq!(matrix_format(&input), result)
+        }
+    }
+
+    #[test]
+    fn test_matrix_display() {
+        // Test Case 1: 1x1 matrix
+        let matrix_1x1 = Matrix::from_rows(vec![vec![Complex64::new(3.1415, 2.7182)]]);
+        let expected_output_1x1 = "[3.1415 + 2.7182i]";
+        assert_eq!(format!("{}", matrix_1x1), expected_output_1x1);
+
+        // Test Case 2: 2x2 matrix with real and imaginary numbers
+        let matrix_2x2 = Matrix::from_rows(vec![
+            vec![Complex64::new(1.0, -1.0), Complex64::new(2.0, 0.5)],
+            vec![Complex64::new(-1.5, 2.5), Complex64::new(3.0, -0.75)],
+        ]);
+        let expected_output_2x2 = "[      1 - i,  2 + 0.5i\n -1.5 + 2.5i, 3 - 0.75i]";
+        assert_eq!(format!("{}", matrix_2x2), expected_output_2x2);
+
+        // Test Case 3: 3x3 matrix with various decimal values and complex numbers
+        let matrix_3x3 = Matrix::from_rows(vec![
+            vec![
+                Complex64::new(0.1, 0.0),
+                Complex64::new(1.234, -5.678),
+                Complex64::new(-9.8765, 3.1415),
+            ],
+            vec![
+                Complex64::new(2.0, 2.0),
+                Complex64::new(-3.5, -4.25),
+                Complex64::new(1.1, -1.1),
+            ],
+            vec![
+                Complex64::new(4.0, -4.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(-6.66, 6.66),
+            ],
+        ]);
+        let expected_output_3x3 = "[   0.1, 1.234 - 5.678i, -9.8765 + 3.1415i\n 2 + 2i,   -3.5 - 4.25i,        1.1 - 1.1i\n 4 - 4i,              0,     -6.66 + 6.66i]";
+        assert_eq!(format!("{}", matrix_3x3), expected_output_3x3);
     }
 }
