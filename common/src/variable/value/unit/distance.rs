@@ -46,7 +46,7 @@ impl DistanceUnit {
             DistanceUnit::Inch => 39.3701,
             DistanceUnit::Foot => 3.28084,
             DistanceUnit::Yard => 1.0936133333333,
-            DistanceUnit::Mile => 0.00062137121212119323429,
+            DistanceUnit::Mile => 0.000_621_371_212_121_193_2,
         }
     }
 }
@@ -85,7 +85,7 @@ mod tests {
             (DistanceUnit::Inch, 39.3701),
             (DistanceUnit::Foot, 3.28084),
             (DistanceUnit::Yard, 1.0936133333333),
-            (DistanceUnit::Mile, 0.00062137121212119323429),
+            (DistanceUnit::Mile, 0.000_621_371_212_121_193_2),
         ] {
             assert_eq!(unit.get_per_meter(), per_meter)
         }

@@ -70,8 +70,8 @@ pub fn define_calculator_native_function(input: TokenStream) -> TokenStream {
         let constraint_checking = quote! {
             let #name = args.get(#i).unwrap();
             if !#constraint.does_value_fit(&#name) {
-                return Err(common::expr::EvaluationError::NativeFunctionIncorrectParameterType(Box::new(
-                    common::expr::NativeFunctionIncorrectParameterType {
+                return Err(common::expr::error::EvaluationError::NativeFunctionIncorrectParameterType(Box::new(
+                    common::expr::error::NativeFunctionIncorrectParameterType {
                         function_name: stringify!(#function_name).to_string(),
                         line: line,
                         col: col,
@@ -124,7 +124,7 @@ pub fn define_calculator_native_function(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         #[allow(non_upper_case_globals)]
         pub const #function_name: common::variable::value::function::Function = {
-            fn internal_builtin_function(line:usize, col: usize, args: Vec<common::variable::value::Value>) -> Result<common::variable::value::Value, common::expr::EvaluationError> {
+            fn internal_builtin_function(line:usize, col: usize, args: Vec<common::variable::value::Value>) -> Result<common::variable::value::Value, common::expr::error::EvaluationError> {
                 // TODO :: determine why this line is neccesary?
                 use common::variable::value::constraint::ValueConstraint;
                 use common::num_complex::ComplexFloat;

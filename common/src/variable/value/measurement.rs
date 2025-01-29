@@ -22,14 +22,25 @@ impl fmt::Display for Measurement {
     }
 }
 
+#[derive(Debug)]
+pub struct IncorrectUnitConversion;
+
+impl fmt::Display for IncorrectUnitConversion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Incorrect unit conversion")
+    }
+}
+
+impl std::error::Error for IncorrectUnitConversion {}
+
 impl Measurement {
     pub fn new(num: Complex64, unit: Unit) -> Self {
         Self { num, unit }
     }
 
-    pub fn to_other_unit(&self, unit: Unit) -> Result<Self, ()> {
+    pub fn to_other_unit(&self, unit: Unit) -> Result<Self, IncorrectUnitConversion> {
         if std::mem::discriminant(&self.unit) != std::mem::discriminant(&unit) {
-            return Err(());
+            return Err(IncorrectUnitConversion);
         }
         // Convert to SI base unit (Kelvin for temperature, meters for distance, kilograms for mass)
         let si_value = self.to_si_base_unit();
@@ -253,11 +264,10 @@ mod tests {
             assert_eq!(result.unit, expected.unit);
         }
 
-        assert_eq!(
+        assert!(
             Measurement::new(Complex64::ZERO, Unit::Distance(DistanceUnit::Centimeter))
                 .to_other_unit(Unit::Mass(MassUnit::Kilogram))
-                .unwrap_err(),
-            ()
+                .is_err()
         );
     }
 }

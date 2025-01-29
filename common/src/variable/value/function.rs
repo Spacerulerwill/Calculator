@@ -4,10 +4,13 @@ use num_complex::Complex64;
 
 use crate::{
     expr::{
-        EvaluationError, Expr, NativeFunctionIncorrectParameterCount,
-        UserDefinedFunctionNoMatchingSignature,
+        error::{
+            EvaluationError, NativeFunctionIncorrectParameterCount,
+            UserDefinedFunctionNoMatchingSignature,
+        },
+        Expr,
     },
-    tokenizer::Token,
+    tokenizer::token::Token,
     variable::{value::complex_to_string, Variable, VariableMap},
 };
 
@@ -19,7 +22,7 @@ pub enum Function<'a> {
     UserDefinedFunction(UserDefinedFunction),
 }
 
-impl<'a> fmt::Display for Function<'a> {
+impl fmt::Display for Function<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Function::NativeFunction(func) => write!(f, "{}", func),
@@ -48,8 +51,8 @@ impl<'a> Function<'a> {
                 if func.arity != arguments.len() {
                     return Err(EvaluationError::NativeFunctionIncorrectParameterCount(
                         Box::new(NativeFunctionIncorrectParameterCount {
-                            line: line,
-                            col: col,
+                            line,
+                            col,
                             name: func.name,
                             received: arguments.len(),
                             required: func.arity,
@@ -74,8 +77,8 @@ impl<'a> Function<'a> {
                 }
                 Err(EvaluationError::UserDefinedFunctionNoMatchingSignature(
                     Box::new(UserDefinedFunctionNoMatchingSignature {
-                        line: line,
-                        col: col,
+                        line,
+                        col,
                         name: func.name.clone(),
                     }),
                 ))
@@ -91,7 +94,7 @@ pub struct NativeFunction<'a> {
     pub arity: usize,
 }
 
-impl<'a> fmt::Display for NativeFunction<'a> {
+impl fmt::Display for NativeFunction<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} (built-in)", self.name)
     }
@@ -108,8 +111,22 @@ pub struct Signature {
     pub parameters: Vec<UserDefinedFunctionArgType>,
 }
 
+#[derive(Debug)]
+pub struct InvalidSignature;
+
+impl fmt::Display for InvalidSignature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Invalid signature")
+    }
+}
+
+impl std::error::Error for InvalidSignature {}
+
 impl Signature {
-    pub fn from_call_expression(callee: Expr, paramaters: Vec<Expr>) -> Result<(Token, Self), ()> {
+    pub fn from_call_expression(
+        callee: Expr,
+        paramaters: Vec<Expr>,
+    ) -> Result<(Token, Self), InvalidSignature> {
         if let Expr::Identifier { name } = callee {
             let mut signature = Signature {
                 parameters: Vec::with_capacity(paramaters.len()),
@@ -122,12 +139,12 @@ impl Signature {
                     Expr::Number { number } => signature
                         .parameters
                         .push(UserDefinedFunctionArgType::Number(number)),
-                    _ => return Err(()),
+                    _ => return Err(InvalidSignature),
                 }
             }
             return Ok((name, signature));
         }
-        Err(())
+        Err(InvalidSignature)
     }
 
     pub fn matches_parameters(&self, parameters: &Vec<Value>) -> bool {
@@ -162,16 +179,14 @@ impl Signature {
             if std::mem::discriminant(arg_type_1) != std::mem::discriminant(arg_type_2) {
                 return false;
             }
-            match (arg_type_1, arg_type_2) {
-                (
-                    UserDefinedFunctionArgType::Number(one),
-                    UserDefinedFunctionArgType::Number(two),
-                ) => {
-                    if one != two {
-                        return false;
-                    }
+            if let (
+                UserDefinedFunctionArgType::Number(one),
+                UserDefinedFunctionArgType::Number(two),
+            ) = (arg_type_1, arg_type_2)
+            {
+                if one != two {
+                    return false;
                 }
-                _ => {}
             }
         }
         true
@@ -206,21 +221,9 @@ impl fmt::Display for UserDefinedFunction {
                 .map(|arg| arg.to_string())
                 .collect();
             if iter.peek().is_some() {
-                writeln!(
-                    f,
-                    "{}({}) = {}",
-                    self.name,
-                    args_str.join(", "),
-                    expr.to_string()
-                )?;
+                writeln!(f, "{}({}) = {}", self.name, args_str.join(", "), expr)?;
             } else {
-                write!(
-                    f,
-                    "{}({}) = {}",
-                    self.name,
-                    args_str.join(", "),
-                    expr.to_string()
-                )?;
+                write!(f, "{}({}) = {}", self.name, args_str.join(", "), expr)?;
             }
         }
 

@@ -1,6 +1,6 @@
 use crate::{
     expr::Expr,
-    tokenizer::{Token, TokenKind},
+    tokenizer::token::{Token, TokenKind},
 };
 use std::fmt;
 

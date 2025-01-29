@@ -20,7 +20,7 @@ impl Matrix {
         // Can't have zero rows
         assert!(!rows.is_empty());
         // Can't have empty columns
-        assert!(rows.iter().all(|v| v.len() > 0));
+        assert!(rows.iter().all(|v| !v.is_empty()));
         // Can't have uneven row lengths
         let first_len = rows[0].len();
         assert!(rows.iter().all(|v| v.len() == first_len));
@@ -29,8 +29,8 @@ impl Matrix {
 
     pub fn identity(size: usize) -> Self {
         let mut rows = vec![vec![Complex64::zero(); size]; size];
-        for i in 0..size {
-            rows[i][i] = Complex64::from(1.0);
+        for (i, item) in rows.iter_mut().enumerate() {
+            item[i] = Complex64::from(1.0);
         }
         Self::from_rows(rows)
     }
@@ -41,9 +41,9 @@ impl Matrix {
 
         let mut rows = vec![vec![Complex64::from(0.0); new_cols]; new_rows];
 
-        for row in 0..new_rows {
-            for col in 0..new_cols {
-                rows[row][col] = self.rows[col][row];
+        for (row, row_item) in rows.iter_mut().enumerate() {
+            for (col, col_item) in row_item.iter_mut().enumerate() {
+                *col_item = self.rows[col][row];
             }
         }
         Self::from_rows(rows)
@@ -62,7 +62,7 @@ impl Matrix {
     }
 
     pub fn get(&self, row: usize, col: usize) -> Complex64 {
-        return self.rows[row][col];
+        self.rows[row][col]
     }
 
     pub fn determinant(&self) -> Complex64 {
@@ -137,8 +137,8 @@ impl Matrix {
         }
         let mut cofactor_matrix = vec![vec![Complex64::zero(); size]; size];
 
-        for row in 0..size {
-            for col in 0..size {
+        for (row, row_item) in cofactor_matrix.iter_mut().enumerate() {
+            for (col, col_item) in row_item.iter_mut().enumerate() {
                 // Get the submatrix without the current row and column
                 let sub_matrix = self.get_submatrix(row, col);
 
@@ -150,7 +150,7 @@ impl Matrix {
                         Complex64::new(-1.0, 0.0)
                     };
 
-                cofactor_matrix[row][col] = cofactor;
+                *col_item = cofactor;
             }
         }
 
@@ -177,13 +177,11 @@ impl Matrix {
         let b2 = vec2[1];
         let b3 = vec2[2];
 
-        let cross_product = Matrix::from_rows(vec![vec![
+        Matrix::from_rows(vec![vec![
             a2 * b3 - a3 * b2,
             a3 * b1 - a1 * b3,
             a1 * b2 - a2 * b1,
-        ]]);
-
-        cross_product
+        ]])
     }
 
     pub fn column_cross(&self, other: &Matrix) -> Matrix {
@@ -266,14 +264,14 @@ impl<'a> Sub<&'a Matrix> for &'a Matrix {
     }
 }
 
-impl<'a> Mul<Complex64> for &'a Matrix {
+impl Mul<Complex64> for &Matrix {
     type Output = Matrix;
 
     fn mul(self, scalar: Complex64) -> Self::Output {
         let rows = self
             .rows
             .iter()
-            .map(|row| row.into_iter().map(|val| val * scalar).collect())
+            .map(|row| row.iter().map(|val| val * scalar).collect())
             .collect();
 
         Matrix { rows }
@@ -311,7 +309,7 @@ impl<'a> Mul<&'a Matrix> for &'a Matrix {
     }
 }
 
-impl<'a> Div<Complex64> for &'a Matrix {
+impl Div<Complex64> for &Matrix {
     type Output = Matrix;
 
     fn div(self, scalar: Complex64) -> Self::Output {
@@ -319,11 +317,11 @@ impl<'a> Div<Complex64> for &'a Matrix {
     }
 }
 
-impl<'a> Neg for &'a Matrix {
+impl Neg for &Matrix {
     type Output = Matrix;
 
     fn neg(self) -> Matrix {
-        return self * Complex64::from(-1.0);
+        self * Complex64::from(-1.0)
     }
 }
 
@@ -334,7 +332,7 @@ impl fmt::Display for Matrix {
         let string_rows: Vec<Vec<String>> = self
             .rows
             .iter()
-            .map(|row| row.iter().map(|c| complex_to_string(c)).collect())
+            .map(|row| row.iter().map(complex_to_string).collect())
             .collect();
 
         // Use your matrix_format to format the rows
@@ -342,7 +340,7 @@ impl fmt::Display for Matrix {
     }
 }
 
-pub fn matrix_format<T: ToString>(matrix: &Vec<Vec<T>>) -> String {
+pub fn matrix_format<T: ToString>(matrix: &[Vec<T>]) -> String {
     if matrix.is_empty() {
         return String::from("[]");
     }
@@ -375,7 +373,7 @@ pub fn matrix_format<T: ToString>(matrix: &Vec<Vec<T>>) -> String {
 
     let mut formatted_string = String::from("[");
     for (row_idx, row) in string_matrix.iter().enumerate() {
-        if row.len() == 0 {
+        if row.is_empty() {
             continue;
         }
         // Create a vector to hold formatted elements for the row
@@ -1172,8 +1170,8 @@ mod tests {
     #[test]
     fn test_matrix_display() {
         // Test Case 1: 1x1 matrix
-        let matrix_1x1 = Matrix::from_rows(vec![vec![Complex64::new(3.1415, 2.7182)]]);
-        let expected_output_1x1 = "[3.1415 + 2.7182i]";
+        let matrix_1x1 = Matrix::from_rows(vec![vec![Complex64::new(3.0203, 2.3456)]]);
+        let expected_output_1x1 = "[3.0203 + 2.3456i]";
         assert_eq!(format!("{}", matrix_1x1), expected_output_1x1);
 
         // Test Case 2: 2x2 matrix with real and imaginary numbers
@@ -1189,7 +1187,7 @@ mod tests {
             vec![
                 Complex64::new(0.1, 0.0),
                 Complex64::new(1.234, -5.678),
-                Complex64::new(-9.8765, 3.1415),
+                Complex64::new(-9.8765, 3.2222),
             ],
             vec![
                 Complex64::new(2.0, 2.0),
@@ -1202,7 +1200,7 @@ mod tests {
                 Complex64::new(-6.66, 6.66),
             ],
         ]);
-        let expected_output_3x3 = "[   0.1, 1.234 - 5.678i, -9.8765 + 3.1415i\n 2 + 2i,   -3.5 - 4.25i,        1.1 - 1.1i\n 4 - 4i,              0,     -6.66 + 6.66i]";
+        let expected_output_3x3 = "[   0.1, 1.234 - 5.678i, -9.8765 + 3.2222i\n 2 + 2i,   -3.5 - 4.25i,        1.1 - 1.1i\n 4 - 4i,              0,     -6.66 + 6.66i]";
         assert_eq!(format!("{}", matrix_3x3), expected_output_3x3);
     }
 }

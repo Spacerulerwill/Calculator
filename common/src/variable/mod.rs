@@ -11,22 +11,19 @@ pub struct Variable<'a> {
 
 impl<'a> Variable<'a> {
     pub fn new(value: Value<'a>, constant: bool) -> Self {
-        Variable {
-            value: value,
-            constant: constant,
-        }
+        Variable { value, constant }
     }
 
     pub fn as_variable(value: Value<'a>) -> Self {
         Variable {
-            value: value,
+            value,
             constant: false,
         }
     }
 
     pub fn as_constant(value: Value<'a>) -> Self {
         Variable {
-            value: value,
+            value,
             constant: true,
         }
     }
@@ -46,13 +43,7 @@ mod tests {
         let value = Value::Number(Complex64::zero());
         let constant = false;
         let variable = Variable::new(value.clone(), constant);
-        assert_eq!(
-            variable,
-            Variable {
-                value: value,
-                constant: constant
-            }
-        );
+        assert_eq!(variable, Variable { value, constant });
     }
 
     #[test]
@@ -62,7 +53,7 @@ mod tests {
         assert_eq!(
             variable,
             Variable {
-                value: value,
+                value,
                 constant: false
             }
         );
@@ -75,7 +66,7 @@ mod tests {
         assert_eq!(
             variable,
             Variable {
-                value: value,
+                value,
                 constant: true
             }
         );

@@ -60,7 +60,7 @@ fn main() {
     }
 }
 
-fn process_text<'a>(expression: String, variables: &mut VariableMap<'a>, tabsize: u8) {
+fn process_text(expression: String, variables: &mut VariableMap<'_>, tabsize: u8) {
     let tokens = match Tokenizer::tokenize(&expression, tabsize) {
         Ok(tokenizer) => tokenizer.tokens,
         Err(err) => {
@@ -84,7 +84,7 @@ fn process_text<'a>(expression: String, variables: &mut VariableMap<'a>, tabsize
     }
 }
 
-fn start_repl<'a>(tabsize: u8, variables: &mut VariableMap<'a>) {
+fn start_repl(tabsize: u8, variables: &mut VariableMap<'_>) {
     println!("Enter mathematical expressions to evaluate. Type 'exit' to quit.");
 
     let mut rl = match DefaultEditor::new() {

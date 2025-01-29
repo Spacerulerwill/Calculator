@@ -1,5 +1,5 @@
 use crate::{
-    tokenizer::Token,
+    tokenizer::token::Token,
     variable::value::{constraint::ValueConstraint, unit::Unit, Value},
 };
 use std::fmt;
@@ -28,9 +28,9 @@ pub enum EvaluationError<'a> {
     InvalidMeasurementConversion(Box<InvalidMeasurementConversion<'a>>),
 }
 
-impl<'a> std::error::Error for EvaluationError<'a> {}
+impl std::error::Error for EvaluationError<'_> {}
 
-impl<'a> fmt::Display for EvaluationError<'a> {
+impl fmt::Display for EvaluationError<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             EvaluationError::DivisionByZero(err)=> write!(

@@ -22,7 +22,7 @@ pub struct Tokenizer<'a> {
 impl<'a> Tokenizer<'a> {
     pub fn tokenize(input: &'a str, tabsize: u8) -> Result<Self, TokenizerError> {
         let mut tokenizer = Tokenizer {
-            input: input,
+            input,
             iter: input.chars().peekable(),
             prev_pos: TokenPosition {
                 line: 1,
@@ -35,7 +35,7 @@ impl<'a> Tokenizer<'a> {
                 idx: 0,
             },
             tokens: Vec::new(),
-            tabsize: tabsize,
+            tabsize,
         };
         tokenizer.tokenize_internal()?;
         Ok(tokenizer)
@@ -220,7 +220,7 @@ impl<'a> Tokenizer<'a> {
 
     fn tokenize_number(&mut self) {
         // Consume digits before decimal point
-        let mut number_string = self.consume_while(|ch| ch.is_digit(10));
+        let mut number_string = self.consume_while(|ch| ch.is_ascii_digit());
         // Consume and exponent and if there is one we stop here
         if self.consume_exponent_for_number(&mut number_string) {
             let num = Complex64::from(f64::from_str(&number_string).unwrap());
@@ -232,7 +232,7 @@ impl<'a> Tokenizer<'a> {
         let current_col_save = self.current_pos.clone();
         if self.iter.peek() == Some(&'.') {
             self.next();
-            let post_dot_digit = self.consume_while(|ch| ch.is_digit(10));
+            let post_dot_digit = self.consume_while(|ch| ch.is_ascii_digit());
             if post_dot_digit.is_empty() {
                 self.iter = iter_save;
                 self.current_pos = current_col_save;
@@ -263,8 +263,8 @@ impl<'a> Tokenizer<'a> {
             lexeme = String::from("\\n");
         }
         self.tokens.push(Token {
-            kind: kind,
-            lexeme: lexeme,
+            kind,
+            lexeme,
             line: self.prev_pos.line,
             col: self.prev_pos.col,
         });
@@ -284,7 +284,7 @@ impl<'a> Tokenizer<'a> {
             self.current_pos.idx += ch.len_utf8();
             return Some(ch);
         }
-        return None;
+        None
     }
 }
 
@@ -296,11 +296,8 @@ mod tests {
         tokens.into_iter().map(|token| token.kind).collect()
     }
 
-    fn extract_lexemes<'a>(tokens: &'a Vec<Token>) -> Vec<&'a str> {
-        tokens
-            .into_iter()
-            .map(|token| token.lexeme.as_str())
-            .collect()
+    fn extract_lexemes(tokens: &[Token]) -> Vec<&str> {
+        tokens.iter().map(|token| token.lexeme.as_str()).collect()
     }
 
     fn extract_token_positions(tokens: Vec<Token>) -> Vec<(usize, usize)> {
@@ -336,16 +333,10 @@ mod tests {
             ("12", TokenKind::Number(Complex64::new(12.0, 0.0))),
             ("12.5", TokenKind::Number(Complex64::new(12.5, 0.0))),
             ("0.5", TokenKind::Number(Complex64::new(0.5, 0.0))),
-            ("1e6", TokenKind::Number(Complex64::new(1e6 as f64, 0.0))),
-            ("1e-6", TokenKind::Number(Complex64::new(1e-6 as f64, 0.0))),
-            (
-                "2.5e6",
-                TokenKind::Number(Complex64::new(2.5e6 as f64, 0.0)),
-            ),
-            (
-                "2.5e-6",
-                TokenKind::Number(Complex64::new(2.5e-6 as f64, 0.0)),
-            ),
+            ("1e6", TokenKind::Number(Complex64::new(1e6_f64, 0.0))),
+            ("1e-6", TokenKind::Number(Complex64::new(1e-6_f64, 0.0))),
+            ("2.5e6", TokenKind::Number(Complex64::new(2.5e6_f64, 0.0))),
+            ("2.5e-6", TokenKind::Number(Complex64::new(2.5e-6_f64, 0.0))),
             ("delete", TokenKind::Delete),
             ("cross", TokenKind::Cross),
             ("×", TokenKind::Cross),
@@ -681,7 +672,7 @@ mod tests {
                 Tokenizer::tokenize(input, 4).unwrap_err(),
                 TokenizerError::BadChar {
                     line: 1,
-                    col: col,
+                    col,
                     char: bad_char
                 }
             );

@@ -70,14 +70,8 @@ impl ToTokens for ValueConstraint {
 impl ValueConstraint {
     pub fn does_value_fit(&self, value: &Value) -> bool {
         match self {
-            ValueConstraint::Function => match value {
-                Value::Function(_) => true,
-                _ => false,
-            },
-            ValueConstraint::Number => match value {
-                Value::Number(_) => true,
-                _ => false,
-            },
+            ValueConstraint::Function => matches!(value, Value::Function(_)),
+            ValueConstraint::Number => matches!(value, Value::Number(_)),
             ValueConstraint::Real => match value {
                 Value::Number(num) => num.im == 0.0,
                 _ => false,
@@ -94,10 +88,7 @@ impl ValueConstraint {
                 Value::Number(num) => num.im == 0.0 && num.re.fract() == 0.0 && num.re > 0.0,
                 _ => false,
             },
-            ValueConstraint::Matrix => match value {
-                Value::Matrix(_) => true,
-                _ => false,
-            },
+            ValueConstraint::Matrix => matches!(value, Value::Matrix(_)),
             ValueConstraint::SquareMatrix => match value {
                 Value::Matrix(matrix) => matrix.rows() == matrix.cols(),
                 _ => false,

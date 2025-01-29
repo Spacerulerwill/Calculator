@@ -1,5 +1,5 @@
 use common::{
-    expr::{EvaluationError, NoInverseForMatrix},
+    expr::error::{EvaluationError, NoInverseForMatrix},
     num::integer::{gcd as _gcd, lcm as _lcm},
     num_complex::Complex64,
     variable::{
@@ -12,7 +12,7 @@ use std::f64::consts::{E, PI, TAU};
 
 const C: f64 = 299792458_f64;
 const G: f64 = 9.80665_f64;
-const PHI: f64 = 1.618033988749894848204586834365638118_f64;
+const PHI: f64 = 1.618_033_988_749_895_f64;
 
 // trigonometry
 define_calculator_native_function!(sin, (val: number), Ok(Value::Number(val.sin())));
@@ -40,7 +40,7 @@ define_calculator_native_function!(inverse, (matrix: square_matrix), {
     if let Some(_inverse) = matrix.inverse() {
         Ok(Value::Matrix(_inverse))
     } else {
-        Err(EvaluationError::NoInverseForMatrix(Box::new(NoInverseForMatrix { line: line, col: col })))
+        Err(EvaluationError::NoInverseForMatrix(Box::new(NoInverseForMatrix { line, col })))
     }
 });
 

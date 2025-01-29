@@ -23,7 +23,7 @@ impl fmt::Display for Value<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Function(func) => write!(f, "{}", func.borrow()),
-            Value::Number(num) => write!(f, "{}", complex_to_string(&num)),
+            Value::Number(num) => write!(f, "{}", complex_to_string(num)),
             Value::Measurement(measurement) => write!(f, "{measurement}"),
             Value::Matrix(matrix) => write!(f, "{matrix}"),
         }
@@ -66,7 +66,7 @@ pub fn complex_to_string(num: &Complex64) -> String {
 
     if has_real && has_imaginary {
         if num.im == 1.0 {
-            return format!("{} + i", num.re);
+            format!("{} + i", num.re)
         } else if num.im == -1.0 {
             return format!("{} - i", num.re);
         } else if num.im < 0.0 {

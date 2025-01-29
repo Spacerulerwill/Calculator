@@ -2,11 +2,14 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     expr::{
-        ConstantAssignment, ConstantDeletion, EvaluationError, Expr, InvalidCallable,
-        NativeFunctionCantAddSignature, NativeFunctionCantDeleteSignature, UnknownVariable,
-        UserDefinedFunctionNoMatchingSignature,
+        error::{
+            ConstantAssignment, ConstantDeletion, EvaluationError, InvalidCallable,
+            NativeFunctionCantAddSignature, NativeFunctionCantDeleteSignature, UnknownVariable,
+            UserDefinedFunctionNoMatchingSignature,
+        },
+        Expr,
     },
-    tokenizer::Token,
+    tokenizer::token::Token,
     variable::{
         value::{
             function::{Function, Signature, UserDefinedFunction},
@@ -50,14 +53,14 @@ impl Statement {
                 if let Some(variable) = variables.get(&name.lexeme) {
                     if variable.constant {
                         return Err(EvaluationError::ConstantDeletion(Box::new(
-                            ConstantDeletion { name: name },
+                            ConstantDeletion { name },
                         )));
                     } else {
                         variables.remove(&name.lexeme);
                     }
                 } else {
                     return Err(EvaluationError::UnknownVariable(Box::new(
-                        UnknownVariable { name: name },
+                        UnknownVariable { name },
                     )));
                 }
                 Ok(())
@@ -68,15 +71,15 @@ impl Statement {
                 if let Some(variable) = variable_option {
                     if variable.constant {
                         return Err(EvaluationError::ConstantDeletion(Box::new(
-                            ConstantDeletion { name: name },
+                            ConstantDeletion { name },
                         )));
                     }
                     if let Value::Function(func) = &variable.value {
                         let mut func = func.borrow_mut();
                         match &mut *func {
                             Function::NativeFunction(_) => {
-                                return Err(EvaluationError::NativeFunctionCantDeleteSignature(
-                                    Box::new(NativeFunctionCantDeleteSignature { name: name }),
+                                Err(EvaluationError::NativeFunctionCantDeleteSignature(
+                                    Box::new(NativeFunctionCantDeleteSignature { name }),
                                 ))
                             }
                             Function::UserDefinedFunction(func) => {
@@ -102,22 +105,22 @@ impl Statement {
                                 if func.signatures.is_empty() {
                                     variables.remove(&name.lexeme);
                                 }
-                                return Ok(());
+                                Ok(())
                             }
                         }
                     } else {
                         // Not a function, cannot delete signature
-                        return Err(EvaluationError::InvalidCallable(Box::new(
+                        Err(EvaluationError::InvalidCallable(Box::new(
                             InvalidCallable {
                                 line: name.line,
                                 col: name.col,
                             },
-                        )));
+                        )))
                     }
                 } else {
-                    return Err(EvaluationError::UnknownVariable(Box::new(
-                        UnknownVariable { name: name },
-                    )));
+                    Err(EvaluationError::UnknownVariable(Box::new(
+                        UnknownVariable { name },
+                    )))
                 }
             }
             Statement::Assignment { identifier, expr } => {
@@ -140,7 +143,7 @@ impl Statement {
                 if let Some(variable) = variables.get(&name.lexeme).cloned() {
                     if variable.constant {
                         return Err(EvaluationError::ConstantAssignment(Box::new(
-                            ConstantAssignment { name: name },
+                            ConstantAssignment { name },
                         )));
                     }
                     if let Value::Function(func) = variable.value.clone() {
@@ -158,7 +161,7 @@ impl Statement {
                             }
                             Function::NativeFunction(_) => {
                                 return Err(EvaluationError::NativeFunctionCantAddSignature(
-                                    Box::new(NativeFunctionCantAddSignature { name: name }),
+                                    Box::new(NativeFunctionCantAddSignature { name }),
                                 ))
                             }
                         }
